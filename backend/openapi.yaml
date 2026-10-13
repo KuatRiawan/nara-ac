@@ -1,0 +1,40 @@
+openapi: 3.0.0
+info:
+  title: Nara AC API
+  version: 1.0.0
+  description: API Documentation for Nara AC Services
+servers:
+  - url: /api/v1
+paths:
+  /auth/login:
+    post:
+      summary: Login to the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+  /health:
+    get:
+      summary: Health check endpoint
+      responses:
+        '200':
+          description: OK

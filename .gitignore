@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment & Secrets (Never commit secrets)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Database data & SQLite
+.pgdata/
+*.sqlite
+*.sqlite3
+*.db
+
+# Python & Virtual Environments
+.venv/
+.venv-*/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+pip-install.log
+
+# Build Outputs & Bundles
+dist/
+build/
+*.egg-info/
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Temporary, Logs & OS Files
+scratch/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE & Editor Configurations
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# AI / Runtime Artifacts
+ai-service/chroma_db/
+ai-service/models/*.joblib
+
+# Uploaded Media (Preserve directory via .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Agent / Tooling State
+.agents

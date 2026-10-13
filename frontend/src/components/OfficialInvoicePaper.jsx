@@ -1,0 +1,405 @@
+import { useState, useEffect, useMemo } from 'react';
+import api from '../api';
+import { cn } from '../lib/utils';
+
+export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentSettings }) {
+  // Safe extraction of fields from either public booking or admin booking
+  const b = booking || {};
+
+  // Bank account payment information
+  const [internalPaymentSettings, setInternalPaymentSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nara_payment_accounts');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Fallback silently if localStorage is restricted or corrupted
+    }
+    return {
+      accounts: [
+        { id: '1', bank_name: 'BCA', account_number: '8720-9182-33', account_holder: 'CV NARA TEKNINDOTAMA' },
+        { id: '2', bank_name: 'Mandiri', account_number: '137-00-9821-4451', account_holder: 'CV NARA TEKNINDOTAMA' },
+      ],
+      instruction_note: '*Tersedia juga opsi pembayaran tunai / QRIS langsung kepada teknisi setelah pekerjaan selesai di lokasi.'
+    };
+  });
+
+  useEffect(() => {
+    if (paymentSettings) {
+      setInternalPaymentSettings(paymentSettings);
+      return;
+    }
+    let isMounted = true;
+    api.get('/settings/payment-accounts')
+      .then(res => {
+        const data = (res && Array.isArray(res.accounts)) ? res : (res?.data?.accounts ? res.data : (res?.data?.data?.accounts ? res.data.data : null));
+        if (isMounted && data && Array.isArray(data.accounts)) {
+          setInternalPaymentSettings(data);
+          try {
+            localStorage.setItem('nara_payment_accounts', JSON.stringify(data));
+          } catch {
+            // Silently skip caching if storage quota is exceeded
+          }
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [paymentSettings]);
+
+  const activePayment = paymentSettings || internalPaymentSettings;
+  
+  const kodeBooking = b.kode_booking || (b.id ? `AC-${b.id}` : 'AC-0000');
+  const invNumber = b.invNo || `INV/NARA/${new Date().getFullYear()}/${kodeBooking}`;
+  
+  const customerNama = b.customer_nama || b.customer?.nama || b.nama_customer || 'Pelanggan NARA AC';
+  const customerKontak = b.kontak || b.customer?.kontak || '-';
+  const customerAlamat = b.alamat || b.customer?.alamat || '-';
+  const keluhan = b.keluhan || '';
+
+  const jadwalMulai = b.jadwal_mulai;
+  const teknisiNama = b.teknisi_lengkap || b.teknisi?.nama || b.teknisi || 'Teknisi Berlisensi NARA AC';
+
+  const namaLayanan = b.layanan?.nama || b.layanan?.nama_layanan || b.layanan || b.nama_layanan || 'Cuci AC Standard';
+  const basePrice = Number(b.harga || b.layanan?.harga || b.basePrice || 75000);
+  const units = Number(b.jumlah_unit || b.unit || 1);
+  const subtotal = basePrice * units;
+
+  // Multi-unit discount calculation: 5% for 2 units, 10% for 3+ units
+  const discount = useMemo(() => {
+    if (b.discount !== undefined) return Number(b.discount);
+    if (units === 2) return Math.round(subtotal * 0.05);
+    if (units >= 3) return Math.round(subtotal * 0.1);
+    return 0;
+  }, [units, subtotal, b.discount]);
+
+  const total = b.total !== undefined ? Number(b.total) : (subtotal - discount);
+
+  // Warranty duration text
+  const warrantyText = useMemo(() => {
+    if (b.garansi) return b.garansi;
+    const sName = namaLayanan.toLowerCase();
+    if (sName.includes('freon') && sName.includes('core')) {
+      return '45 Hari Penuh Garansi Dingin';
+    } else if (sName.includes('core')) {
+      return '30 Hari Penuh Garansi Pengerjaan';
+    } else if (sName.includes('bongkar')) {
+      return '30 Hari Kalender Garansi Instalasi';
+    }
+    return '14 Hari Kalender Garansi Pengerjaan';
+  }, [namaLayanan, b.garansi]);
+
+  // Is Paid status
+  const isPaid = isPaidOverride !== undefined 
+    ? Boolean(isPaidOverride) 
+    : (b.isPaid !== undefined ? Boolean(b.isPaid) : b.status === 'done');
+
+  // Format date helper
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '-';
+    }
+  };
+
+  const todayStr = new Date().toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  return (
+    <div 
+      id="printable-invoice" 
+      className="p-6 sm:p-8 overflow-y-auto bg-white text-slate-900 font-sans print:p-0 print:m-0 print:overflow-visible print:w-full print:border-none print:shadow-none"
+    >
+      {/* ============================================================== */}
+      {/* 1. KOP SURAT RESMI CV. NARA TEKNINDOTAMA                       */}
+      {/* ============================================================== */}
+      <div className="pb-3 border-b-2 border-slate-950">
+        <div className="flex flex-row items-center justify-between gap-4">
+          
+          {/* Left: Official Logo & Legal Information */}
+          <div className="flex items-center gap-3.5">
+            <img
+              src="/images/logo.png"
+              alt="Logo Resmi CV. Nara Teknindotama"
+              className="h-16 w-auto object-contain shrink-0"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 
+                  className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-none"
+                  style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}
+                >
+                  CV. NARA TEKNINDOTAMA
+                </h2>
+                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9px] font-black uppercase tracking-wider border border-blue-200">
+                  24 HOUR SERVICE
+                </span>
+              </div>
+              <p className="text-[11px] font-bold text-blue-700 tracking-wider uppercase mt-1">
+                Layanan Spesialis Perawatan & Reparasi Pendingin Udara (AC)
+              </p>
+              <p className="text-[10px] text-slate-600 leading-snug mt-1">
+                <strong>Alamat:</strong> Jalan Teluk Langsa RT. 002 RW. 016, Ciangsana, Gunung Putri, Kab. Bogor, Jawa Barat<br />
+                <strong>Kontak:</strong> WhatsApp: 0813-8529-3137 | Email: narateknindotama@gmail.com | Web: www.narateknindotama.com<br />
+                <strong>Legalitas:</strong> NIB: 2805250066735 | NPWP: 10.000.000.0-258.288 | AHU-0045403-AH.01.14 Tahun 2025
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Invoice Tag & Metadata */}
+          <div className="text-right shrink-0">
+            <div className="inline-block px-3 py-1.5 rounded-lg bg-slate-900 text-white text-right">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 block">
+                INVOICE & SPK RESMI
+              </span>
+              <span className="text-xs font-mono font-bold tracking-wider">
+                {invNumber}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-1.5 font-medium">
+              Terbit: {todayStr}
+            </p>
+            <span className={cn(
+              "inline-block mt-1 px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border",
+              isPaid 
+                ? "bg-emerald-50 text-emerald-800 border-emerald-300" 
+                : "bg-sky-50 text-blue-800 border-blue-300"
+            )}>
+              {isPaid ? '✓ LUNAS (PAID)' : 'TAGIHAN TERJADWAL'}
+            </span>
+          </div>
+        </div>
+
+        {/* Standard Official Double Line */}
+        <div className="mt-2.5 border-b-2 border-slate-950" />
+        <div className="mt-0.5 border-b border-slate-700" />
+      </div>
+
+      {/* ============================================================== */}
+      {/* 2. INFORMASI PELANGGAN & JADWAL TEKNISI                        */}
+      {/* ============================================================== */}
+      <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs">
+        {/* Left: Ditujukan Kepada */}
+        <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            DITUJUKAN KEPADA (PELANGGAN):
+          </span>
+          <p className="font-black text-slate-950 text-sm">
+            {customerNama}
+          </p>
+          <p className="text-slate-600 mt-0.5 font-mono text-[11px]">
+            WhatsApp / Kontak: {customerKontak}
+          </p>
+          <p className="text-slate-700 mt-1 leading-snug">
+            <strong>Alamat Servis:</strong> {customerAlamat}
+          </p>
+          {keluhan && (
+            <p className="text-slate-500 mt-1 text-[11px] italic">
+              Keluhan Awal: &ldquo;{keluhan}&rdquo;
+            </p>
+          )}
+        </div>
+
+        {/* Right: Rincian Jadwal & Teknisi */}
+        <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-right">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            RINCIAN JADWAL & TEKNISI BERTUGAS:
+          </span>
+          <p className="text-slate-800 text-[11px]">
+            Hari, Tanggal: <strong>{jadwalMulai ? formatDate(jadwalMulai) : todayStr}</strong>
+          </p>
+          <p className="text-slate-800 mt-0.5 text-[11px]">
+            Waktu Kunjungan: <strong>Pukul {jadwalMulai ? formatTime(jadwalMulai) : '09:00'} WIB</strong>
+          </p>
+          <p className="text-slate-800 mt-0.5 text-[11px]">
+            Teknisi Penanggung Jawab: <strong>{teknisiNama}</strong>
+          </p>
+          <p className="text-blue-700 mt-1 text-[10px] font-bold">
+            Standar SOP 7 Langkah Pembersihan & Keselamatan Kerja
+          </p>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 3. TABEL ITEM LAYANAN SERVIS & MULTI-UNIT                      */}
+      {/* ============================================================== */}
+      <div className="py-3.5 border-b border-slate-200">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b-2 border-slate-800 bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+              <th className="py-2 px-2 text-center w-10">No</th>
+              <th className="py-2 px-2">Deskripsi Layanan Servis</th>
+              <th className="py-2 px-2 text-center w-16">Unit</th>
+              <th className="py-2 px-2 text-right w-28">Tarif Satuan</th>
+              <th className="py-2 px-2 text-right w-32">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            <tr>
+              <td className="py-2.5 px-2 text-center font-mono font-bold">1</td>
+              <td className="py-2.5 px-2">
+                <p className="font-bold text-slate-900 text-xs">{namaLayanan}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Pembersihan evaporator, kondensor, blower indoor, drainase air, pengecekan kelistrikan & tekanan freon (SOP 7 Langkah NARA AC)
+                </p>
+              </td>
+              <td className="py-2.5 px-2 text-center font-bold font-mono">{units}</td>
+              <td className="py-2.5 px-2 text-right font-mono">Rp {basePrice.toLocaleString('id-ID')}</td>
+              <td className="py-2.5 px-2 text-right font-bold font-mono text-slate-950">
+                Rp {subtotal.toLocaleString('id-ID')}
+              </td>
+            </tr>
+
+            {discount > 0 && (
+              <tr className="bg-emerald-50 text-emerald-900 font-medium">
+                <td className="py-2 px-2 text-center font-mono">2</td>
+                <td className="py-2 px-2">
+                  Diskon Spesial Paket Multi-Unit ({units === 2 ? '5%' : '10%'})
+                </td>
+                <td className="py-2 px-2 text-center">-</td>
+                <td className="py-2 px-2 text-right font-mono">-</td>
+                <td className="py-2 px-2 text-right font-bold font-mono text-emerald-700">
+                  -Rp {discount.toLocaleString('id-ID')}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 4. TOTALS & INSTRUKSI PEMBAYARAN RESMI                        */}
+      {/* ============================================================== */}
+      <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs avoid-page-break">
+        {/* Left: Instruksi Pembayaran Rekening Perusahaan */}
+        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <span className="font-bold text-slate-900 text-[11px] block mb-1">
+            Instruksi Pembayaran Resmi CV. Nara Teknindotama:
+          </span>
+          <p className="text-slate-600 text-[10px] mb-2 leading-tight">
+            Pembayaran non-tunai sah hanya ditujukan ke rekening perusahaan resmi:
+          </p>
+          <div className="space-y-1 font-mono text-[11px] bg-white p-2 rounded-lg border border-slate-200">
+            {activePayment?.accounts && activePayment.accounts.length > 0 ? (
+              activePayment.accounts.map((acc, idx) => (
+                <div key={acc.id || idx} className="flex justify-between items-center gap-2">
+                  <span><strong>Bank {acc.bank_name}:</strong> {acc.account_number}</span>
+                  <span className="text-[10px] text-slate-500 whitespace-nowrap">a.n {acc.account_holder}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex justify-between items-center">
+                <span><strong>Bank BCA:</strong> 8720-9182-33</span>
+                <span className="text-[10px] text-slate-500">a.n CV NARA TEKNINDOTAMA</span>
+              </div>
+            )}
+          </div>
+          {activePayment?.instruction_note ? (
+            <p className="text-[10px] text-slate-500 mt-1.5 italic leading-tight">
+              {activePayment.instruction_note}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Right: Perhitungan Total */}
+        <div className="space-y-1.5 text-right self-center pr-2">
+          <div className="flex justify-between text-slate-600 text-xs">
+            <span>Subtotal Jasa Servis:</span>
+            <span className="font-mono">Rp {subtotal.toLocaleString('id-ID')}</span>
+          </div>
+
+          {discount > 0 && (
+            <div className="flex justify-between text-emerald-700 text-xs">
+              <span>Potongan Multi-Unit:</span>
+              <span className="font-mono font-bold">-Rp {discount.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+
+          <div className="pt-2 border-t-2 border-slate-900 flex justify-between items-baseline text-slate-950">
+            <span className="font-black text-xs uppercase tracking-wider">TOTAL TAGIHAN:</span>
+            <span className="text-xl font-black text-blue-700 font-mono">
+              Rp {total.toLocaleString('id-ID')}
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400">
+            Harga sudah termasuk biaya operasional & alat SOP teknisi.
+          </p>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 5. GARANSI STRIP & PENGESAHAN DOKUMEN                         */}
+      {/* ============================================================== */}
+      <div className="pt-3.5 grid grid-cols-2 gap-6 text-xs avoid-page-break">
+        {/* Left: Garansi & Tanda Terima Pelanggan */}
+        <div>
+          <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 mb-3">
+            <span className="font-bold text-sky-900 text-[11px] block mb-0.5">
+              Jaminan Garansi Resmi NARA AC:
+            </span>
+            <p className="text-sky-800 text-[10px] leading-relaxed">
+              Layanan ini dilindungi garansi <strong>{warrantyText}</strong>. Jika terjadi kendala dingin atau bocor pasca-servis, klaim mudah via WhatsApp <strong>0813-8529-3137</strong> dengan melampirkan nomor tiket <strong>{kodeBooking}</strong>.
+            </p>
+          </div>
+
+          <div className="text-center w-48">
+            <p className="text-[11px] text-slate-600 mb-8">Tanda Terima Pelanggan,</p>
+            <div className="border-b border-slate-400 w-full pb-1 text-[11px] font-bold text-slate-800">
+              ( {customerNama || 'Pelanggan'} )
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Pengesahan CV. NARA TEKNINDOTAMA */}
+        <div className="text-right flex flex-col items-end">
+          <p className="text-[11px] text-slate-600 mb-0.5">
+            Kab. Bogor, {todayStr}
+          </p>
+          <p className="text-xs font-black text-slate-900 mb-1.5">
+            CV. NARA TEKNINDOTAMA
+          </p>
+          
+          {/* Stempel & QR Verifikasi Box */}
+          <div className="flex items-center gap-2 mb-2 p-1.5 rounded-lg border border-blue-200 bg-blue-50/50">
+            <div className="w-9 h-9 rounded bg-white border border-blue-300 flex items-center justify-center text-[8px] font-mono text-blue-700 font-bold">
+              QR-OK
+            </div>
+            <div className="text-left text-[9px] text-blue-900 leading-tight">
+              <p className="font-bold">VERIFIKASI DIGITAL</p>
+              <p className="text-[8px] text-slate-500 font-mono">{kodeBooking} • NARA-AUTH</p>
+            </div>
+          </div>
+
+          <div className="border-b border-slate-900 w-44 text-center font-bold text-slate-900 pb-1 text-[11px]">
+            ( Administrasi & Operasional )
+          </div>
+          <span className="text-[9px] text-slate-400 uppercase mt-0.5">
+            Dokumen Elektronik Resmi & Sah
+          </span>
+        </div>
+      </div>
+
+    </div>
+  );
+}
