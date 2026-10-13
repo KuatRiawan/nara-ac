@@ -17,11 +17,11 @@ export function AuthProvider({ children }) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('nara_token');
-    const storedUser = localStorage.getItem('nara_user');
-
-    if (storedToken && storedUser) {
-      setToken(storedToken);
+    // With HttpOnly cookies, we cannot read the token from JS
+    // We rely on the backend setting HttpOnly cookies and axios sending them
+    // Check if we have user data in sessionStorage (for session persistence)
+    const storedUser = sessionStorage.getItem('nara_user');
+    if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
@@ -50,9 +50,8 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('nara_token', res.token);
-    localStorage.setItem('nara_user', JSON.stringify(res.user));
-    setToken(res.token);
+    // Token is stored in HttpOnly cookie by backend, not in localStorage
+    sessionStorage.setItem('nara_user', JSON.stringify(res.user));
     setUser(res.user);
     // Fetch CSRF token after login
     await fetchCsrfToken();
@@ -86,9 +85,8 @@ export function AuthProvider({ children }) {
         // Jika logout endpoint gagal, tetap lanjut dengan logout lokal
         console.warn('Logout endpoint gagal, melanjutkan logout lokal:', err);
       }
-      // Hapus token dan user dari localStorage
-      localStorage.removeItem('nara_token');
-      localStorage.removeItem('nara_user');
+      // Hapus user dari sessionStorage
+      sessionStorage.removeItem('nara_user');
       setToken(null);
       setUser(null);
       setCsrfToken(null);
@@ -105,8 +103,7 @@ export function AuthProvider({ children }) {
    * Biasanya digunakan setelah token expired
    */
   const forceLogout = useCallback(() => {
-    localStorage.removeItem('nara_token');
-    localStorage.removeItem('nara_user');
+    sessionStorage.removeItem('nara_user');
     setToken(null);
     setUser(null);
     setShowLogoutConfirm(false);
@@ -121,7 +118,7 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((updatedData) => {
     setUser(prev => {
       const next = { ...prev, ...updatedData };
-      localStorage.setItem('nara_user', JSON.stringify(next));
+      sessionStorage.setItem('nara_user', JSON.stringify(next));
       return next;
     });
   }, []);

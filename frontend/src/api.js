@@ -3,28 +3,13 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1',
   timeout: 10000,
-  withCredentials: true, // Enable credentials for cookies
+  withCredentials: true, // Enable credentials for cookies (HttpOnly)
 });
 
-// Helper function to get token from cookies
-function getTokenFromCookie() {
-  // Check cookies directly
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; nara_token=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
-}
-
 api.interceptors.request.use((config) => {
-  // Try to get token from cookies first, then localStorage for backward compatibility
-  let token = getTokenFromCookie();
-  if (!token) {
-    token = localStorage.getItem('nara_token');
-  }
-  
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // With HttpOnly cookies, we cannot read the token from JS
+  // Axios withCredentials: true will automatically send the HttpOnly cookie
+  // No need to manually set Authorization header
   
   // Anti-cache untuk semua request GET
   if (config.method === 'get') {
@@ -44,10 +29,9 @@ api.interceptors.response.use(
     }
     if (error.response) {
       if (error.response.status === 401) {
-        // Clear both cookie and localStorage for backward compatibility
+        // Clear cookie by calling logout endpoint or manually
         document.cookie = 'nara_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        localStorage.removeItem('nara_token');
-        localStorage.removeItem('nara_user');
+        sessionStorage.removeItem('nara_user');
         window.dispatchEvent(new Event('auth-expired'));
       }
       return Promise.reject(error.response.data);
@@ -65,14 +49,8 @@ export function apiWithCsrf(csrfToken) {
   });
 
   apiCsrf.interceptors.request.use((config) => {
-    let token = getTokenFromCookie();
-    if (!token) {
-      token = localStorage.getItem('nara_token');
-    }
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // With HttpOnly cookies, we rely on withCredentials: true
+    // No need to manually set Authorization header
     
     // Add CSRF token for state-changing requests
     const stateChangingMethods = ['post', 'put', 'patch', 'delete'];
@@ -98,8 +76,7 @@ export function apiWithCsrf(csrfToken) {
       if (error.response) {
         if (error.response.status === 401) {
           document.cookie = 'nara_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-          localStorage.removeItem('nara_token');
-          localStorage.removeItem('nara_user');
+          sessionStorage.removeItem('nara_user');
           window.dispatchEvent(new Event('auth-expired'));
         }
         return Promise.reject(error.response.data);

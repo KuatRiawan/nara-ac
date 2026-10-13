@@ -6,9 +6,13 @@ async function call(path, { method = 'POST', body, timeoutMs = config.aiTimeoutM
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res;
   try {
+    const headers = { 'content-type': 'application/json' };
+    if (config.aiApiKey) {
+      headers['X-AI-API-Key'] = config.aiApiKey;
+    }
     res = await fetch(`${config.aiServiceUrl}${path}`, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: ctrl.signal,
     });

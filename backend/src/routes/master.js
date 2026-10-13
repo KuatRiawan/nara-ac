@@ -168,13 +168,13 @@ router.patch('/inventory/:id', requireAuth(['admin']), validate(idParam, 'params
 const svcCreate = Joi.object({
   kode: Joi.string().trim().pattern(/^[a-zA-Z0-9-]{2,40}$/).required().label('Kode'),
   nama_layanan: Joi.string().trim().min(3).max(100).required().label('Nama layanan'),
-  kategori: Joi.string().valid('cuci', 'perbaikan', 'instalasi', 'lainnya', 'Cleaning', 'Deep Clean', 'Freon', 'Freon & Clean', 'Repair', 'Instalasi', 'Lainnya').required().label('Kategori'),
+  kategori: Joi.string().valid('cuci', 'perbaikan', 'instalasi', 'lainnya').required().label('Kategori'),
   deskripsi: Joi.string().trim().min(10).max(500).required().label('Deskripsi'),
   harga: Joi.number().integer().min(0).max(100000000).required().label('Harga'),
   durasi_menit: Joi.number().integer().min(15).max(480).required().label('Durasi'),
 });
 const svcPatch = Joi.object({
-  nama_layanan: Joi.string().trim().min(3).max(100), kategori: Joi.string().valid('cuci', 'perbaikan', 'instalasi', 'lainnya', 'Cleaning', 'Deep Clean', 'Freon', 'Freon & Clean', 'Repair', 'Instalasi', 'Lainnya'),
+  nama_layanan: Joi.string().trim().min(3).max(100), kategori: Joi.string().valid('cuci', 'perbaikan', 'instalasi', 'lainnya'),
   deskripsi: Joi.string().trim().min(10).max(500), harga: Joi.number().integer().min(0).max(100000000),
   durasi_menit: Joi.number().integer().min(15).max(480), aktif: Joi.boolean(),
 }).min(1).messages({ 'object.min': 'Minimal satu field harus diubah.' });

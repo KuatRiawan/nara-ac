@@ -15,6 +15,9 @@ function errorHandler(err, req, res, _next) {
   if (err && err.code === 'ECONNREFUSED' && /5432|5433/.test(String(err.message))) {
     return res.status(503).json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Database tidak dapat dihubungi. Coba lagi beberapa saat.' } });
   }
+  if (err && err.code === '23514') {
+    return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: err.detail || 'Nilai yang dimasukkan tidak valid untuk field ini.' } });
+  }
 
   // Structured error logging (BE-050)
   if (err && err !== 'pipe') {

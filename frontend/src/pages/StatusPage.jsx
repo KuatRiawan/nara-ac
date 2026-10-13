@@ -70,9 +70,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
       const res = await api.get(`/public/bookings/${encodeURIComponent(searchKode.trim().toUpperCase())}`);
       const data = res.data || res;
       setBooking(data);
-      if (data.kontak) {
-        setVerifyKontak(data.kontak);
-      }
+      setVerifyKontak('');
     } catch (err) {
       setError(err?.response?.data?.error?.message || err?.error?.message || err?.message || 'Kode booking tidak ditemukan. Pastikan kode tiket sudah benar (contoh: AC-XXXX).');
     } finally {

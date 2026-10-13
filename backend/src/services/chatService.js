@@ -14,14 +14,48 @@ const FALLBACK_HELP = {
   saran: ['Berapa harga cuci AC?', 'Saya mau booking servis', 'Cek status AC-1234', 'AC saya tidak dingin'],
 };
 
-// Conversation state management
+// Conversation state management with TTL and size limit
 const conversationStates = new Map();
+const CONVERSATION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_CONVERSATIONS = 1000;
+
+/**
+ * Cleanup expired conversation states
+ */
+function cleanupConversationStates() {
+  const now = Date.now();
+  for (const [userId, state] of conversationStates.entries()) {
+    if (now - state.lastUpdated > CONVERSATION_TTL_MS) {
+      conversationStates.delete(userId);
+    }
+  }
+  // Also limit total number of conversations
+  while (conversationStates.size > MAX_CONVERSATIONS) {
+    // Delete the oldest one
+    let oldestUserId = null;
+    let oldestTime = Infinity;
+    for (const [userId, state] of conversationStates.entries()) {
+      if (state.lastUpdated < oldestTime) {
+        oldestTime = state.lastUpdated;
+        oldestUserId = userId;
+      }
+    }
+    if (oldestUserId) {
+      conversationStates.delete(oldestUserId);
+    }
+  }
+}
 
 /**
  * Get or create conversation state for a user
  * State contains: current context, collected entities, conversation history
  */
 function getConversationState(userId) {
+  // Periodic cleanup (every 100 calls)
+  if (Math.random() < 0.01) {
+    cleanupConversationStates();
+  }
+  
   if (!conversationStates.has(userId)) {
     conversationStates.set(userId, {
       id: userId,
@@ -245,7 +279,7 @@ function unavailableWithFallback(e) {
 }
 
 /** Orkestrasi chatbot: intent (model tim) → routing dengan context management. */
-async function handleChat(message, userId = null) {
+async function handleChat(message, userId = null, userRole = null) {
   const t0 = Date.now();
   
   // Get conversation state if userId is provided
@@ -328,6 +362,7 @@ async function handleChat(message, userId = null) {
       entities, 
       state, 
       userId,
+      userRole,
       intent,
       confidence,
       threshold
@@ -982,7 +1017,12 @@ async function handleFeedback(message, context) {
 }
 
 async function handleAdminQuery(message, context) {
-  // Only provide admin info if the user is an admin (this would be checked by the route in production)
+  // Check if user has admin role
+  const userRole = context.userRole;
+  if (userRole !== 'admin') {
+    throw E.forbidden('Anda tidak memiliki hak akses untuk informasi ini.');
+  }
+  
   const today = new Date().toISOString().split('T')[0];
   const totalToday = (await query(`SELECT COUNT(*) as n FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < ($1::date + '1 day'::interval)`, [today])).rows[0].n;
   const totalPending = (await query("SELECT COUNT(*) as n FROM bookings WHERE status = 'scheduled' AND jadwal_mulai >= now()")).rows[0].n;
@@ -995,6 +1035,12 @@ async function handleAdminQuery(message, context) {
 }
 
 async function handleTechQuery(message, context) {
+  // Check if user has technician role
+  const userRole = context.userRole;
+  if (userRole !== 'technician' && userRole !== 'admin') {
+    throw E.forbidden('Anda tidak memiliki hak akses untuk informasi ini.');
+  }
+  
   return {
     jawaban: 'Panduan Teknisi: Untuk pengisian freon, pastikan dulu jenis freonnya (R32, R410a, atau R22). Standar tekanan R32 adalah 140-160 psi saat kompresor menyala. Jangan lupa vakum sistem sebelum isi freon kalau dari kosong. Untuk SOP lengkap, lihat di Dashboard.',
     fallback: false

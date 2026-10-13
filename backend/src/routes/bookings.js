@@ -86,6 +86,13 @@ router.patch('/public/bookings/:kode/cancel', publicLimiter, validate(Joi.object
   res.json(await svc.cancelBooking(booking.id, { label: 'customer' }, req.body.alasan || 'Dibatalkan oleh pelanggan'));
 }));
 
+router.get('/public/bookings/:kode/invoice', publicLimiter, validate(Joi.object({
+  kode: Joi.string().pattern(/^(AC-[A-Za-z0-9]{4}|BK-[A-Za-z0-9-]+)$/i).required().label('Kode Booking'),
+}), 'params'), wrap(async (req, res) => {
+  const booking = await svc.publicStatusByCode(req.params.kode);
+  res.json(await svc.calculateInvoice(booking));
+}));
+
 router.post('/bookings/:id/feedback', publicLimiter, validate(idParam, 'params'), validate(Joi.object({
   kode_booking: Joi.string().trim().required().label('Kode booking'),
   kontak: Joi.string().pattern(/^\d{6,20}$/).required().label('6-20 digit kontak'),

@@ -4,6 +4,10 @@ const { pool } = require('./pool');
 
 async function migrate({ reset = false } = {}) {
   if (reset) {
+    // Warning: This is destructive and should only be used in development
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Menolak --reset di production. Gunakan migrasi terkontrol.');
+    }
     await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
   }
   await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (

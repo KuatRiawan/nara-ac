@@ -9,7 +9,7 @@ async function seedDummyData() {
     console.log('🚀 Mulai membuat data dummy NARA AC...');
 
     // 1. Password hash untuk akun demo
-    const passwordHash = await bcrypt.hash(config.demoPassword || 'Admin123', 10);
+    const passwordHash = await bcrypt.hash(config.demoPassword, 10);
 
     // 2. Tambah Teknisi (Total 4 teknisi)
     console.log('📦 Menyiapkan teknisi...');

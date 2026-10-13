@@ -67,9 +67,10 @@ router.post('/ai/predict-intent', requireAuth(), aiLimiter, validate(msgSchema),
 }));
 
 router.post('/ai/answer', requireAuth(), aiLimiter, validate(msgSchema), wrap(async (req, res) => {
-  // Pass user ID to maintain conversation context
+  // Pass user ID and role to maintain conversation context and enable role-based access control
   const userId = req.user ? req.user.id : null;
-  res.json(await chat.handleChat(req.body.text || req.body.message, userId));
+  const userRole = req.user ? req.user.role : null;
+  res.json(await chat.handleChat(req.body.text || req.body.message, userId, userRole));
 }));
 
 router.get('/ai/status', requireAuth(['admin']), validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
@@ -103,7 +104,7 @@ router.get('/analytics/summary', requireAuth(['admin']), validate(Joi.object({
 
 router.get('/predictions/latest', requireAuth(['admin']), validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
   const p = await analytics.latestPredictions();
-  if (!p) throw E.notFound('Belum ada output prediksi. Jalankan pipeline Data Science (data-science/run_pipeline.py).');
+  if (!p) throw E.notFound('Modul prediksi Data Science belum terintegrasi. Fitur ini masih dalam tahap pengembangan.');
   res.json(p);
 }));
 

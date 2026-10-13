@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import joblib
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,6 +13,26 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = FastAPI(title="Nara AC - AI Service", version="2.0.0")
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# Simple API key authentication
+AI_API_KEY = os.getenv("AI_API_KEY")
+
+
+@app.middleware("http")
+async def verify_api_key(request, call_next):
+    # Skip authentication if no API key is configured (dev mode)
+    if not AI_API_KEY:
+        return await call_next(request)
+    
+    # Check for API key in header
+    api_key = request.headers.get("X-AI-API-Key")
+    if api_key != AI_API_KEY:
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": "UNAUTHORIZED", "message": "API key tidak valid"}},
+        )
+    
+    return await call_next(request)
 MODEL_VERSION = "2.0"
 CONFIDENCE_THRESHOLD = float(os.getenv("AI_CONFIDENCE_THRESHOLD", "0.55"))
 
@@ -466,5 +487,11 @@ def rag_answer(req: RagAnswerRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Use 127.0.0.1 by default for security; bind to 0.0.0.0 only if explicitly configured
+    host = os.getenv("AI_HOST", "127.0.0.1")
+    port = int(os.getenv("AI_PORT", "8000"))
+    reload = os.getenv("AI_RELOAD", "true").lower() == "true"
+
+    uvicorn.run("main:app", host=host, port=port, reload=reload)

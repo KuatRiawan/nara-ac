@@ -84,11 +84,17 @@ def load_historical():
 def load_model():
     try:
         # Try new versioned model first
-        return joblib.load("models/demand_model_v2.pkl")
+        loaded = joblib.load("models/demand_model_v2.pkl")
+        if isinstance(loaded, dict) and "model" in loaded:
+            return loaded["model"]
+        return loaded
     except FileNotFoundError:
         try:
             # Fallback to old model
-            return joblib.load("models/demand_model.pkl")
+            loaded = joblib.load("models/demand_model.pkl")
+            if isinstance(loaded, dict) and "model" in loaded:
+                return loaded["model"]
+            return loaded
         except FileNotFoundError:
             return None
 

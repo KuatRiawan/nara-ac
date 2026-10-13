@@ -218,7 +218,7 @@ flowchart TB
 
     subgraph BackendApp["Backend REST API (Express.js - Port 4000)"]
         AuthMid["Auth & RBAC Middleware"]
-        CSRFMid["CSRF Protection"]
+        CSRFMid["CSRF Protection (SameSite)"]
         RateLimit["Rate Limiting & Helmet"]
         RouteHandlers["Route Controllers (/api/v1)"]
         subgraph Services["Domain Services"]
@@ -253,7 +253,7 @@ flowchart TB
     Landing & CustPortal & AdminPortal & TechPortal -->|HTTP JSON / Credentials| AuthMid
     ChatWidget -->|POST /api/v1/ai/answer| RouteHandlers
 
-    AuthMid --> CSRFMid --> RateLimit --> RouteHandlers
+    AuthMid --> RateLimit --> RouteHandlers
     RouteHandlers --> Services
     BS & WS & DS -->|Pool Client / withTx| PG
     WS -->|Simpan Berkas Foto| Uploads
@@ -482,7 +482,7 @@ Dikonfigurasi di `frontend/src/api.js`:
 ### 7.1 Arsitektur Layer & Lifecycle Request
 Backend mengimplementasikan pemisahan tanggung jawab yang tegas:
 1. **Routing Layer (`src/routes/`):** Menerima request HTTP, mendefinisikan skema validasi Joi, dan memanggil fungsi service yang sesuai.
-2. **Middleware Layer (`src/middleware/`):** Menangani autentikasi JWT, pemeriksaan izin role (RBAC), proteksi CSRF, dan penangkapan error.
+2. **Middleware Layer (`src/middleware/`):** Menangani autentikasi JWT, pemeriksaan izin role (RBAC), dan penangkapan error. Proteksi CSRF tersedia tetapi mengandalkan `SameSite=Strict` cookies.
 3. **Service Layer (`src/services/`):** Pusat aturan bisnis (business logic). Menangani algoritma pemilihan teknisi, transisi status booking, integrasi AI, serta audit log.
 4. **Data Access Layer (`src/db/pool.js`):** Mengelola koneksi PostgreSQL melalui `pg.Pool` dan menyediakan utilitas transaksi aman `withTx(callback)`.
 
@@ -607,8 +607,8 @@ Seluruh endpoint di bawah ini terdaftar secara faktual pada router backend (`/ap
 | `GET` | `/api/v1/service-catalog` | Public | Daftar katalog layanan servis | Query: `aktif` ➔ 200 `{ data }` |
 | `POST` | `/api/v1/service-catalog` | Admin | Menambah layanan servis baru | Body: `{ kode, nama_layanan, kategori, deskripsi, harga, durasi_menit }` ➔ 201 `{ data }` |
 | `PATCH` | `/api/v1/service-catalog/:id` | Admin | Mengubah katalog layanan servis | Params: `id`, Body: `svcPatch` ➔ 200 `{ data }` |
-| `GET` | `/api/v1/settings/operating-hours` | Public | Jam operasional dan hari libur sistem | Headers/Cookie ➔ 200 `{ buka, tutup, hari_libur }` |
-| `PUT` | `/api/v1/settings/operating-hours` | Admin | Mengubah jam dan hari operasional | Body: `{ buka, tutup, hari_libur }` ➔ 200 `{ success: true }` |
+| `GET` | `/api/v1/settings/operating-hours` | Public | Jam operasional dan hari libur sistem | Headers/Cookie ➔ 200 `{ open, close, days, slot_minutes, min_lead_minutes, max_advance_days, reminder_hour }` |
+| `PUT` | `/api/v1/settings/operating-hours` | Admin | Mengubah jam dan hari operasional | Body: `{ open, close, days, slot_minutes, min_lead_minutes, max_advance_days, reminder_hour }` ➔ 200 `{ success: true }` |
 | `GET` | `/api/v1/settings/payment-accounts` | Public | Daftar rekening bank / QRIS pembayaran | Headers/Cookie ➔ 200 `{ accounts: [...] }` |
 | `PUT` | `/api/v1/settings/payment-accounts` | Admin | Memperbarui rekening pembayaran resmi | Body: `{ accounts }` ➔ 200 `{ accounts }` |
 | `GET` | `/api/v1/settings/business-profile` | Public | Profil identitas UMKM (CV. Nara Teknindotama) | Headers/Cookie ➔ 200 `{ profile }` |
@@ -915,9 +915,10 @@ Sistem membedakan tiga level otorisasi:
 3. **`customer`:** Dibatasi hanya untuk melihat dan memanipulasi aset pribadinya di `/api/v1/customer/*` (unit AC miliknya, riwayat pesanannya, dan notifikasi miliknya).
 
 ### 10.3 Proteksi CSRF
-- Dikelola melalui middleware `backend/src/middleware/csrf.js`.
+- Middleware CSRF tersedia di `backend/src/middleware/csrf.js` tetapi **belum diaktifkan** di route manapun.
 - Endpoint `GET /api/v1/auth/csrf-token` menerbitkan token berbasis kriptografi acak (32 bytes hex) yang terikat dengan ID pengguna dan berlaku selama 15 menit.
-- Permintaan mutasi data (`POST`, `PUT`, `PATCH`, `DELETE`) pada pengguna terautentikasi wajib menyertakan header `X-CSRF-Token`. Jika tidak disertakan atau token kadaluarsa, server menolak dengan HTTP `403 CSRF_TOKEN_INVALID`.
+- **Proteksi CSRF utama saat ini**: Menggunakan cookie dengan atribut `SameSite=Strict` dan `HttpOnly`, yang mencegah serangan CSRF untuk browser modern.
+- **Untuk mengaktifkan CSRF token eksplisit**: Tambahkan middleware `csrfProtection` dari `backend/src/middleware/csrf.js` ke route yang memerlukan proteksi. Middleware akan memeriksa header `X-CSRF-Token` untuk permintaan mutasi (`POST`, `PUT`, `PATCH`, `DELETE`) dan menolak dengan HTTP `403` jika token tidak valid.
 
 ---
 
@@ -950,7 +951,7 @@ Evaluasi dihitung pada test set:
 ### 11.4 Streamlit Analytics Dashboard
 Dijalankan melalui `streamlit run data-science/dashboard.py` (Port 8501) dengan 3 tab analitik:
 1. **Tab 1: Operational Insights (Realtime):** Membaca tabel `bookings`, `inventory`, `feedback`, dan `customers` langsung dari PostgreSQL untuk menampilkan metrik KPI, tren booking harian, distribusi beban kerja per teknisi, dan popularitas jenis layanan.
-2. **Tab 2: AI Demand Forecasting:** Visualisasi deteksi outlier data historis menggunakan metode Interquartile Range (IQR), input slider pemilihan tanggal, slider temperatur udara (20–40°C), checkbox hari libur, serta kalkulator estimasi kebutuhan teknisi yang harus disiagakan (`max(1, round(prediksi / 3))`).
+2. **Tab 2: AI Demand Forecasting:** Visualisasi deteksi outlier data historis menggunakan metode Interquartile Range (IQR), input slider pemilihan tanggal, slider temperatur udara (20–40°C), checkbox hari libur, serta kalkulator estimasi kebutuhan teknisi yang harus disiagakan (`max(1, int(prediksi / 3))`).
 3. **Tab 3: Inventory & Feedback Analytics:** Grafik batang posisi stok barang terhadap batas minimum (*safety stock*) serta diagram lingkaran distribusi kepuasan bintang rating.
 
 ---

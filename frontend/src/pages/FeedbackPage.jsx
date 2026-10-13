@@ -71,9 +71,7 @@ export default function FeedbackPage() {
         const res = await api.get(`/public/bookings/${encodeURIComponent(kode.trim().toUpperCase())}`);
         const data = res.data || res;
         setBooking(data);
-        if (data.kontak) {
-          setKontak(data.kontak);
-        }
+        setKontak('');
       } catch (err) {
         setFetchError(err?.response?.data?.error?.message || err?.message || 'Kode booking tidak ditemukan.');
       } finally {

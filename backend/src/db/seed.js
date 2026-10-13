@@ -11,7 +11,7 @@ async function seed() {
     console.log('Seeding settings...');
     await client.query(`
       INSERT INTO settings (key, value) VALUES 
-      ('waktu_operasional', '{"buka": "08:00", "tutup": "17:00", "hari_libur": [0]}')
+      ('operating_hours', '{"open": "08:00", "close": "17:00", "days": [1,2,3,4,5], "slot_minutes": 60, "min_lead_minutes": 120, "max_advance_days": 30, "reminder_hour": -24}')
       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
     `);
 

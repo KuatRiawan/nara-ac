@@ -452,10 +452,7 @@ async function publicStatusByCode(codeRaw) {
     layanan: row.nama_layanan,
     harga: row.harga,
     jumlah_unit: row.jumlah_unit || 1,
-    alamat: row.alamat,
     keluhan: row.keluhan,
-    customer_nama: row.customer_nama,
-    kontak: row.kontak,
     jadwal_mulai: row.jadwal_mulai,
     jadwal_selesai: row.jadwal_selesai,
     teknisi: row.teknisi_nama ? row.teknisi_nama.split(' ')[0] : null,
@@ -555,8 +552,45 @@ async function verifyPublicBooking(kode, kontak) {
   return b;
 }
 
+/** Calculate invoice data for a booking */
+function calculateInvoice(booking) {
+  if (!booking) return null;
+  
+  const basePrice = booking.harga || 0;
+  const units = booking.jumlah_unit || 1;
+  const subtotal = basePrice * units;
+  
+  // Apply discounts based on units
+  let discount = 0;
+  if (units === 2) {
+    discount = Math.round(subtotal * 0.05);
+  } else if (units >= 3) {
+    discount = Math.round(subtotal * 0.1);
+  }
+  
+  const total = subtotal - discount;
+  
+  // Determine warranty based on service type
+  let warrantyText = '14 Hari Kalender';
+  const serviceName = (booking.layanan || '').toLowerCase();
+  if (serviceName.includes('freon') && serviceName.includes('core')) {
+    warrantyText = '45 Hari Penuh Garansi Dingin';
+  } else if (serviceName.includes('core')) {
+    warrantyText = '30 Hari Penuh Garansi Pengerjaan';
+  }
+  
+  return {
+    basePrice,
+    units,
+    subtotal,
+    discount,
+    total,
+    warrantyText,
+  };
+}
+
 module.exports = {
   getOps, createBooking, listBookings, getBookingDetail, reschedule, cancelBooking, assignTechnician, changeStatus,
   addInventoryUsage, publicStatusByCode, submitFeedback, getAvailability, TRANSITIONS, EDITABLE, computeEnd,
-  assertSlotAllowed, wibDateString, mapBooking, BOOKING_SELECT, lockBooking, verifyPublicBooking,
+  assertSlotAllowed, wibDateString, mapBooking, BOOKING_SELECT, lockBooking, verifyPublicBooking, calculateInvoice,
 };

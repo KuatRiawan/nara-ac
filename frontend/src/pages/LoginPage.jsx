@@ -30,25 +30,24 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@nara-ac.local');
-  const [password, setPassword] = useState('Admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('admin');
+  const [selectedRole, setSelectedRole] = useState(null);
 
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Role quick presets (Hanya untuk kemudahan demonstrasi & pengujian)
-  const roles = [
+  // Role quick presets (Hanya untuk kemudahan demonstrasi & pengujian - hanya di mode development)
+  const roles = import.meta.env.DEV ? [
     {
       id: 'admin',
       label: 'Admin',
       sublabel: 'Pusat Dispatcher',
       icon: UserCheck,
       email: 'admin@nara-ac.local',
-      password: 'Admin123',
       dest: 'Dashboard Pusat & Penugasan'
     },
     {
@@ -57,7 +56,6 @@ export default function LoginPage() {
       sublabel: 'Budi Santoso',
       icon: Wrench,
       email: 'budi@nara-ac.local',
-      password: 'Admin123',
       dest: 'Jadwal & SOP Lapangan'
     },
     {
@@ -66,15 +64,14 @@ export default function LoginPage() {
       sublabel: 'Citra Lestari',
       icon: User,
       email: 'customer@nara-ac.local',
-      password: 'Admin123',
       dest: 'Portal Riwayat Servis'
     }
-  ];
+  ] : [];
 
   const handleRoleSelect = (r) => {
     setSelectedRole(r.id);
     setEmail(r.email);
-    setPassword(r.password);
+    setPassword('');
     setError('');
   };
 
