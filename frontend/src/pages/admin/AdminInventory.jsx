@@ -22,8 +22,7 @@ import {
   SlidersHorizontal,
   ChevronRight,
   TrendingDown,
-  TrendingUp,
-  RefreshCw
+  TrendingUp
 } from 'lucide-react';
 
 export default function AdminInventory() {

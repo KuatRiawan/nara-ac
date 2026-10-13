@@ -1,11 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../api';
 import {
   Calendar as CalendarIcon, Clock, Wrench, Plus, Search, Filter,
   CheckCircle2, AlertCircle, AlertTriangle, User, Phone, MapPin,
   ExternalLink, Copy, Check, ChevronDown, RefreshCw, X, Eye,
   MessageSquare, UserCheck, UserPlus, Tag, ShieldAlert, ArrowUpDown,
-  CalendarClock
+  CalendarClock, Printer, Receipt, FileText
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
@@ -13,6 +14,7 @@ import { Badge } from '../../components/ui/badge';
 import { useToast } from '../../components/ui/toast';
 import { getErrorMessage } from '../../utils/errors';
 import AdminCreateBookingModal from '../../components/admin/AdminCreateBookingModal';
+import OfficialInvoicePaper from '../../components/OfficialInvoicePaper';
 
 export default function AdminBookings({
   bookings = [],
@@ -33,6 +35,10 @@ export default function AdminBookings({
   const [selectedBookingForDetail, setSelectedBookingForDetail] = useState(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(null);
+
+  // Modal Invoice State
+  const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
   // Modal Reschedule State
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
@@ -151,6 +157,32 @@ export default function AdminBookings({
       setIsSubmittingReschedule(false);
     }
   };
+
+  // Invoice modal handler
+  const openInvoiceModal = (booking) => {
+    setSelectedInvoiceBooking(booking);
+    setIsInvoiceModalOpen(true);
+  };
+
+  const handlePrintInvoice = () => {
+    const origTitle = document.title;
+    document.title = `Invoice_${selectedInvoiceBooking?.kode_booking || selectedInvoiceBooking?.id || 'NARA'}_CV_Nara_Teknindotama`;
+    window.print();
+    setTimeout(() => {
+      document.title = origTitle;
+    }, 1000);
+  };
+
+  useEffect(() => {
+    if (isInvoiceModalOpen) {
+      document.body.classList.add('invoice-modal-open');
+    } else {
+      document.body.classList.remove('invoice-modal-open');
+    }
+    return () => {
+      document.body.classList.remove('invoice-modal-open');
+    };
+  }, [isInvoiceModalOpen]);
 
   // Metrics KPI Cepat
   const metrics = useMemo(() => {
@@ -279,20 +311,6 @@ export default function AdminBookings({
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          {onBookingCreated && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBookingCreated()}
-              disabled={loading}
-              className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold h-10 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              title="Perbarui data"
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin text-blue-600")} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          )}
-
           <Button
             onClick={() => setIsBookingModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl h-10 px-4 cursor-pointer shadow-sm shadow-blue-600/20 flex items-center gap-2 transition-all hover:shadow active:scale-95"
@@ -756,7 +774,18 @@ export default function AdminBookings({
                     </div>
 
                     {/* Bottom Action Buttons */}
-                    <div className="pt-2 flex justify-end gap-2">
+                    <div className="pt-2 flex justify-end gap-1.5 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openInvoiceModal(b)}
+                        className="text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 h-8 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                        title="Lihat & Cetak E-Invoice"
+                      >
+                        <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Invoice</span>
+                      </Button>
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -967,6 +996,17 @@ export default function AdminBookings({
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => openInvoiceModal(b)}
+                              className="text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 h-8 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                              title="Lihat & Cetak E-Invoice"
+                            >
+                              <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Invoice</span>
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => openReschedule(b)}
                               className="text-xs font-bold text-gray-700 border-gray-200 hover:bg-gray-100 h-8 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
                               title="Ubah Tanggal"
@@ -1162,16 +1202,27 @@ export default function AdminBookings({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center gap-3">
-              <a
-                href={`/status/${selectedBookingForDetail.kode_booking}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Buka Status Publik</span>
-              </a>
+            <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/50 flex flex-wrap justify-between items-center gap-3">
+              <div className="flex items-center gap-3">
+                <Button
+                  size="sm"
+                  onClick={() => openInvoiceModal(selectedBookingForDetail)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-4 h-9 flex items-center gap-1.5 cursor-pointer shadow-sm shadow-emerald-600/20"
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Cetak E-Invoice</span>
+                </Button>
+
+                <a
+                  href={`/status/${selectedBookingForDetail.kode_booking}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Buka Status Publik</span>
+                </a>
+              </div>
 
               <Button
                 onClick={() => setSelectedBookingForDetail(null)}
@@ -1300,6 +1351,151 @@ export default function AdminBookings({
           }
         }}
       />
+
+      {/* MODAL E-INVOICE RESMI (OFFICIAL INVOICE PAPER) */}
+      {isInvoiceModalOpen && selectedInvoiceBooking && typeof document !== 'undefined' && createPortal(
+        <div 
+          id="invoice-print-portal"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsInvoiceModalOpen(false); }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex justify-center items-start p-3 sm:p-6 lg:p-8 invoice-modal-backdrop print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
+        >
+          {/* Floating Close Button in Top Right */}
+          <button
+            type="button"
+            onClick={() => setIsInvoiceModalOpen(false)}
+            className="fixed top-4 right-4 z-50 p-2 sm:px-3 sm:py-2 rounded-full bg-slate-800/90 text-white hover:bg-rose-600 shadow-xl border border-slate-700/80 cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold print:hidden"
+            title="Tutup Invoice (Esc)"
+            aria-label="Tutup Invoice"
+          >
+            <X className="w-4 h-4" />
+            <span className="hidden sm:inline">Tutup (Esc)</span>
+          </button>
+
+          <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-2 sm:my-4 animate-in fade-in zoom-in-95 duration-200 invoice-modal-card relative flex flex-col print:overflow-visible print:max-w-none print:w-full print:border-none print:shadow-none print:my-0 print:rounded-none">
+            
+            {/* Modal Header Actions */}
+            <div className="sticky top-0 z-20 p-3 sm:p-4 bg-slate-900 text-white flex items-center justify-between shadow-md print:hidden">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-sky-400" />
+                <span className="font-black text-xs sm:text-sm text-white truncate">
+                  E-Invoice & SPK Resmi • {selectedInvoiceBooking.kode_booking || `AC-${selectedInvoiceBooking.id}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handlePrintInvoice}
+                  className="rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/20 h-8 sm:h-9"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span className="hidden sm:inline">Cetak / Download PDF</span>
+                  <span className="sm:hidden">Cetak</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsInvoiceModalOpen(false)}
+                  className="rounded-xl text-xs font-bold border-slate-700 bg-slate-800 text-slate-200 hover:bg-rose-600 hover:text-white hover:border-rose-600 flex items-center gap-1 cursor-pointer h-8 sm:h-9 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Tutup</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Official Printable Paper Area */}
+            <div className="overflow-x-auto bg-white flex-1 print:overflow-visible print:p-0 print:w-full">
+              <OfficialInvoicePaper 
+                booking={selectedInvoiceBooking} 
+                isPaidOverride={selectedInvoiceBooking.status === 'done'}
+              />
+            </div>
+
+            {/* Modal Bottom Bar */}
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 print:hidden">
+              <span className="truncate pr-2">Gunakan tombol <strong>Cetak / Download PDF</strong> untuk menyimpan dokumen faktur resmi.</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl cursor-pointer shrink-0"
+              >
+                Tutup Tampilan
+              </Button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Scoped print styles */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 10mm 10mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            font-size: 11px !important;
+          }
+          body.invoice-modal-open #root,
+          body:has(#invoice-print-portal) #root {
+            display: none !important;
+          }
+          header, footer, aside, nav, .print\\:hidden, [data-print-hide="true"] {
+            display: none !important;
+          }
+          .invoice-modal-backdrop {
+            position: static !important;
+            inset: auto !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
+          .invoice-modal-card {
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            display: block !important;
+            transform: none !important;
+          }
+          #printable-invoice {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

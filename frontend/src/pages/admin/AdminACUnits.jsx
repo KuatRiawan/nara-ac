@@ -322,13 +322,6 @@ export default function AdminACUnits() {
               </select>
             </div>
 
-            <button
-              onClick={() => { setSearch(''); setSelectedType('all'); setSelectedPk('all'); fetchUnits(); }}
-              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-              title="Reset Filter & Refresh"
-            >
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin text-blue-600")} />
-            </button>
           </div>
         </div>
       </div>

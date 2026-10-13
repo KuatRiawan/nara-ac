@@ -17,6 +17,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/booking" element={<BookingPage />} />
         <Route path="/status/:kode?" element={<StatusPage />} />
+        <Route path="/invoice/:kode?" element={<StatusPage initialInvoiceOpen={true} />} />
+        <Route path="/invoices/:kode?" element={<StatusPage initialInvoiceOpen={true} />} />
         <Route path="/feedback/:kode" element={<FeedbackPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin/*" element={<AdminDashboard />} />

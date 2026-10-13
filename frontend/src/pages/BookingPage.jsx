@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
@@ -6,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import CompanyLogo from '../components/CompanyLogo';
 import AddressSelector from '../components/booking/AddressSelector';
+import OfficialInvoicePaper from '../components/OfficialInvoicePaper';
 import { cn } from '../lib/utils';
 import { 
   Calendar, 
@@ -30,7 +32,9 @@ import {
   Percent,
   CalendarOff,
   Sun,
-  Sunset
+  Sunset,
+  Printer,
+  X
 } from 'lucide-react';
 
 export default function BookingPage() {
@@ -44,6 +48,9 @@ export default function BookingPage() {
   // Wizard state: 1: Layanan, 2: Jadwal, 3: Data Diri, 4: Konfirmasi, 5: Sukses
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const idempotencyKeyRef = useRef(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [successData, setSuccessData] = useState(null);
   const [copiedTicket, setCopiedTicket] = useState(false);
 
@@ -308,6 +315,10 @@ export default function BookingPage() {
         setError('Harap lengkapi alamat lokasi (pilih Kota, Kecamatan, dan masukkan Nama Jalan / Nomor Rumah).');
         return;
       }
+      // Generate idempotency key saat melangkah ke Step 4 (Konfirmasi) jika belum ada
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      }
     }
     setError('');
     setStep(prev => prev + 1);
@@ -320,12 +331,19 @@ export default function BookingPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Submission handler
+  // Submission handler with synchronous ref lock & idempotency key
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (isSubmittingRef.current) return; // Mencegah double submit paralel
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setError('');
+
     try {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      }
+
       const payload = {
         layanan_id: parseInt(form.layanan_id, 10),
         nama: form.nama.trim(),
@@ -333,11 +351,14 @@ export default function BookingPage() {
         alamat: form.alamat.trim(),
         jadwal_mulai: `${form.tanggal}T${form.jam}:00+07:00`,
         keluhan: form.keluhan.trim(),
-        jumlah_unit: parseInt(form.jumlah_unit, 10) || 1
+        jumlah_unit: parseInt(form.jumlah_unit, 10) || 1,
+        idempotency_key: idempotencyKeyRef.current
       };
+
       const res = await api.post('/bookings', payload);
       const bookingResult = res?.kode_booking ? res : (res?.data || res);
       setSuccessData(bookingResult);
+      idempotencyKeyRef.current = null; // Reset setelah sukses
       setStep(5); // Success step
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -348,6 +369,7 @@ export default function BookingPage() {
                   'Terjadi kesalahan saat memproses booking. Silakan coba lagi.';
       setError(msg);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -388,8 +410,88 @@ export default function BookingPage() {
     { num: 4, title: 'Konfirmasi' }
   ];
 
+  // Lock body scroll and set print classes when invoice modal is opened
+  useEffect(() => {
+    if (isInvoiceModalOpen) {
+      document.body.classList.add('invoice-modal-open');
+    } else {
+      document.body.classList.remove('invoice-modal-open');
+    }
+    return () => {
+      document.body.classList.remove('invoice-modal-open');
+    };
+  }, [isInvoiceModalOpen]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50/50 via-slate-50 to-white font-sans flex flex-col text-slate-800">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50/50 via-slate-50 to-white font-sans flex flex-col text-slate-800 print:bg-white print:min-h-0 print:block">
+      
+      {/* SCOPED PRINT STYLES FOR FLAWLESS A4 PRINTING */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm 10mm 10mm;
+          }
+          html, body {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            font-size: 11px !important;
+          }
+          body.invoice-modal-open #root,
+          body:has(#invoice-print-portal) #root {
+            display: none !important;
+          }
+          header, footer, aside, nav, .print\\:hidden, [data-print-hide="true"] {
+            display: none !important;
+          }
+          .invoice-modal-backdrop {
+            position: static !important;
+            inset: auto !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
+          .invoice-modal-card {
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            display: block !important;
+            transform: none !important;
+          }
+          #printable-invoice {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+        }
+      `}</style>
       
       {/* ============================================================== */}
       {/* 1. TOP NAVBAR                                                 */}
@@ -578,6 +680,16 @@ export default function BookingPage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              {/* Tombol Cetak & Pratinjau Invoice Langsung */}
+              <Button
+                type="button"
+                onClick={() => setIsInvoiceModalOpen(true)}
+                className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4 text-white" />
+                <span>Lihat & Cetak E-Invoice</span>
+              </Button>
+
               <Link to={`/status/${successData?.kode_booking || ''}`} className="w-full sm:w-auto">
                 <Button className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 cursor-pointer flex items-center justify-center gap-2">
                   <FileText className="w-4 h-4" />
@@ -1504,6 +1616,76 @@ export default function BookingPage() {
           </p>
         </div>
       </footer>
+
+      {/* ============================================================== */}
+      {/* 4. MODAL E-INVOICE RESMI CV. NARA TEKNINDOTAMA                 */}
+      {/* ============================================================== */}
+      <AnimatePresence>
+        {isInvoiceModalOpen && successData && typeof document !== 'undefined' && createPortal(
+          <div 
+            id="invoice-print-portal"
+            className="invoice-modal-backdrop fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="invoice-modal-card bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
+            >
+              {/* Modal Top Actions (Non-printable) */}
+              <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-sky-400" />
+                  Pratinjau E-Invoice Resmi CV. Nara Teknindotama
+                </span>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const origTitle = document.title;
+                      document.title = `Invoice_${successData?.kode_booking || 'NARA'}_CV_Nara_Teknindotama`;
+                      window.print();
+                      setTimeout(() => { document.title = origTitle; }, 1000);
+                    }}
+                    className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Cetak / Unduh PDF</span>
+                  </Button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsInvoiceModalOpen(false)}
+                    className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                    aria-label="Tutup modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* PRINTABLE INVOICE PAPER */}
+              <OfficialInvoicePaper 
+                booking={{
+                  ...successData,
+                  layanan: selectedService?.nama_layanan || successData?.layanan?.nama || successData?.layanan || 'Cuci AC Standard',
+                  customer_nama: form.nama,
+                  kontak: form.kontak,
+                  alamat: form.alamat,
+                  keluhan: form.keluhan,
+                  jadwal_mulai: `${form.tanggal}T${form.jam}:00+07:00`,
+                  harga: calculation.basePrice,
+                  jumlah_unit: form.jumlah_unit,
+                  total: calculation.total,
+                  discount: calculation.discount
+                }} 
+              />
+            </motion.div>
+          </div>,
+          document.body
+        )}
+      </AnimatePresence>
 
     </div>
   );

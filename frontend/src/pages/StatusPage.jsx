@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import { Button } from '../components/ui/button';
@@ -36,11 +36,13 @@ import {
   CalendarDays
 } from 'lucide-react';
 
-export default function StatusPage() {
+export default function StatusPage({ initialInvoiceOpen = false }) {
   const { kode } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { error: showError, success: showSuccess } = useToast();
 
+  const isInvoiceRoute = location.pathname.startsWith('/invoice');
   const [kodeInput, setKodeInput] = useState(kode || '');
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(!!kode);
@@ -48,7 +50,7 @@ export default function StatusPage() {
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Modals state
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(initialInvoiceOpen || isInvoiceRoute);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -84,6 +86,12 @@ export default function StatusPage() {
       fetchStatus(kode);
     }
   }, [kode]);
+
+  useEffect(() => {
+    if ((initialInvoiceOpen || isInvoiceRoute) && booking) {
+      setIsInvoiceOpen(true);
+    }
+  }, [initialInvoiceOpen, isInvoiceRoute, booking]);
 
   const handleSearch = (e) => {
     e.preventDefault();

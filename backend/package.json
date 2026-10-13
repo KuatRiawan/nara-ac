@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
+    "seed:dummy": "node src/db/seedDummy.js",
     "db:reset": "node src/db/migrate.js --reset && node src/db/seed.js",
     "test": "jest --runInBand --forceExit",
 

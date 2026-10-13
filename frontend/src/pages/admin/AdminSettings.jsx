@@ -910,16 +910,6 @@ export default function AdminSettings() {
               </p>
             </div>
 
-            <Button
-              type="button"
-              onClick={fetchAllSettings}
-              variant="outline"
-              disabled={loadingOps}
-              className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 shrink-0"
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", loadingOps && "animate-spin")} />
-              <span>Muat Ulang</span>
-            </Button>
           </div>
 
           <form onSubmit={handleSaveOps} className="space-y-6">

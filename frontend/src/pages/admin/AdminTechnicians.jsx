@@ -400,13 +400,6 @@ export default function AdminTechnicians() {
               </button>
             </div>
 
-            <button
-              onClick={() => { setSearch(''); setFilterStatus('all'); fetchTechnicians(); }}
-              className="p-2.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-              title="Refresh Data"
-            >
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin text-blue-600")} />
-            </button>
           </div>
         </div>
       </div>

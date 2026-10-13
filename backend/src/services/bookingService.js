@@ -184,6 +184,21 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
       )).rows[0];
     }
 
+    // Auto-deduplication window check: prevent rapid double bookings (within 30 seconds)
+    // for the same customer with identical schedule and service
+    const recentDuplicate = (await client.query(
+      `SELECT id, kode_booking, status FROM bookings 
+       WHERE customer_id = $1 AND jadwal_mulai = $2 AND layanan_id = $3 
+         AND status != 'cancelled' 
+         AND created_at >= NOW() - INTERVAL '30 seconds'
+       ORDER BY id DESC LIMIT 1`,
+      [cust.id, start, svc.id]
+    )).rows[0];
+    if (recentDuplicate) {
+      const row = (await client.query(`${BOOKING_SELECT} WHERE b.id = $1`, [recentDuplicate.id])).rows[0];
+      return mapBooking(row);
+    }
+
     let booking;
     for (let i = 0; i < 8 && !booking; i += 1) {
       const code = generateBookingCode();

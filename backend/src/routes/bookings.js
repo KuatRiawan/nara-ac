@@ -25,6 +25,7 @@ const bookingSchema = Joi.object({
   jumlah_unit: Joi.number().integer().min(1).max(20).default(1).label('Jumlah Unit'),
   ac_unit_id: Joi.number().integer().positive().allow(null),
   teknisi_id: Joi.number().integer().positive().allow(null),
+  idempotency_key: Joi.string().trim().max(100).allow('', null).optional().label('Idempotency Key'),
 });
 
 const listSchema = Joi.object({

@@ -68,3 +68,6 @@ backend/uploads/*
 
 # Agent / Tooling State
 .agents
+
+# Audit Reports & Local Docs
+AUDIT_REPORT*.md

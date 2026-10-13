@@ -13,7 +13,6 @@ import {
   Users, 
   Clock, 
   Eye, 
-  RefreshCw, 
   X, 
   Loader2,
   Code2
@@ -534,16 +533,6 @@ export default function AdminReports() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button
-            onClick={fetchLogs}
-            variant="outline"
-            disabled={loading}
-            className="rounded-xl border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Segarkan Log"
-          >
-            <RefreshCw className={`w-4 h-4 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Segarkan</span>
-          </Button>
 
           <Button
             onClick={exportAuditLogs}

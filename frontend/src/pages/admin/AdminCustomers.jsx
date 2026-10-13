@@ -745,17 +745,6 @@ export default function AdminCustomers() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchCustomers}
-              disabled={loading}
-              className="rounded-xl border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold h-10 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              title="Refresh"
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin text-blue-600")} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
 
             <Button
               onClick={() => {

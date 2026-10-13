@@ -50,15 +50,34 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
   const kodeBooking = b.kode_booking || (b.id ? `AC-${b.id}` : 'AC-0000');
   const invNumber = b.invNo || `INV/NARA/${new Date().getFullYear()}/${kodeBooking}`;
   
-  const customerNama = b.customer_nama || b.customer?.nama || b.nama_customer || 'Pelanggan NARA AC';
-  const customerKontak = b.kontak || b.customer?.kontak || '-';
-  const customerAlamat = b.alamat || b.customer?.alamat || '-';
-  const keluhan = b.keluhan || '';
+  const customerNama = b.customer_nama || 
+    (typeof b.customer?.nama === 'string' ? b.customer.nama : '') || 
+    (typeof b.nama === 'string' ? b.nama : '') || 
+    (typeof b.nama_customer === 'string' ? b.nama_customer : '') || 
+    'Pelanggan NARA AC';
+
+  const customerKontak = (typeof b.kontak === 'string' ? b.kontak : '') || 
+    (typeof b.customer?.kontak === 'string' ? b.customer.kontak : '') || 
+    '-';
+
+  const customerAlamat = (typeof b.alamat === 'string' ? b.alamat : '') || 
+    (typeof b.customer?.alamat === 'string' ? b.customer.alamat : '') || 
+    '-';
+
+  const keluhan = typeof b.keluhan === 'string' ? b.keluhan : '';
 
   const jadwalMulai = b.jadwal_mulai;
-  const teknisiNama = b.teknisi_lengkap || b.teknisi?.nama || b.teknisi || 'Teknisi Berlisensi NARA AC';
+  const teknisiNama = (typeof b.teknisi_lengkap === 'string' ? b.teknisi_lengkap : '') || 
+    (typeof b.teknisi?.nama === 'string' ? b.teknisi.nama : '') || 
+    (typeof b.teknisi === 'string' ? b.teknisi : '') || 
+    'Teknisi Berlisensi NARA AC';
 
-  const namaLayanan = b.layanan?.nama || b.layanan?.nama_layanan || b.layanan || b.nama_layanan || 'Cuci AC Standard';
+  const namaLayanan = (typeof b.layanan === 'string' ? b.layanan : '') || 
+    (typeof b.layanan?.nama === 'string' ? b.layanan.nama : '') || 
+    (typeof b.layanan?.nama_layanan === 'string' ? b.layanan.nama_layanan : '') || 
+    (typeof b.nama_layanan === 'string' ? b.nama_layanan : '') || 
+    'Cuci AC Standard';
+
   const basePrice = Number(b.harga || b.layanan?.harga || b.basePrice || 75000);
   const units = Number(b.jumlah_unit || b.unit || 1);
   const subtotal = basePrice * units;

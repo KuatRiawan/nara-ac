@@ -621,17 +621,6 @@ export default function AdminSchedule() {
             Hari Ini
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchMonthSchedule}
-            disabled={loading}
-            className="text-slate-500 hover:text-slate-700 p-2 h-8 rounded-xl cursor-pointer"
-            title="Segarkan Jadwal"
-            aria-label="Segarkan Jadwal"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin text-blue-600")} />
-          </Button>
         </div>
       </div>
 

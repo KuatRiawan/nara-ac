@@ -68,6 +68,9 @@ export default function CustomerHistory() {
                 </div>
                 
                 <div className="flex flex-col gap-2 justify-center">
+                  <Button variant="outline" onClick={() => navigate(`/invoice/${b.kode_booking}`)}>
+                    E-Invoice
+                  </Button>
                   <Button variant="outline" onClick={() => navigate(`/status/${b.kode_booking}`)}>
                     Lihat Detail
                   </Button>
