@@ -128,6 +128,39 @@ async function getOperationalSettings() {
   };
 }
 
+// Helper to get payment settings from database
+async function getPaymentSettings() {
+  const r = await query("SELECT value FROM settings WHERE key = 'payment_accounts'");
+  if (r.rows[0]) {
+    return r.rows[0].value;
+  }
+  // Return default payment settings
+  return {
+    accounts: [
+      { id: '1', bank_name: 'BCA', account_number: '8720-9182-33', account_holder: 'CV NARA TEKNINDOTAMA' },
+      { id: '2', bank_name: 'Mandiri', account_number: '137-00-9821-4451', account_holder: 'CV NARA TEKNINDOTAMA' },
+    ],
+    instruction_note: '*Tersedia juga opsi pembayaran tunai / QRIS langsung kepada teknisi setelah pekerjaan selesai di lokasi.'
+  };
+}
+
+// Helper to get business profile from database
+async function getBusinessProfile() {
+  const r = await query("SELECT value FROM settings WHERE key = 'business_profile'");
+  if (r.rows[0]) {
+    return r.rows[0].value;
+  }
+  // Return default business profile
+  return {
+    name: 'CV. NARA TEKNINDOTAMA',
+    tagline: 'Spesialis Layanan Service, Maintenance & Instalasi AC Profesional',
+    address: 'Jl. Raya Industri No. 45, Kawasan Sentra Bisnis',
+    phone: '+62 812-3456-7890',
+    hours: 'Senin - Sabtu: 08.00 - 17.00 WIB',
+    guarantee: 'Garansi Pengerjaan Resmi 30 Hari'
+  };
+}
+
 // Helper to identify complaint severity
 function getComplaintSeverity(complaintText) {
   const lowerText = complaintText.toLowerCase();
@@ -866,10 +899,15 @@ async function handleStatusQuery(message, context) {
 }
 
 async function handlePaymentQuery(message, context) {
-  const services = await getServiceCatalog();
+  const paymentSettings = await getPaymentSettings();
+  const businessProfile = await getBusinessProfile();
+  
+  // Build payment methods list from database
+  const bankList = paymentSettings.accounts ? paymentSettings.accounts.map(a => `${a.bank_name} (${a.account_number})`).join(', ') : 'BCA, Mandiri';
+  const instruction = paymentSettings.instruction_note || '';
   
   return {
-    jawaban: `Bisa bayar dengan:\n• Transfer bank (BCA, BNI, BRI, Mandiri, dll)\n• Tunai ke teknisi (COD)\n• E-wallet (Dana, OVO, Gopay, LinkAja)\n\nHarga layanan sudah termasuk jasa pengerjaan. Kalau butuh bahan tambahan kayak freon, nanti dikasih tau dan bayar terpisah.`,
+    jawaban: `Bisa bayar dengan:\n• Transfer bank: ${bankList}\n• Tunai ke teknisi (COD)\n• E-wallet (Dana, OVO, Gopay, LinkAja)\n\n${instruction}\n\nHarga layanan sudah termasuk jasa pengerjaan. Kalau butuh bahan tambahan kayak freon, nanti dikasih tau dan bayar terpisah.`,
     fallback: false,
     quick_replies: ['Info layanan', 'Booking servis', 'Cek status']
   };
@@ -1000,8 +1038,15 @@ async function handleRejection(message, context) {
 }
 
 async function handleHandoffRequest(message, context) {
+  const businessProfile = await getBusinessProfile();
+  
+  // Extract phone and format it for display
+  const phone = businessProfile.phone || '+62 812-3456-7890';
+  // Email can be extracted from business profile if available, otherwise use default
+  const email = businessProfile.email || (businessProfile.contacts && businessProfile.contacts.email) || 'admin@nara-ac.co.id';
+  
   return {
-    jawaban: 'Oke, untuk bicara dengan admin langsung, kamu bisa hubungi lewat:\n• WhatsApp: 0812-3456-7890\n• Telepon: 021-1234567\n• Email: admin@nara-ac.co.id\n\nAtau kunjungi halaman Kontak kami di website.',
+    jawaban: `Oke, untuk bicara dengan admin langsung, kamu bisa hubungi lewat:\n• WhatsApp: ${phone}\n• Telepon: ${phone}\n• Email: ${email}\n\nAtau kunjungi halaman Kontak kami di website.`,
     fallback: false,
     aksi: [{ type: 'open_contact', label: 'Hubungi admin', path: '/contact' }],
     quick_replies: ['Kembali', 'Gak jadi']

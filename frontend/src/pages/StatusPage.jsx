@@ -55,6 +55,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Invoice data from backend
+  const [invoiceData, setInvoiceData] = useState(null);
+
   // Form for cancel/reschedule verification
   const [verifyKontak, setVerifyKontak] = useState('');
   const [cancelReason, setCancelReason] = useState('');
@@ -66,11 +69,21 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
     setLoading(true);
     setError('');
     setBooking(null);
+    setInvoiceData(null);
     try {
       const res = await api.get(`/public/bookings/${encodeURIComponent(searchKode.trim().toUpperCase())}`);
       const data = res.data || res;
       setBooking(data);
       setVerifyKontak('');
+      
+      // Fetch invoice data from backend
+      try {
+        const invoiceRes = await api.get(`/public/bookings/${encodeURIComponent(searchKode.trim().toUpperCase())}/invoice`);
+        setInvoiceData(invoiceRes.data || invoiceRes);
+      } catch (invoiceErr) {
+        // If invoice endpoint fails, fall back to null
+        setInvoiceData(null);
+      }
     } catch (err) {
       setError(err?.response?.data?.error?.message || err?.error?.message || err?.message || 'Kode booking tidak ditemukan. Pastikan kode tiket sudah benar (contoh: AC-XXXX).');
     } finally {
@@ -126,8 +139,21 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
     return { label: 'Terjadwal (Scheduled)', color: 'bg-sky-600 text-white', step: booking?.teknisi ? 1 : 0, border: 'border-sky-500' };
   }, [booking]);
 
-  // Pricing calculation for invoice
+  // Pricing calculation for invoice - prefer backend data, fallback to client-side
   const invoiceCalc = useMemo(() => {
+    // If we have invoice data from backend, use it
+    if (invoiceData) {
+      return {
+        basePrice: invoiceData.basePrice || 0,
+        units: invoiceData.units || 1,
+        subtotal: invoiceData.subtotal || 0,
+        discount: invoiceData.discount || 0,
+        total: invoiceData.total || 0,
+        warrantyText: invoiceData.warrantyText || '14 Hari Kalender'
+      };
+    }
+    
+    // Fallback to client-side calculation if backend invoice is not available
     if (!booking) return { basePrice: 0, units: 1, subtotal: 0, discount: 0, total: 0, warrantyText: '14 Hari' };
     
     // Base unit price
@@ -150,7 +176,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
     }
 
     return { basePrice, units, subtotal, discount, total, warrantyText };
-  }, [booking]);
+  }, [booking, invoiceData]);
 
   // Handle Cancel Action
   const handleConfirmCancel = async (e) => {
@@ -523,7 +549,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                     {booking.layanan || 'Cuci AC'}
                   </p>
                   <p className="text-xs font-bold text-blue-600 mt-0.5 font-mono">
-                    {invoiceCalc.units} Unit AC
+                    {(invoiceData?.units || booking?.jumlah_unit || 1)} Unit AC
                   </p>
                 </div>
 
@@ -576,7 +602,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                       Total Estimasi Biaya:
                     </span>
                     <p className="text-2xl font-black text-blue-700 font-mono tracking-tight">
-                      Rp {invoiceCalc.total.toLocaleString('id-ID')}
+                      Rp {(invoiceCalc.total || 0).toLocaleString('id-ID')}
                     </p>
                   </div>
                   <span className="text-[10px] text-slate-500 font-medium mt-1">

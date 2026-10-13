@@ -439,10 +439,14 @@ router.patch('/inventory/:id', validate(idParam, 'params'), validate(Joi.object(
   min_stok: Joi.number().min(0).max(1000000),
   aktif: Joi.boolean(),
 }).min(1)), wrap(async (req, res) => {
+  // Whitelist of allowed columns for UPDATE to prevent mass assignment
+  const allowedColumns = ['nama', 'kategori', 'stok', 'satuan', 'min_stok', 'aktif'];
   const sets = []; const params = [req.params.id];
   for (const [k, v] of Object.entries(req.body)) {
-    params.push(v);
-    sets.push(`${k}=$${params.length}`);
+    if (allowedColumns.includes(k)) {
+      params.push(v);
+      sets.push(`${k}=$${params.length}`);
+    }
   }
   sets.push('updated_at=now()');
   try {
@@ -450,7 +454,7 @@ router.patch('/inventory/:id', validate(idParam, 'params'), validate(Joi.object(
     if (!r) throw E.notFound('Item tidak ditemukan.');
     res.json({ data: { ...r, stok: Number(r.stok), min_stok: Number(r.min_stok), status_stok: invStatus(r) } });
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nama item sudah ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
+    if (e.code === '23505') throw E.conflict('Nama item sudah baru ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
     throw e;
   }
 }));

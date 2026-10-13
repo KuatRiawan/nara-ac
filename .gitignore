@@ -75,3 +75,6 @@ backend/uploads/*
 
 # Audit Reports & Local Docs
 AUDIT_REPORT*.md
+
+# Local seed files (may contain demo data)
+backend/src/db/seedDummy.js
