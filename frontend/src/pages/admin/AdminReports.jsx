@@ -244,6 +244,8 @@ export default function AdminReports() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all'); // all | admin | technician | customer
   const [entityFilter, setEntityFilter] = useState('all'); // all | booking | inventory | ac_unit | customer
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   
   // Detail modal state
   const [selectedLog, setSelectedLog] = useState(null);
@@ -324,6 +326,18 @@ export default function AdminReports() {
       return true;
     });
   }, [logs, search, roleFilter, entityFilter]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter, entityFilter]);
+
+  // Paginated logs
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(start, start + itemsPerPage);
+  }, [filteredLogs, currentPage, itemsPerPage]);
 
   const getEntityLabel = (entity) => {
     switch (entity?.toLowerCase()) {
@@ -725,7 +739,7 @@ export default function AdminReports() {
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => {
+                paginatedLogs.map((log) => {
                   const act = getActionInfo(log.action);
                   
                   // Extract quick summary from metadata or snapshots
@@ -800,6 +814,37 @@ export default function AdminReports() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* PAGINATION TOOLBAR */}
+        <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <div>
+            Menampilkan <strong className="text-slate-900">{filteredLogs.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredLogs.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredLogs.length}</strong> log aktivitas
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Sebelumnya
+              </button>
+              <div className="px-3 py-1 font-bold text-slate-800">
+                Hal {currentPage} / {totalPages}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

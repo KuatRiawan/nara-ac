@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback, useContext } from 'react';
+import { useState, useMemo, useCallback, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../AuthContext';
+import api from '../../api';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -19,6 +20,11 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
   const [assigningId, setAssigningId] = useState(null);
   const [selectedTechForAssign, setSelectedTechForAssign] = useState('');
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  // Timeframe selector state for Trend Chart (7 Hari, 1 Bulan, 3 Bulan, 1 Tahun)
+  const [trendPeriod, setTrendPeriod] = useState('7d'); // '7d' | '30d' | '90d' | '1y'
+  const [apiTrendData, setApiTrendData] = useState(null);
+  const [loadingTrends, setLoadingTrends] = useState(false);
 
   const getLocalDateStr = (d = new Date()) => {
     const year = d.getFullYear();
@@ -67,55 +73,173 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
     return null;
   }, [technicians]);
 
-  const todayBookings = useMemo(() => {
-    return bookings.filter(b => b.jadwal_mulai && isDateToday(b.jadwal_mulai));
-  }, [bookings]);
+  // Direct fetch for Today's bookings to ensure 100% sync with database
+  const [todayBookingsData, setTodayBookingsData] = useState([]);
+  const [_loadingToday, setLoadingToday] = useState(false);
 
+  const fetchTodayBookings = useCallback(async () => {
+    try {
+      setLoadingToday(true);
+      const todayStr = getLocalDateStr(new Date());
+      const res = await api.get('/bookings', {
+        params: { dari: todayStr, sampai: todayStr, limit: 100 }
+      });
+      const data = res?.data?.data || res?.data || res;
+      if (Array.isArray(data)) {
+        setTodayBookingsData(data);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat booking hari ini dari server:', err);
+    } finally {
+      setLoadingToday(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTodayBookings();
+  }, [fetchTodayBookings]);
+
+  useEffect(() => {
+    const handleUpdate = () => fetchTodayBookings();
+    window.addEventListener('nara-booking-updated', handleUpdate);
+    return () => window.removeEventListener('nara-booking-updated', handleUpdate);
+  }, [fetchTodayBookings]);
+
+  const todayBookings = useMemo(() => {
+    if (todayBookingsData && todayBookingsData.length > 0) {
+      return todayBookingsData;
+    }
+    return bookings.filter(b => b.jadwal_mulai && isDateToday(b.jadwal_mulai));
+  }, [todayBookingsData, bookings]);
+
+  // Action Center state & tabs ('today' | 'upcoming')
+  const [actionTab, setActionTab] = useState('today');
+  const [upcomingPending, setUpcomingPending] = useState([]);
+  const [_loadingUpcoming, setLoadingUpcoming] = useState(false);
+
+  // Fetch upcoming unassigned bookings (from tomorrow onwards, nearest first)
+  const fetchUpcomingPending = useCallback(async () => {
+    try {
+      setLoadingUpcoming(true);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomStr = getLocalDateStr(tomorrow);
+      const res = await api.get('/bookings', {
+        params: { belum_ditugaskan: true, dari: tomStr, urut: 'terdekat', limit: 8 }
+      });
+      const data = res?.data?.data || res?.data || res;
+      if (Array.isArray(data)) {
+        setUpcomingPending(data);
+      }
+    } catch (e) {
+      console.warn('Gagal memuat booking mendatang belum ditugaskan:', e);
+    } finally {
+      setLoadingUpcoming(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUpcomingPending();
+  }, [fetchUpcomingPending]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchUpcomingPending();
+    };
+    window.addEventListener('nara-booking-updated', handleUpdate);
+    return () => window.removeEventListener('nara-booking-updated', handleUpdate);
+  }, [fetchUpcomingPending]);
+
+  // Today's pending bookings (delayed or unassigned)
+  const todayPending = useMemo(() => {
+    return todayBookings
+      .filter(b => (!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed')
+      .sort((a, b) => new Date(a.jadwal_mulai).getTime() - new Date(b.jadwal_mulai).getTime());
+  }, [todayBookings, getAssignedTechnician]);
+
+  // Active list based on selected tab in Pusat Tindakan
   const actionRequired = useMemo(() => {
-    return bookings.filter(b => 
-      (!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed'
-    ).slice(0, 6);
-  }, [bookings, getAssignedTechnician]);
+    return actionTab === 'today' ? todayPending : upcomingPending;
+  }, [actionTab, todayPending, upcomingPending]);
+
+  const formatSlotTime = (dtStr) => {
+    if (!dtStr) return '-';
+    const d = new Date(dtStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  const formatSlotBadge = (dtStr) => {
+    if (!dtStr) return null;
+    const d = new Date(dtStr);
+    if (isNaN(d.getTime())) return null;
+    const timeStr = formatSlotTime(dtStr);
+    
+    if (isDateToday(dtStr)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+          <Clock className="w-3 h-3 text-amber-700" />
+          Hari Ini • {timeStr} WIB
+        </span>
+      );
+    }
+    
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    const isTomorrow = d.getDate() === tom.getDate() && d.getMonth() === tom.getMonth() && d.getFullYear() === tom.getFullYear();
+    
+    if (isTomorrow) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+          <CalendarIcon className="w-3 h-3 text-blue-600" />
+          Besok ({d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}) • {timeStr} WIB
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+        <CalendarIcon className="w-3 h-3 text-slate-500" />
+        {d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })} • {timeStr} WIB
+      </span>
+    );
+  };
 
   // Derived KPI and status stats
   const bookingStats = useMemo(() => {
     const counts = { scheduled: 0, 'on process': 0, done: 0, cancelled: 0, delayed: 0, rescheduled: 0 };
-    let todayBookingsCount = 0;
+    let todayBookingsCount = todayBookings.length;
     let doneTodayCount = 0;
+    let onProcessCount = 0;
     let pendingAssignCount = 0;
     let todayOmzet = 0;
     
-    bookings.forEach(b => {
-      if (counts[b.status] !== undefined) counts[b.status]++;
-      
-      // Count for today
-      if (b.jadwal_mulai && isDateToday(b.jadwal_mulai)) {
-        todayBookingsCount++;
-        if (b.status === 'done') doneTodayCount++;
-        if ((!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed') {
-          pendingAssignCount++;
-        }
-
-        // Calculate revenue for today
-        const unit = b.jumlah_unit || 1;
-        const basePrice = b.layanan?.harga || b.harga || 75000;
-        const subtotal = basePrice * unit;
-        const discount = unit === 2 ? Math.round(subtotal * 0.05) : unit >= 3 ? Math.round(subtotal * 0.1) : 0;
-        todayOmzet += (subtotal - discount);
+    todayBookings.forEach(b => {
+      if (b.status === 'done') doneTodayCount++;
+      if (b.status === 'on process') onProcessCount++;
+      if ((!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed') {
+        pendingAssignCount++;
       }
+
+      // Calculate revenue for today
+      const unit = b.jumlah_unit || 1;
+      const basePrice = b.layanan?.harga || b.harga || 75000;
+      const subtotal = basePrice * unit;
+      const discount = unit === 2 ? Math.round(subtotal * 0.05) : unit >= 3 ? Math.round(subtotal * 0.1) : 0;
+      todayOmzet += (subtotal - discount);
+
+      if (counts[b.status] !== undefined) counts[b.status]++;
     });
-    
-    const allOnProcess = bookings.filter(b => b.status === 'on process').length;
     
     return {
       todayBookings: todayBookingsCount,
-      onProcess: allOnProcess,
+      onProcess: onProcessCount,
       doneToday: doneTodayCount,
       pendingAssign: pendingAssignCount,
       todayOmzet,
       counts
     };
-  }, [bookings, getAssignedTechnician]);
+  }, [todayBookings, getAssignedTechnician]);
 
   // Filtered Today Bookings
   const filteredTodayBookings = useMemo(() => {
@@ -153,6 +277,43 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
     ].filter(d => d.value > 0);
   }, [bookingStats]);
 
+  // Fetch trend aggregation from backend
+  const fetchTrends = useCallback(async (period) => {
+    try {
+      setLoadingTrends(true);
+      const res = await api.get('/analytics/trends', { params: { period } });
+      const data = res?.data || res;
+      if (Array.isArray(data)) {
+        setApiTrendData(data);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat tren dari server, fallback ke perhitungan lokal:', err);
+    } finally {
+      setLoadingTrends(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTrends(trendPeriod);
+  }, [trendPeriod, fetchTrends]);
+
+  useEffect(() => {
+    const handleUpdate = () => fetchTrends(trendPeriod);
+    window.addEventListener('nara-booking-updated', handleUpdate);
+    return () => window.removeEventListener('nara-booking-updated', handleUpdate);
+  }, [trendPeriod, fetchTrends]);
+
+  const periodOptions = useMemo(() => [
+    { key: '7d', label: '7 Hari', subtitle: 'Performa operasional 7 hari kalender terakhir' },
+    { key: '30d', label: '1 Bulan', subtitle: 'Performa operasional 30 hari kalender terakhir' },
+    { key: '90d', label: '3 Bulan', subtitle: 'Performa operasional 3 bulan terakhir (agregasi mingguan)' },
+    { key: '1y', label: '1 Tahun', subtitle: 'Tren performa tahunan 2026 (Januari - Desember)' },
+  ], []);
+
+  const currentPeriodConfig = useMemo(() => {
+    return periodOptions.find(p => p.key === trendPeriod) || periodOptions[0];
+  }, [periodOptions, trendPeriod]);
+
   const trendData = useMemo(() => {
     const data = [];
     for (let i = 6; i >= 0; i--) {
@@ -168,6 +329,13 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
     }
     return data;
   }, [bookings]);
+
+  const activeTrendData = useMemo(() => {
+    if (apiTrendData && apiTrendData.length > 0) {
+      return apiTrendData;
+    }
+    return trendData;
+  }, [apiTrendData, trendData]);
 
   const techWorkload = useMemo(() => {
     const workload = {};
@@ -389,34 +557,59 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
       {/* ============================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0 items-stretch">
         
-        {/* Main Area Chart: 7 Days Trend (7 Cols) */}
+        {/* Main Area Chart: Trend Servis & Penyelesaian (7 Cols) */}
         <div className="lg:col-span-7 bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between min-w-0">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                   Tren Kunjungan Servis & Penyelesaian
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Performa operasional 7 hari kalender terakhir
+                  {currentPeriodConfig.subtitle}
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                  <span>Total Masuk</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span>Selesai (Done)</span>
-                </span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {/* Timeframe Selector Pills */}
+                <div className="inline-flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                  {periodOptions.map((opt) => {
+                    const isActive = trendPeriod === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setTrendPeriod(opt.key)}
+                        className={cn(
+                          "px-2.5 py-1 text-xs rounded-lg transition-all font-semibold",
+                          isActive
+                            ? "bg-white text-blue-600 shadow-xs font-bold"
+                            : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 pl-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                    <span>Total</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span>Selesai</span>
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="h-[250px] sm:h-[270px] w-full min-w-0">
+            <div className={cn("h-[250px] sm:h-[270px] w-full min-w-0 transition-opacity duration-200", loadingTrends ? "opacity-60" : "opacity-100")}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={activeTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="naraTotalGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25}/>
@@ -567,7 +760,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
               Status Distribusi Tiket
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Proporsi seluruh pengerjaan aktif
+              Proporsi pengerjaan aktif hari ini
             </p>
           </div>
 
@@ -603,10 +796,10 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
             {/* Center Stats */}
             <div className="absolute text-center pointer-events-none">
               <span className="text-2xl font-black text-slate-900 leading-none block">
-                {bookings.length}
+                {todayBookings.length}
               </span>
               <span className="text-xs uppercase font-bold text-slate-500 tracking-wider">
-                Total
+                Hari Ini
               </span>
             </div>
           </div>
@@ -625,13 +818,13 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
         {/* Action Center Card (7 Cols) */}
         <div className="lg:col-span-7 bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between min-w-0">
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
                 <div className={cn(
                   "p-2 rounded-xl",
-                  actionRequired.length > 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                  todayPending.length > 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
                 )}>
-                  {actionRequired.length > 0 ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                  {todayPending.length > 0 ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 text-base">Pusat Tindakan & Perhatian</h3>
@@ -640,55 +833,115 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
               </div>
               <Badge className={cn(
                 "text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border",
-                actionRequired.length > 0 
+                todayPending.length > 0 
                   ? "bg-rose-50 text-rose-700 border-rose-200" 
                   : "bg-emerald-50 text-emerald-700 border-emerald-200"
               )}>
-                {actionRequired.length > 0 ? `${actionRequired.length} Perlu Alokasi` : 'Terkendali'}
+                {todayPending.length > 0 ? `${todayPending.length} Hari Ini Perlu Alokasi` : 'Hari Ini Terkendali ✓'}
               </Badge>
             </div>
 
+            {/* Scope / Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl mb-3.5">
+              <button
+                type="button"
+                onClick={() => setActionTab('today')}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                  actionTab === 'today'
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                <span>Hari Ini</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                  todayPending.length > 0 ? "bg-rose-100 text-rose-700" : "bg-slate-200 text-slate-600"
+                )}>
+                  {todayPending.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActionTab('upcoming')}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                  actionTab === 'upcoming'
+                    ? "bg-white text-slate-900 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                <span>Jadwal Mendatang</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
+                  upcomingPending.length > 0 ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"
+                )}>
+                  {upcomingPending.length}
+                </span>
+              </button>
+            </div>
+
             {actionRequired.length === 0 ? (
-              <div className="py-9 px-6 text-center bg-slate-50/60 rounded-2xl border border-slate-100 flex flex-col items-center justify-center my-auto">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-emerald-100">
-                  <CheckCircle2 className="w-6 h-6" />
+              <div className="py-7 px-4 text-center bg-slate-50/60 rounded-2xl border border-slate-100 flex flex-col items-center justify-center my-auto">
+                <div className={cn(
+                  "w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-2.5 border",
+                  actionTab === 'today' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                )}>
+                  <CheckCircle2 className="w-5 h-5" />
                 </div>
-                <h4 className="text-sm font-bold text-slate-900">Seluruh Jadwal Terkendali</h4>
-                <p className="text-xs text-slate-500 mt-1 max-w-md leading-relaxed">
-                  Tidak ada tiket tertunda atau tanpa teknisi. Seluruh jadwal servis hari ini telah dialokasikan dengan optimal sesuai standar SOP CV. Nara.
+                <h4 className="text-sm font-bold text-slate-900">
+                  {actionTab === 'today' ? 'Seluruh Jadwal Hari Ini Terkendali' : 'Belum Ada Antrean Mendatang'}
+                </h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm leading-relaxed">
+                  {actionTab === 'today'
+                    ? `Tidak ada tiket tertunda atau tanpa teknisi untuk hari ini. Seluruh ${bookingStats.todayBookings} tiket servis telah ditugaskan secara optimal.`
+                    : 'Semua tiket servis untuk jadwal berikutnya sudah memiliki alokasi teknisi.'}
                 </p>
-                <div className="flex items-center gap-2 mt-4">
-                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700">
-                    ✓ 100% Terdistribusi
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700">
-                    ✓ 0 Tertunda
-                  </span>
-                </div>
+                {actionTab === 'today' && upcomingPending.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActionTab('upcoming')}
+                    className="mt-3.5 h-8 text-xs font-bold text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50 rounded-xl cursor-pointer"
+                  >
+                    Lihat {upcomingPending.length} Antrean Jadwal Mendatang →
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="space-y-3 overflow-y-auto max-h-[260px] pr-1">
+              <div className="space-y-3 overflow-y-auto max-h-[250px] pr-1">
                 {actionRequired.map(b => (
                   <div key={b.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-blue-200 transition-all flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-100">
-                        {b.kode_booking}
-                      </span>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-100">
+                          {b.kode_booking}
+                        </span>
+                        {formatSlotBadge(b.jadwal_mulai)}
+                      </div>
                       <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full font-bold",
+                        "text-xs px-2.5 py-0.5 rounded-full font-bold",
                         b.status === 'delayed' ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"
                       )}>
                         {b.status === 'delayed' ? 'Tertunda' : 'Belum Ditugaskan'}
                       </span>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 truncate">
-                        {b.customer?.nama || b.nama || 'Pelanggan'}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {b.layanan?.nama_layanan || b.nama_layanan || 'Servis AC'} • {b.jumlah_unit || 1} Unit
-                      </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {b.customer?.nama || b.nama || 'Pelanggan'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {b.layanan?.nama_layanan || b.nama_layanan || 'Servis AC'} • {b.jumlah_unit || 1} Unit
+                        </p>
+                      </div>
+                      {b.alamat && (
+                        <p className="text-[11px] text-slate-400 text-right truncate max-w-[160px]" title={b.alamat}>
+                          {b.alamat}
+                        </p>
+                      )}
                     </div>
 
                     {/* Quick Assign Inline Action */}
@@ -734,7 +987,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                         <button
                           type="button"
                           onClick={() => navigate('/admin/schedule')}
-                          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-0.5"
+                          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-0.5 cursor-pointer"
                         >
                           <span>Jadwal</span>
                           <ArrowRight className="w-3 h-3" />

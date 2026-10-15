@@ -1,13 +1,13 @@
-export default function CompanyLogo({ className = '', dark = false, iconSize = 'h-12', iconOnly = false }) {
+export default function CompanyLogo({ className = '', dark = false, iconSize = 'h-12', iconOnly = false, collapsed = false }) {
   return (
-    <div className={`flex items-center ${iconOnly ? 'justify-center' : 'gap-3'} ${className}`}>
+    <div className={`flex items-center ${iconOnly || collapsed ? 'justify-center' : 'gap-3'} ${className}`}>
       <img 
         src="/images/logo.png" 
         alt="CV. Nara Teknindotama Logo" 
-        className={`${iconSize} object-contain ${dark ? 'brightness-0 invert' : ''}`} 
+        className={`${iconSize} object-contain shrink-0 transition-transform duration-300 ${dark ? 'brightness-0 invert' : ''}`} 
       />
       {!iconOnly && (
-        <div className="flex flex-col justify-center">
+        <div className={`flex flex-col justify-center whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${collapsed ? 'max-w-0 opacity-0 pointer-events-none' : 'max-w-[200px] opacity-100'}`}>
           <span 
             className={`leading-none tracking-tighter ${dark ? 'text-white' : 'text-blue-950'} text-3xl`} 
             style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}

@@ -247,6 +247,8 @@ describe('Security Remediation Suite (FIND-01 to FIND-18)', () => {
   });
 
   afterAll(async () => {
+    await query("DELETE FROM feedback WHERE booking_id IN (SELECT id FROM bookings WHERE kode_booking LIKE 'NARA-AC-FB-%')");
+    await query("DELETE FROM bookings WHERE kode_booking LIKE 'NARA-AC-FB-%'");
     await query("DELETE FROM bookings WHERE customer_id IN (SELECT id FROM customers WHERE nama = 'Budi Raharjo')");
   });
 });

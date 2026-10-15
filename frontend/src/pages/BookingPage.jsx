@@ -12,7 +12,7 @@ import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 import { cn } from '../lib/utils';
 import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { Clock, ArrowLeft, ArrowRight, Wrench, ShieldCheck, CheckCircle2, Loader2, Sparkles, User, Phone, Check, Copy, Wind, FileText, MessageSquare, AlertCircle, HelpCircle, Percent, CalendarOff, Sun, Sunset, Printer, X, History, Plus, Trash2, Layers } from 'lucide-react';
+import { Clock, ArrowLeft, ArrowRight, Wrench, ShieldCheck, CheckCircle2, Loader2, Sparkles, User, Phone, Check, Copy, Wind, FileText, MessageSquare, AlertCircle, HelpCircle, Percent, CalendarOff, Sun, Sunset, Printer, X, History, Plus, Trash2, Layers, Ticket } from 'lucide-react';
 
 export default function BookingPage() {
   const navigate = useNavigate();
@@ -779,32 +779,43 @@ export default function BookingPage() {
                 <div className="bg-white rounded-3xl border border-sky-100 shadow-2xl shadow-blue-950/10 p-6 sm:p-8 mb-8 text-left relative overflow-hidden">
                   <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-600 via-sky-500 to-emerald-500" />
                   
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 gap-4">
-                    <div>
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  {/* Ticket Header & Status */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Ticket className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
                         KODE TIKET LAYANAN
                       </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl sm:text-4xl font-black text-blue-600 font-mono tracking-wider">
-                          {bCode}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => copyBookingCode(bCode)}
-                          className="py-1.5 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-sky-100"
-                        >
-                          {copiedTicket ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedTicket ? 'Tersalin!' : 'Salin Kode'}</span>
-                        </button>
-                      </div>
                     </div>
 
-                    <div className="sm:text-right">
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full shadow-2xs">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         Status: Terjadwal (Scheduled)
                       </span>
                     </div>
+                  </div>
+
+                  {/* Highlighted Ticket Box */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-sky-50/90 via-blue-50/50 to-slate-50 border border-sky-200/80 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-2xs">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                        Nomor Tiket Pemesanan Resmi
+                      </span>
+                      <div className="font-mono font-black text-blue-700 text-base sm:text-lg md:text-xl tracking-wider break-all select-all leading-snug">
+                        {bCode}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => copyBookingCode(bCode)}
+                      className="shrink-0 w-full sm:w-auto py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/20"
+                      title="Salin Kode Tiket"
+                    >
+                      {copiedTicket ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedTicket ? 'Kode Tersalin!' : 'Salin Kode'}</span>
+                    </button>
                   </div>
 
                   {/* Summary Rows */}
@@ -1772,6 +1783,18 @@ export default function BookingPage() {
                         )}
                       </Button>
                     </div>
+
+                    <p className="text-center text-xs text-slate-500 mt-4">
+                      Dengan membuat pesanan, Anda menyetujui{' '}
+                      <a href="/terms" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-700">
+                        Syarat &amp; Ketentuan Layanan
+                      </a>{' '}
+                      serta{' '}
+                      <a href="/privacy" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-700">
+                        Kebijakan Privasi
+                      </a>{' '}
+                      NARA AC.
+                    </p>
                   </motion.div>
                 )}
 
@@ -1903,12 +1926,18 @@ export default function BookingPage() {
       {/* ============================================================== */}
       {/* 3. FOOTER COPYRIGHT                                            */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto">
-        <div className="max-w-7xl mx-auto px-4">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-xs text-slate-500 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Sistem Booking Online Terverifikasi & SOP 7 Langkah Pengerjaan
-          </p>
+          <div className="flex items-center gap-3 font-medium">
+            <Link to="/terms" className="hover:text-blue-600 transition-colors">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span className="text-slate-300">&bull;</span>
+            <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+              Kebijakan Privasi
+            </Link>
+          </div>
         </div>
       </footer>
 
@@ -1926,7 +1955,7 @@ export default function BookingPage() {
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="invoice-modal-card bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
+              className="invoice-modal-card bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
               ref={invoiceModalRef}
               tabIndex={-1}
             >
@@ -1942,7 +1971,7 @@ export default function BookingPage() {
                     size="sm"
                     onClick={() => {
                       const origTitle = document.title;
-                      document.title = `Invoice_${successData?.kode_booking || 'NARA'}_CV_Nara_Teknindotama`;
+                      document.title = `Invoice_${successData?.kode_booking || successData?.data?.kode_booking || 'NARA'}_CV_Nara_Teknindotama`;
                       window.print();
                       setTimeout(() => { document.title = origTitle; }, 1000);
                     }}
@@ -1967,6 +1996,8 @@ export default function BookingPage() {
               <OfficialInvoicePaper 
                 booking={{
                   ...successData,
+                  id: successData?.id || successData?.data?.id,
+                  kode_booking: successData?.kode_booking || successData?.data?.kode_booking || 'AC-XXXX',
                   items: successData?.items || calculation.items,
                   layanan: selectedService?.nama_layanan || successData?.layanan?.nama || successData?.layanan || 'Cuci AC Standard',
                   customer_nama: form.nama,

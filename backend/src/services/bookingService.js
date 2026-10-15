@@ -328,7 +328,7 @@ async function listBookings(filters, user) {
     where.push(`(b.kode_booking ILIKE $${i} OR c.nama ILIKE $${i} OR b.kontak ILIKE $${i} OR b.alamat ILIKE $${i})`);
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const order = filters.urut === 'terbaru' ? 'b.jadwal_mulai DESC' : 'b.jadwal_mulai ASC';
+  const order = filters.urut === 'terdekat' ? 'b.jadwal_mulai ASC' : 'b.created_at DESC, b.id DESC';
   const total = (await query(
     `SELECT COUNT(*)::int AS n FROM bookings b JOIN customers c ON c.id = b.customer_id ${whereSql}`, params,
   )).rows[0].n;

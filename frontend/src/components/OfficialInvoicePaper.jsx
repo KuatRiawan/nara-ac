@@ -35,7 +35,27 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
   const activePayment = paymentSettings || internalPaymentSettings;
   
   const kodeBooking = b.kode_booking || (b.id ? `AC-${b.id}` : 'AC-0000');
-  const invNumber = b.invNo || `INV/NARA/${new Date().getFullYear()}/${kodeBooking}`;
+
+  // Format nomor invoice standar profesional: INV/NARA/{TAHUN}/{NOMOR_URUT}
+  const invNumber = useMemo(() => {
+    if (b.invNo) return b.invNo;
+    if (b.inv_no) return b.inv_no;
+    const year = new Date().getFullYear();
+    const rawId = b.id || b.booking_id || b.data?.id;
+    if (rawId) {
+      return `INV/NARA/${year}/${String(rawId).padStart(5, '0')}`;
+    }
+    // Jika hanya ada kode_booking panjang, ambil bagian uniknya agar ringkas dan rapi
+    if (typeof kodeBooking === 'string' && kodeBooking !== 'AC-0000') {
+      const parts = kodeBooking.split('-');
+      // Contoh: NARA-AC115815102026-98E76EC... -> AC1158151020
+      if (parts.length >= 2) {
+        return `INV/NARA/${year}/${parts[1].slice(0, 12)}`;
+      }
+      return `INV/NARA/${year}/${kodeBooking.slice(0, 10)}`;
+    }
+    return `INV/NARA/${year}/00001`;
+  }, [b.invNo, b.inv_no, b.id, b.booking_id, b.data, kodeBooking]);
   
   const customerNama = b.customer_nama || 
     (typeof b.customer?.nama === 'string' ? b.customer.nama : '') || 
@@ -173,19 +193,19 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       {/* 1. KOP SURAT RESMI CV. NARA TEKNINDOTAMA                       */}
       {/* ============================================================== */}
       <div className="pb-3 border-b-2 border-slate-950">
-        <div className="flex flex-row items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           
           {/* Left: Official Logo & Legal Information */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
             <img
               src="/images/logo.png"
               alt="Logo Resmi CV. Nara Teknindotama"
-              className="h-16 w-auto object-contain shrink-0"
+              className="h-14 sm:h-16 w-auto object-contain shrink-0"
             />
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 
-                  className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-none"
+                  className="text-lg sm:text-2xl font-black text-slate-950 tracking-tight leading-none"
                   style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}
                 >
                   CV. NARA TEKNINDOTAMA
@@ -197,7 +217,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
               <p className="text-xs font-bold text-blue-700 tracking-wider uppercase mt-1">
                 Layanan Spesialis Perawatan & Reparasi Pendingin Udara (AC)
               </p>
-              <p className="text-xs text-slate-600 leading-snug mt-1">
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-snug mt-1">
                 <strong>Alamat:</strong> Jalan Teluk Langsa RT. 002 RW. 016, Ciangsana, Gunung Putri, Kab. Bogor, Jawa Barat<br />
                 <strong>Kontak:</strong> WhatsApp: 0813-8529-3137 | Email: narateknindotama@gmail.com | Web: www.narateknindotama.com<br />
                 <strong>Legalitas:</strong> NIB: 2805250066735 | NPWP: 10.000.000.0-258.288 | AHU-0045403-AH.01.14 Tahun 2025
@@ -206,14 +226,20 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
           </div>
 
           {/* Right: Invoice Tag & Metadata */}
-          <div className="text-right shrink-0">
-            <div className="inline-block px-3 py-1.5 rounded-lg bg-slate-900 text-white text-right">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 block">
+          <div className="text-left md:text-right shrink-0 w-full md:w-auto max-w-full md:max-w-xs">
+            <div className="inline-block w-full px-3.5 py-2 rounded-xl bg-slate-900 text-white text-left md:text-right shadow-xs">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 block mb-0.5">
                 INVOICE & SPK RESMI
               </span>
-              <span className="text-xs font-mono font-bold tracking-wider">
+              <span className="text-xs sm:text-sm font-mono font-black tracking-wider block">
                 {invNumber}
               </span>
+              {kodeBooking && (
+                <div className="mt-1 pt-1 border-t border-slate-700/80 flex flex-wrap items-center justify-start md:justify-end gap-1 text-[10px] text-slate-300">
+                  <span className="text-slate-400">Kode Tiket:</span>
+                  <span className="font-mono font-bold text-sky-300 break-all">{kodeBooking}</span>
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-1.5 font-medium">
               Terbit: {todayStr}
@@ -237,7 +263,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       {/* ============================================================== */}
       {/* 2. INFORMASI PELANGGAN & JADWAL TEKNISI                        */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs">
         {/* Left: Ditujukan Kepada */}
         <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -260,7 +286,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         </div>
 
         {/* Right: Rincian Jadwal & Teknisi */}
-        <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-right">
+        <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-left sm:text-right">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
             RINCIAN JADWAL & TEKNISI BERTUGAS:
           </span>
@@ -334,7 +360,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       {/* ============================================================== */}
       {/* 4. TOTALS & INSTRUKSI PEMBAYARAN RESMI                        */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs avoid-page-break">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs avoid-page-break">
         {/* Left: Instruksi Pembayaran Rekening Perusahaan */}
         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
           <span className="font-bold text-slate-900 text-xs block mb-1">
@@ -366,7 +392,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         </div>
 
         {/* Right: Perhitungan Total */}
-        <div className="space-y-1.5 text-right self-center pr-2">
+        <div className="space-y-1.5 text-left sm:text-right self-center pr-0 sm:pr-2">
           <div className="flex justify-between text-slate-600 text-xs">
             <span>Subtotal Jasa Servis:</span>
             <span className="font-mono">Rp {subtotal.toLocaleString('id-ID')}</span>
@@ -394,7 +420,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       {/* ============================================================== */}
       {/* 5. GARANSI STRIP & PENGESAHAN DOKUMEN                         */}
       {/* ============================================================== */}
-      <div className="pt-3.5 grid grid-cols-2 gap-6 text-xs avoid-page-break">
+      <div className="pt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs avoid-page-break">
         {/* Left: Garansi & Tanda Terima Pelanggan */}
         <div>
           <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 mb-3">
@@ -402,7 +428,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
               Jaminan Garansi Resmi NARA AC:
             </span>
             <p className="text-sky-800 text-xs leading-relaxed">
-              Layanan ini dilindungi garansi <strong>{warrantyText}</strong>. Jika terjadi kendala dingin atau bocor pasca-servis, klaim mudah via WhatsApp <strong>0813-8529-3137</strong> dengan melampirkan nomor tiket <strong>{kodeBooking}</strong>.
+              Layanan ini dilindungi garansi <strong>{warrantyText}</strong>. Jika terjadi kendala dingin atau bocor pasca-servis, klaim mudah via WhatsApp <strong>0813-8529-3137</strong> dengan melampirkan nomor tiket <strong className="font-mono break-all">{kodeBooking}</strong>.
             </p>
           </div>
 
@@ -415,7 +441,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         </div>
 
         {/* Right: Pengesahan CV. NARA TEKNINDOTAMA */}
-        <div className="text-right flex flex-col items-end">
+        <div className="text-left sm:text-right flex flex-col items-start sm:items-end">
           <p className="text-xs text-slate-600 mb-0.5">
             Kab. Bogor, {todayStr}
           </p>
@@ -424,13 +450,13 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
           </p>
           
           {/* Stempel & QR Verifikasi Box */}
-          <div className="flex items-center gap-2 mb-2 p-1.5 rounded-lg border border-blue-200 bg-blue-50/50">
-            <div className="w-9 h-9 rounded bg-white border border-blue-300 flex items-center justify-center text-[8px] font-mono text-blue-700 font-bold">
+          <div className="flex items-center gap-2 mb-2 p-1.5 rounded-lg border border-blue-200 bg-blue-50/50 max-w-[280px]">
+            <div className="w-9 h-9 rounded bg-white border border-blue-300 flex items-center justify-center text-[8px] font-mono text-blue-700 font-bold shrink-0 shadow-2xs">
               QR-OK
             </div>
-            <div className="text-left text-[9px] text-blue-900 leading-tight">
+            <div className="text-left text-[9px] text-blue-900 leading-tight min-w-0">
               <p className="font-bold">VERIFIKASI DIGITAL</p>
-              <p className="text-[8px] text-slate-500 font-mono">{kodeBooking} • NARA-AUTH</p>
+              <p className="text-[8px] text-slate-500 font-mono break-all">{kodeBooking}</p>
             </div>
           </div>
 

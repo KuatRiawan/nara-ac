@@ -706,7 +706,7 @@ export default function AdminBookings({
                           title="Chat WhatsApp Pelanggan"
                         >
                           <MessageSquare className="w-4 h-4" />
-<span className="sr-only"> (buka di tab baru)</span>
+                          <span className="sr-only"> (buka di tab baru)</span>
                         </a>
                       )}
                     </div>
@@ -772,7 +772,7 @@ export default function AdminBookings({
                                   : "bg-amber-50 text-amber-800 border-amber-300 font-bold"
                               )}
                             >
-                              <option value="">⚠️ Tugaskan...</option>
+                              <option value="">Tugaskan...</option>
                               {technicians.map(t => (
                                 <option key={t.id} value={t.id}>{t.nama}</option>
                               ))}
@@ -928,7 +928,7 @@ export default function AdminBookings({
                                   >
                                     <MessageSquare className="w-3 h-3" />
                                     <span>WA</span>
-<span className="sr-only"> (buka di tab baru)</span>
+                                    <span className="sr-only"> (buka di tab baru)</span>
                                   </a>
                                 )}
                               </div>
@@ -962,7 +962,7 @@ export default function AdminBookings({
                                     : "bg-amber-50 text-amber-800 border-amber-300 font-bold"
                                 )}
                               >
-                                <option value="">⚠️ Tugaskan Teknisi...</option>
+                                <option value="">Tugaskan Teknisi...</option>
                                 {technicians.map(t => (
                                   <option key={t.id} value={t.id}>{t.nama}</option>
                                 ))}
@@ -1107,10 +1107,10 @@ export default function AdminBookings({
                             "bg-rose-100 text-rose-800"
                   )}>
                     {selectedBookingForDetail.status === 'done' ? <CheckCircle2 className="w-3 h-3 mr-1" /> :
-                     selectedBookingForDetail.status === 'on process' ? <Wrench className="w-3 h-3 mr-1" /> :
-                     selectedBookingForDetail.status === 'scheduled' ? <CalendarClock className="w-3 h-3 mr-1" /> :
-                     selectedBookingForDetail.status === 'delayed' ? <AlertCircle className="w-3 h-3 mr-1" /> :
-                     <AlertTriangle className="w-3 h-3 mr-1" />}
+                      selectedBookingForDetail.status === 'on process' ? <Wrench className="w-3 h-3 mr-1" /> :
+                        selectedBookingForDetail.status === 'scheduled' ? <CalendarClock className="w-3 h-3 mr-1" /> :
+                          selectedBookingForDetail.status === 'delayed' ? <AlertCircle className="w-3 h-3 mr-1" /> :
+                            <AlertTriangle className="w-3 h-3 mr-1" />}
                     {selectedBookingForDetail.status.toUpperCase()}
                   </Badge>
                 </div>
@@ -1180,7 +1180,7 @@ export default function AdminBookings({
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>Chat WA</span>
-<span className="sr-only"> (buka di tab baru)</span>
+                        <span className="sr-only"> (buka di tab baru)</span>
                       </a>
                     )}
                   </div>
@@ -1247,7 +1247,7 @@ export default function AdminBookings({
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Buka Status Publik</span>
-<span className="sr-only"> (buka di tab baru)</span>
+                  <span className="sr-only"> (buka di tab baru)</span>
                 </a>
               </div>
 
@@ -1384,13 +1384,13 @@ export default function AdminBookings({
 
       {/* MODAL E-INVOICE RESMI (OFFICIAL INVOICE PAPER) */}
       {isInvoiceModalOpen && selectedInvoiceBooking && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           id="invoice-print-portal"
           onClick={(e) => { if (e.target === e.currentTarget) setIsInvoiceModalOpen(false); }}
           className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex justify-center items-start p-3 sm:p-6 lg:p-8 invoice-modal-backdrop print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
         >
           <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-2 sm:my-4 animate-in fade-in zoom-in-95 duration-200 invoice-modal-card relative flex flex-col print:overflow-visible print:max-w-none print:w-full print:border-none print:shadow-none print:my-0 print:rounded-none">
-            
+
             {/* Modal Header Actions */}
             <div className="sticky top-0 z-20 p-3 sm:p-4 bg-slate-900 text-white flex items-center justify-between shadow-md print:hidden">
               <div className="flex items-center gap-2">
@@ -1423,8 +1423,8 @@ export default function AdminBookings({
 
             {/* Official Printable Paper Area */}
             <div className="overflow-x-auto bg-white flex-1 print:overflow-visible print:p-0 print:w-full">
-              <OfficialInvoicePaper 
-                booking={selectedInvoiceBooking} 
+              <OfficialInvoicePaper
+                booking={selectedInvoiceBooking}
                 isPaidOverride={selectedInvoiceBooking.status === 'done'}
               />
             </div>

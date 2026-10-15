@@ -44,7 +44,7 @@ const listSchema = Joi.object({
   sampai: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
   urut: Joi.string().valid('terdekat', 'terbaru'),
   page: Joi.number().integer().min(1),
-  limit: Joi.number().integer().min(1).max(200),
+  limit: Joi.number().integer().min(1).max(1000),
 });
 
 const idParam = Joi.object({ id: Joi.number().integer().positive().required().label('ID') });

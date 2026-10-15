@@ -83,8 +83,8 @@ export default function AdminSchedule({ onBookingAssigned }) {
     try {
       const startDate = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
       const endDate = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
-      // Limit harus <= 100 sesuai schema backend
-      const res = await api.get(`/bookings?dari=${startDate}&sampai=${endDate}&limit=100`);
+      // Ambil seluruh jadwal bulan berjalan (hingga 500 tiket)
+      const res = await api.get(`/bookings?dari=${startDate}&sampai=${endDate}&limit=500`);
       const raw = res?.data?.data || res?.data || res;
       const list = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
       setMonthBookings(list);
@@ -98,6 +98,23 @@ export default function AdminSchedule({ onBookingAssigned }) {
 
   useEffect(() => {
     fetchMonthSchedule();
+  }, [fetchMonthSchedule]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      fetchMonthSchedule();
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'nara_booking_sync_timestamp') {
+        fetchMonthSchedule();
+      }
+    };
+    window.addEventListener('nara-booking-updated', handleUpdate);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('nara-booking-updated', handleUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [fetchMonthSchedule]);
 
   // Smart Assign Recommendation
@@ -127,6 +144,9 @@ export default function AdminSchedule({ onBookingAssigned }) {
       if (onBookingAssigned) {
         onBookingAssigned();
       }
+      try {
+        localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
+      } catch (_) {}
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
@@ -181,6 +201,10 @@ export default function AdminSchedule({ onBookingAssigned }) {
       showSuccess(`Jadwal tiket ${rescheduleBooking.kode_booking} berhasil diubah ke ${newRescheduleDate}.`);
       setRescheduleBooking(null);
       fetchMonthSchedule();
+      try {
+        localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
+      } catch (_) {}
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal mengubah tanggal jadwal');
       showError(msg);

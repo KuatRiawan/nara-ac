@@ -345,7 +345,7 @@ export default function LandingPage() {
               </Button>
             </Link>
 
-            <Link to="/booking">
+            <Link to="/booking" className="hidden sm:inline-flex">
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-4 sm:px-5 h-10 text-xs sm:text-sm shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all cursor-pointer flex items-center"
               >
@@ -1428,7 +1428,7 @@ export default function LandingPage() {
       {/* ============================================================== */}
       {/* 12. FOOTER (CLEAN LIGHT BLUE & WHITE THEME)                    */}
       {/* ============================================================== */}
-      <footer className="bg-sky-50/60 text-slate-600 pt-16 pb-12 px-4 sm:px-6 lg:px-8 border-t border-sky-100">
+      <footer className="bg-sky-50/60 text-slate-600 pt-16 pb-28 sm:pb-36 px-4 sm:px-6 lg:px-8 border-t border-sky-100">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-sky-200/70">
 
           {/* Brand Info */}
@@ -1529,12 +1529,22 @@ export default function LandingPage() {
 
         </div>
 
-        {/* Bottom copyright */}
-        <div className="max-w-7xl mx-auto pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. All rights reserved.</p>
-          <p className="text-slate-500">
-            Sistem Informasi & Manajemen Layanan Servis AC Jabodetabek
-          </p>
+        {/* Bottom copyright & legal links */}
+        <div className="max-w-7xl mx-auto pt-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 text-xs text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-6 text-center sm:text-left">
+            <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
+            <div className="flex items-center gap-3 font-medium">
+              <Link to="/terms" className="hover:text-blue-600 transition-colors">
+                Syarat &amp; Ketentuan
+              </Link>
+              <span className="text-slate-300">&bull;</span>
+              <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+                Kebijakan Privasi
+              </Link>
+            </div>
+          </div>
+          {/* Reserved spacer on right so nothing in footer ever clashes with floating booking dock */}
+          <div className="hidden lg:block w-72 shrink-0 pointer-events-none" aria-hidden="true" />
         </div>
       </footer>
 

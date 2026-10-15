@@ -30,14 +30,22 @@ async function seed() {
 
     // 3. Technicians
     console.log('Seeding technicians...');
-    const techRes = await client.query(`
-      INSERT INTO technicians (nama, kontak, is_synthetic)
-      VALUES 
-      ('Budi Santoso', '081234567890', true),
-      ('Agus Setiawan', '081234567891', true)
-      RETURNING id, nama;
-    `);
-    const techs = techRes.rows;
+    const techData = [
+      { nama: 'Budi Santoso', kontak: '081234567890' },
+      { nama: 'Agus Setiawan', kontak: '081234567891' }
+    ];
+    const techs = [];
+    for (const t of techData) {
+      const found = await client.query('SELECT id, nama FROM technicians WHERE kontak = $1', [t.kontak]);
+      if (found.rows.length > 0) {
+        const tid = found.rows[0].id;
+        await client.query('UPDATE technicians SET nama = $1, aktif = true WHERE id = $2', [t.nama, tid]);
+        techs.push({ id: tid, nama: t.nama });
+      } else {
+        const ins = await client.query('INSERT INTO technicians (nama, kontak, is_synthetic) VALUES ($1, $2, true) RETURNING id, nama', [t.nama, t.kontak]);
+        techs.push(ins.rows[0]);
+      }
+    }
 
     // 4. Users
     console.log('Seeding users...');

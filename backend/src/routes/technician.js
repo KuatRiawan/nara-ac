@@ -84,8 +84,8 @@ router.get('/jobs', TECH, validate(Joi.object({
   if (q) { params.push(`%${q}%`); where.push(`(b.kode_booking ILIKE $${params.length} OR c.nama ILIKE $${params.length})`); }
   const w = where.join(' AND ');
   const total = (await query(`SELECT COUNT(*)::int n ${JOB_FROM} WHERE ${w}`, params)).rows[0].n;
-  // ORDER BY direction: safe karena scope divalidasi oleh Joi
-  const orderDir = scope === 'done' ? 'DESC' : 'ASC';
+  // ORDER BY direction: upcoming & today order chronologically ASC, all & done order newest first DESC
+  const orderDir = (scope === 'today' || scope === 'upcoming') ? 'ASC' : 'DESC';
   const rows = (await query(`SELECT ${JOB_COLS} ${JOB_FROM} WHERE ${w} ORDER BY b.jadwal_mulai ${orderDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, safeLimit, safeOffset])).rows;
   res.json({ data: rows, meta: { total, page, limit } });
 }));

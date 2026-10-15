@@ -116,4 +116,115 @@ async function latestPredictions() {
   };
 }
 
-module.exports = { summary, latestPredictions };
+/**
+ * Agregasi tren kunjungan servis & penyelesaian untuk grafik dasbor operasional
+ * @param {string} period '7d' | '30d' | '90d' | '1y'
+ * @param {Date} now
+ */
+async function trends(period = '7d', now = new Date()) {
+  const p = ['7d', '30d', '90d', '1y'].includes(period) ? period : '7d';
+  
+  if (p === '1y') {
+    // 1 Tahun (Jan - Des tahun berjalan)
+    const year = now.getFullYear();
+    const startYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+    const endYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+
+    const rows = (await query(`
+      SELECT 
+        to_char(date_trunc('month', jadwal_mulai AT TIME ZONE 'Asia/Jakarta'), 'MM') AS month_num,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+      FROM bookings
+      WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
+      GROUP BY 1
+      ORDER BY 1
+    `, [startYear, endYear])).rows;
+
+    const monthMap = new Map(rows.map(r => [r.month_num, r]));
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    return monthNames.map((name, idx) => {
+      const mStr = String(idx + 1).padStart(2, '0');
+      const found = monthMap.get(mStr) || {};
+      return {
+        date: name,
+        key: `${year}-${mStr}`,
+        total: found.total || 0,
+        selesai: found.selesai || 0
+      };
+    });
+  }
+
+  if (p === '90d') {
+    // 90 Hari (3 Bulan terakhir) - Agregasi mingguan (13 minggu)
+    const startDate = new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000);
+    startDate.setHours(0, 0, 0, 0);
+
+    const rows = (await query(`
+      SELECT 
+        to_char(date_trunc('week', jadwal_mulai AT TIME ZONE 'Asia/Jakarta'), 'YYYY-MM-DD') AS week_start,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+      FROM bookings
+      WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
+      GROUP BY 1
+      ORDER BY 1
+    `, [startDate, now])).rows;
+
+    return rows.map(r => {
+      const d = new Date(r.week_start);
+      return {
+        date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        key: r.week_start,
+        total: r.total || 0,
+        selesai: r.selesai || 0
+      };
+    });
+  }
+
+  // 7d atau 30d: Agregasi per hari
+  const daysCount = p === '30d' ? 30 : 7;
+  const startDate = new Date(now.getTime() - (daysCount - 1) * 24 * 60 * 60 * 1000);
+  startDate.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  const rows = (await query(`
+    SELECT 
+      to_char((jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date, 'YYYY-MM-DD') AS day_str,
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+    FROM bookings
+    WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
+    GROUP BY 1
+    ORDER BY 1
+  `, [startDate, endOfToday])).rows;
+
+  const dayMap = new Map(rows.map(r => [r.day_str, r]));
+  const result = [];
+
+  for (let i = daysCount - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const key = `${yyyy}-${mm}-${dd}`;
+    const found = dayMap.get(key) || {};
+
+    const label = p === '7d'
+      ? d.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' })
+      : d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+    result.push({
+      date: label,
+      key,
+      total: found.total || 0,
+      selesai: found.selesai || 0
+    });
+  }
+
+  return result;
+}
+
+module.exports = { summary, latestPredictions, trends };

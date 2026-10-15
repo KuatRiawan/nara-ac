@@ -68,8 +68,8 @@ export default function AdminDashboard() {
   const fetchBookings = useCallback(async () => {
     if (!isMountedRef.current) return;
     try {
-      // Fetch with larger limit to get all bookings for client-side pagination
-      const res = await api.get('/bookings', { params: { limit: 200 } });
+      // Ambil transaksi aktif periode berjalan (mulai 1 Okt 2026, hingga 1000 tiket)
+      const res = await api.get('/bookings', { params: { dari: '2026-10-01', limit: 1000 } });
       const rawBookings = res?.data?.data || res?.data || res;
       const finalBookings = Array.isArray(rawBookings) ? rawBookings : (rawBookings?.data && Array.isArray(rawBookings.data) ? rawBookings.data : []);
       if (isMountedRef.current) {
@@ -82,6 +82,14 @@ export default function AdminDashboard() {
   }, []);
 
   const refreshBookings = fetchBookings;
+
+  const handleBookingCreated = useCallback(() => {
+    fetchBookings();
+    try {
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
+    } catch (_) {}
+    window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+  }, [fetchBookings]);
 
   useEffect(() => {
     fetchUnreadNotifs();
@@ -97,14 +105,23 @@ export default function AdminDashboard() {
     return () => clearInterval(bookingInterval);
   }, [fetchBookings]);
 
-  // Global event listener for instant synchronization across all components
+  // Global event listener for instant synchronization across all components & tabs
   useEffect(() => {
     const handleGlobalUpdate = () => {
       fetchBookings();
       fetchUnreadNotifs();
     };
     window.addEventListener('nara-booking-updated', handleGlobalUpdate);
-    return () => window.removeEventListener('nara-booking-updated', handleGlobalUpdate);
+    const handleStorage = (e) => {
+      if (e.key === 'nara_booking_sync_timestamp') {
+        handleGlobalUpdate();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('nara-booking-updated', handleGlobalUpdate);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [fetchBookings, fetchUnreadNotifs]);
 
   useEffect(() => {
@@ -178,6 +195,7 @@ export default function AdminDashboard() {
       refreshBookings();
       fetchUnreadNotifs();
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
       showError(msg);
@@ -190,11 +208,14 @@ export default function AdminDashboard() {
       if (isMountedRef.current) {
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
       }
+      refreshBookings();
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal mengubah status');
       showError(msg);
     }
-  }, [showError]);
+  }, [showError, refreshBookings]);
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-bold">Memuat sesi...</div>;
   if (!user || user.role !== 'admin') return null;
@@ -205,16 +226,16 @@ export default function AdminDashboard() {
     <DashboardLayout role="admin" onOpenNotif={() => setIsNotifOpen(true)} unreadCount={unreadNotifs}>
       <div className="flex-1 flex flex-col min-w-0">
         <Routes>
-          <Route path="/" element={<AdminHome bookings={bookings} technicians={technicians} loading={loading} handleStatus={handleStatus} handleAssign={handleAssign} isAdmin={isAdmin} onBookingCreated={refreshBookings} />} />
-          <Route path="/bookings" element={<AdminBookings bookings={bookings} technicians={technicians} loading={loading} handleStatus={handleStatus} handleAssign={handleAssign} isAdmin={isAdmin} onBookingCreated={refreshBookings} />} />
+          <Route path="/" element={<AdminHome bookings={bookings} technicians={technicians} loading={loading} handleStatus={handleStatus} handleAssign={handleAssign} isAdmin={isAdmin} onBookingCreated={handleBookingCreated} />} />
+          <Route path="/bookings" element={<AdminBookings bookings={bookings} technicians={technicians} loading={loading} handleStatus={handleStatus} handleAssign={handleAssign} isAdmin={isAdmin} onBookingCreated={handleBookingCreated} />} />
           <Route path="/customers/*" element={<AdminCustomers />} />
           <Route path="/ac-units" element={<AdminACUnits />} />
           <Route path="/technicians/*" element={<AdminTechnicians />} />
-          <Route path="/invoices" element={<AdminInvoices />} />
+          <Route path="/invoices" element={<AdminInvoices bookings={bookings} onBookingUpdated={handleBookingCreated} />} />
           <Route path="/services" element={<AdminServices />} />
           <Route path="/feedback" element={<AdminFeedback />} />
           <Route path="/inventory" element={<AdminInventory />} />
-          <Route path="/schedule" element={<AdminSchedule onBookingAssigned={refreshBookings} />} />
+          <Route path="/schedule" element={<AdminSchedule onBookingAssigned={handleBookingCreated} />} />
           <Route path="/reports" element={<AdminReports />} />
           <Route path="/analytics" element={<AdminAnalytics />} />
           <Route path="/settings" element={<AdminSettings />} />

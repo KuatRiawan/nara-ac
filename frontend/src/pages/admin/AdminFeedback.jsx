@@ -11,6 +11,8 @@ export default function AdminFeedback() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchFeedback = async () => {
@@ -71,6 +73,18 @@ export default function AdminFeedback() {
       return true;
     });
   }, [feedbacks, search, ratingFilter]);
+
+  // Reset pagination when search or ratingFilter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, ratingFilter]);
+
+  // Paginated feedbacks
+  const totalPages = Math.max(1, Math.ceil(filteredFeedbacks.length / itemsPerPage));
+  const paginatedFeedbacks = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredFeedbacks.slice(start, start + itemsPerPage);
+  }, [filteredFeedbacks, currentPage, itemsPerPage]);
 
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
@@ -225,7 +239,7 @@ export default function AdminFeedback() {
             )}
           </div>
         ) : (
-          filteredFeedbacks.map((item) => (
+          paginatedFeedbacks.map((item) => (
             <div 
               key={item.id} 
               className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:border-blue-200 transition-all flex flex-col justify-between space-y-4"
@@ -293,6 +307,39 @@ export default function AdminFeedback() {
           ))
         )}
       </div>
+
+      {/* PAGINATION TOOLBAR */}
+      {!loading && filteredFeedbacks.length > 0 && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <div>
+            Menampilkan <strong className="text-slate-900">{filteredFeedbacks.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredFeedbacks.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredFeedbacks.length}</strong> ulasan konsumen
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Sebelumnya
+              </button>
+              <div className="px-3 py-1 font-bold text-slate-800">
+                Hal {currentPage} / {totalPages}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );

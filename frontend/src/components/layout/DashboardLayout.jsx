@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import { Menu, Bell, LogOut, Settings, History } from 'lucide-react';
+import { Menu, Bell, LogOut, Settings, History, ChevronLeft } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import CompanyLogo from '../CompanyLogo';
 import BottomNavigation from './BottomNavigation';
@@ -117,51 +117,67 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
         {/* ============================================================== */}
         <aside
           className={cn(
-            "hidden md:flex flex-col shrink-0 h-full z-30 bg-white text-slate-800 shadow-lg shadow-slate-200/50 border-r border-slate-200/80 relative",
+            "hidden md:flex flex-col shrink-0 h-full z-30 bg-white text-slate-800 shadow-md shadow-slate-200/40 border-r border-slate-200/80 relative transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] will-change-[width]",
             isSidebarCollapsed ? "w-20" : "w-72"
           )}
         >
           {/* Subtle Ambient Breeze Glow */}
           <div className="absolute top-0 right-0 w-36 h-36 bg-blue-100 rounded-full blur-[70px] opacity-40 pointer-events-none"></div>
 
-          {/* Sidebar Brand Logo Resmi */}
+          {/* Floating Border Toggle Pill Button (Glides with sidebar edge) */}
+          <button
+            onClick={toggleSidebar}
+            className="absolute -right-3.5 top-5.5 z-40 w-7 h-7 rounded-full bg-white border border-slate-200/90 shadow-md hover:shadow-lg hover:bg-blue-50 text-slate-500 hover:text-blue-600 flex items-center justify-center transition-all duration-200 cursor-pointer group"
+            title={isSidebarCollapsed ? "Perluas Sidebar" : "Perkecil Sidebar"}
+            aria-label={isSidebarCollapsed ? "Perluas Sidebar" : "Perkecil Sidebar"}
+          >
+            <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300 text-slate-600 group-hover:text-blue-600", isSidebarCollapsed && "rotate-180")} />
+          </button>
+
+          {/* Sidebar Brand Header */}
           <div className={cn(
-            "h-20 flex items-center border-b border-slate-100 relative z-10 shrink-0",
-            isSidebarCollapsed ? "justify-center px-2" : "justify-start px-6"
+            "h-18 lg:h-20 flex items-center border-b border-slate-100 relative z-10 shrink-0 transition-all duration-300",
+            isSidebarCollapsed ? "justify-center px-2" : "px-5"
           )}>
             <Link 
               to={currentRole === 'admin' ? '/admin' : '/technician'}
-              className="flex items-center group transition-transform hover:opacity-95"
+              className="flex items-center group transition-transform hover:opacity-95 min-w-0 overflow-hidden"
               title="NARA AC • Sistem Layanan Service AC"
             >
               <CompanyLogo 
                 dark={false} 
-                iconSize={isSidebarCollapsed ? "h-9 w-9" : "h-8"} 
-                iconOnly={isSidebarCollapsed} 
+                iconSize="h-8" 
+                iconOnly={false}
+                collapsed={isSidebarCollapsed}
               />
             </Link>
           </div>
 
           {/* Navigation Items with Clean Grouping */}
-          <div className="p-3 flex-1 overflow-y-auto space-y-1 relative z-10 custom-scrollbar">
+          <div className="p-3 flex-1 overflow-y-auto overflow-x-hidden space-y-1 relative z-10 custom-scrollbar">
             {sidebarNavItems.map(item => {
               const Icon = item.icon;
               const active = isActivePath(location.pathname, item.path);
-              const showGroupHeader = !isSidebarCollapsed && item.group && item.group !== lastGroup;
+              const showGroupHeader = item.group && item.group !== lastGroup;
               if (item.group) lastGroup = item.group;
 
               return (
                 <div key={item.path}>
                   {showGroupHeader && (
-                    <div className="text-xs font-black uppercase tracking-wider text-slate-500 px-3 pt-3 pb-1">
-                      {item.group}
+                    <div className={cn(
+                      "overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap",
+                      isSidebarCollapsed ? "max-h-0 opacity-0 py-0" : "max-h-8 opacity-100 pt-3 pb-1"
+                    )}>
+                      <div className="text-xs font-black uppercase tracking-wider text-slate-400 px-3 truncate">
+                        {item.group}
+                      </div>
                     </div>
                   )}
                   <Link
                     to={item.path}
                     className={cn(
-                      "flex items-center rounded-2xl transition-colors font-bold text-xs sm:text-sm relative group",
-                      isSidebarCollapsed ? "justify-center px-0 py-3" : "px-3.5 py-2.5 gap-3",
+                      "flex items-center rounded-2xl transition-all duration-200 font-bold text-xs sm:text-sm relative group",
+                      isSidebarCollapsed ? "justify-center px-0 py-2.5" : "px-3.5 py-2.5 gap-3",
                       active
                         ? "bg-blue-600 text-white shadow-md shadow-blue-600/20 font-black"
                         : "text-slate-600 hover:bg-sky-50/80 hover:text-blue-600"
@@ -171,17 +187,19 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
                   >
                     <Icon className={cn("w-4.5 h-4.5 shrink-0 transition-transform group-hover:scale-105", active ? "text-white" : "text-slate-500 group-hover:text-blue-600")} />
                     
-                    {!isSidebarCollapsed && (
-                      <span className="truncate flex-1 flex items-center justify-between">
-                        <span>{item.name}</span>
-                        {item.path === '/admin/notifications' && unreadCount > 0 && (
-                          <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-600 text-white animate-pulse">
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </span>
-                        )}
-                      </span>
-                    )}
+                    <span className={cn(
+                      "overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out flex-1 flex items-center justify-between text-left",
+                      isSidebarCollapsed ? "max-w-0 opacity-0 pointer-events-none" : "max-w-[200px] opacity-100"
+                    )}>
+                      <span className="truncate">{item.name}</span>
+                      {item.path === '/admin/notifications' && unreadCount > 0 && (
+                        <span className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-black rounded-full bg-rose-600 text-white shrink-0">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </span>
 
+                    {/* Collapsed dot badge for notifications */}
                     {isSidebarCollapsed && item.path === '/admin/notifications' && unreadCount > 0 && (
                       <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-600 ring-2 ring-white" />
                     )}
@@ -200,65 +218,48 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
 
           {/* User Card & Logout */}
           <div className="p-3 border-t border-slate-100 relative z-10 bg-slate-50/80 shrink-0">
-            {!isSidebarCollapsed ? (
-              <div className="flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-white border border-slate-200/70 shadow-2xs">
-                <Link
-                  to={currentRole === 'admin' ? '/admin/settings' : '/technician/profile'}
-                  className="flex items-center gap-2.5 min-w-0 flex-1 p-1 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
-                  title="Buka Pengaturan & Profil"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200/60 font-bold text-sm">
-                    {(user?.nama || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                      {user?.nama || (currentRole === 'admin' ? 'Admin Utama' : 'Teknisi')}
-                    </p>
-                    <p className="text-xs font-medium text-slate-500 truncate">
-                      {user?.email || 'admin@nara-ac.local'}
-                    </p>
-                  </div>
-                </Link>
-
-                <button
-                  onClick={confirmLogout}
-                  disabled={isLoggingOut}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-200/80 transition-colors shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
-                  title="Keluar dari sistem"
-                  aria-label="Keluar dari sistem"
-                  type="button"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <Link
-                  to={currentRole === 'admin' ? '/admin/settings' : '/technician/profile'}
-                  className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200/60 font-bold text-sm relative group cursor-pointer"
-                  title="Buka Pengaturan & Profil"
-                >
+            <div className={cn(
+              "flex items-center rounded-2xl bg-white border border-slate-200/70 shadow-2xs transition-all duration-300",
+              isSidebarCollapsed ? "flex-col p-2 gap-2" : "flex-row p-1.5 justify-between gap-2"
+            )}>
+              <Link
+                to={currentRole === 'admin' ? '/admin/settings' : '/technician/profile'}
+                className={cn(
+                  "flex items-center rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer overflow-hidden",
+                  isSidebarCollapsed ? "justify-center p-1 w-full" : "gap-2.5 min-w-0 flex-1 p-1"
+                )}
+                title="Buka Pengaturan & Profil"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 border border-blue-200/60 font-bold text-sm">
                   {(user?.nama || 'U').charAt(0).toUpperCase()}
-                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 border border-slate-800">
-                    {user?.nama || (currentRole === 'admin' ? 'Admin Utama' : 'Teknisi')} • Pengaturan
-                  </div>
-                </Link>
+                </div>
+                <div className={cn(
+                  "overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out",
+                  isSidebarCollapsed ? "max-w-0 opacity-0 pointer-events-none" : "max-w-[140px] opacity-100 flex-1 min-w-0"
+                )}>
+                  <p className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                    {user?.nama || (currentRole === 'admin' ? 'Admin Utama' : 'Teknisi')}
+                  </p>
+                  <p className="text-xs font-medium text-slate-500 truncate">
+                    {user?.email || 'admin@nara-ac.local'}
+                  </p>
+                </div>
+              </Link>
 
-                <button
-                  onClick={confirmLogout}
-                  disabled={isLoggingOut}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-200/80 transition-colors relative group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
-                  title="Keluar dari sistem"
-                  aria-label="Keluar dari sistem"
-                  type="button"
-                >
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  <div className="absolute left-full ml-3 px-3 py-1.5 bg-rose-950 text-rose-200 text-xs font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-50 border border-rose-800">
-                    Keluar
-                  </div>
-                </button>
-              </div>
-            )}
+              <button
+                onClick={confirmLogout}
+                disabled={isLoggingOut}
+                className={cn(
+                  "w-9 h-9 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 border border-rose-200/80 transition-colors shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs",
+                  isSidebarCollapsed && "w-8 h-8"
+                )}
+                title="Keluar dari sistem"
+                aria-label="Keluar dari sistem"
+                type="button"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -269,22 +270,16 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
           {/* ------------------------------------------------------------ */}
           {/* DESKTOP HEADER (>= 768px) - LOCKED AT TOP                    */}
           {/* ------------------------------------------------------------ */}
-          <header className="hidden md:flex shrink-0 z-20 h-20 bg-white/95 backdrop-blur-md px-6 sm:px-8 justify-between items-center border-b border-slate-100 shadow-xs">
-            <div className="flex items-center gap-4 min-w-0">
-              {/* Prominent Desktop Hamburger Button */}
-              <button
-                onClick={toggleSidebar}
-                className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer border border-slate-200/60 shadow-2xs"
-                aria-label={isSidebarCollapsed ? "Buka Sidebar" : "Perkecil Sidebar"}
-                title={isSidebarCollapsed ? "Buka Sidebar" : "Perkecil Sidebar"}
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
+          <header className="hidden md:flex shrink-0 z-20 h-18 lg:h-20 bg-white/95 backdrop-blur-md px-6 sm:px-8 justify-between items-center border-b border-slate-200/80 shadow-xs">
+            <div className="flex items-center gap-3.5 min-w-0">
+              {/* Judul Halaman Aktif (Diperbesar) & Jejak Breadcrumb di Bawahnya */}
+              <div className="min-w-0 flex flex-col justify-center">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate leading-tight">
                   {displayTitle}
                 </h1>
-                <p className="text-xs text-slate-500 font-medium">NARA AC • Sistem Layanan Service AC</p>
+                <div className="mt-1">
+                  <Breadcrumb items={getBreadcrumbItems(location.pathname, currentRole)} currentRole={currentRole} />
+                </div>
               </div>
             </div>
 
@@ -293,13 +288,13 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
               {currentRole === 'admin' && onOpenNotif && (
                 <button
                   onClick={onOpenNotif}
-                  className="relative p-2.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200 shadow-2xs group"
+                  className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200 shadow-2xs group"
                   aria-label={unreadCount > 0 ? `Pusat Notifikasi (${unreadCount} belum dibaca)` : "Pusat Notifikasi"}
                   title={unreadCount > 0 ? `Pusat Notifikasi (${unreadCount} belum dibaca)` : "Pusat Notifikasi"}
                 >
-                  <Bell className="w-5 h-5 transition-transform group-hover:scale-105" />
+                  <Bell className="w-4.5 h-4.5 transition-transform group-hover:scale-105" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center border-2 border-white shadow-xs">
+                    <span className="absolute -top-1 -right-1 bg-rose-600 text-white text-[10px] font-black rounded-full h-4.5 min-w-[18px] px-1 flex items-center justify-center border-2 border-white shadow-xs">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
@@ -307,15 +302,15 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
               )}
 
               {currentRole === 'admin' && onOpenNotif && (
-                <div className="h-7 w-px bg-slate-200 hidden lg:block"></div>
+                <div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
               )}
 
               {/* Date Display */}
               <div className="text-right hidden lg:block">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {new Date().toLocaleDateString('id-ID', { weekday: 'long' })}
                 </p>
-                <p className="text-xs font-black text-slate-900">
+                <p className="text-xs font-black text-slate-800">
                   {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -380,8 +375,6 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
               className="flex-1 w-full min-w-0 pb-24 md:pb-8"
               style={{ paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
             >
-              {/* Breadcrumb Navigation */}
-              <Breadcrumb items={getBreadcrumbItems(location.pathname, currentRole)} />
               {children}
             </div>
           </main>

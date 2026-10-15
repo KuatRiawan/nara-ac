@@ -65,8 +65,19 @@ export default function NotFoundPage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
-        © {new Date().getFullYear()} NARA AC (CV. Nara Teknindotama). Seluruh Hak Cipta Dilindungi.
+      <footer className="py-6 text-xs text-slate-500 border-t border-slate-200 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
+          <div className="flex items-center gap-3 font-medium">
+            <Link to="/terms" className="hover:text-blue-600 transition-colors">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span className="text-slate-300">&bull;</span>
+            <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+              Kebijakan Privasi
+            </Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

@@ -18,6 +18,8 @@ export default function AdminACUnits() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedPk, setSelectedPk] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Quick View Detail State
   const [quickViewUnit, setQuickViewUnit] = useState(null);
@@ -176,6 +178,18 @@ export default function AdminACUnits() {
       return true;
     });
   }, [units, selectedType, selectedPk]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedType, selectedPk]);
+
+  // Paginated units
+  const totalPages = Math.max(1, Math.ceil(filteredUnits.length / itemsPerPage));
+  const paginatedUnits = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUnits.slice(start, start + itemsPerPage);
+  }, [filteredUnits, currentPage, itemsPerPage]);
 
   // Summary Metrics
   const metrics = useMemo(() => {
@@ -344,7 +358,7 @@ export default function AdminACUnits() {
             <div className="pt-2 flex justify-center gap-3">
               {(search || selectedType !== 'all' || selectedPk !== 'all') ? (
                 <Button 
-                  onClick={() => { setSearch(''); setSelectedType('all'); setSelectedPk('all'); }}
+                  onClick={() => { setSearch(''); setSelectedType('all'); setSelectedPk('all'); setCurrentPage(1); }}
                   variant="outline"
                   className="rounded-xl text-xs font-bold"
                 >
@@ -362,7 +376,8 @@ export default function AdminACUnits() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
@@ -374,7 +389,7 @@ export default function AdminACUnits() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredUnits.map((u) => {
+                {paginatedUnits.map((u) => {
                   const waLink = getWhatsAppLink(u.kontak_customer, u.nama_customer, `${u.brand} (${u.lokasi})`);
                   return (
                     <tr key={u.id} className="hover:bg-blue-50/30 transition-colors group">
@@ -486,7 +501,39 @@ export default function AdminACUnits() {
               </tbody>
             </table>
           </div>
-        )}
+
+          {/* PAGINATION TOOLBAR */}
+          <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+            <div>
+              Menampilkan <strong className="text-slate-900">{filteredUnits.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredUnits.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredUnits.length}</strong> unit AC
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+                >
+                  Sebelumnya
+                </button>
+                <div className="px-3 py-1 font-bold text-slate-800">
+                  Hal {currentPage} / {totalPages}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
       </div>
 
       {/* MODAL QUICK VIEW RIWAYAT UNIT AC */}

@@ -20,6 +20,8 @@ export default function AdminCustomers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all'); // all | has_ac | no_ac
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Detail View State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -304,6 +306,18 @@ export default function AdminCustomers() {
     }
     return list;
   }, [customers, filterType]);
+
+  // Reset pagination when search or filterType changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterType]);
+
+  // Paginated customers
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
+  const paginatedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredCustomers.slice(start, start + itemsPerPage);
+  }, [filteredCustomers, currentPage, itemsPerPage]);
 
   // Quick Metrics
   const metrics = useMemo(() => {
@@ -887,7 +901,7 @@ export default function AdminCustomers() {
           <>
             {/* MOBILE CARDS VIEW (< md) */}
             <div className="block md:hidden divide-y divide-gray-100">
-              {filteredCustomers.map(c => {
+              {paginatedCustomers.map(c => {
                 const waLink = getWhatsAppLink(c.kontak, c.nama);
                 const acCount = Number(c.total_unit ?? c.jumlah_unit ?? c.total_ac ?? 0);
                 const parsed = formatAddressDisplay(c.alamat);
@@ -1013,7 +1027,7 @@ export default function AdminCustomers() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredCustomers.map(c => {
+                  {paginatedCustomers.map(c => {
                     const waLink = getWhatsAppLink(c.kontak, c.nama);
                     const acCount = Number(c.total_unit ?? c.jumlah_unit ?? c.total_ac ?? 0);
 
@@ -1137,6 +1151,37 @@ export default function AdminCustomers() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* PAGINATION TOOLBAR */}
+          <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+            <div>
+              Menampilkan <strong className="text-slate-900">{filteredCustomers.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredCustomers.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredCustomers.length}</strong> pelanggan
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+                >
+                  Sebelumnya
+                </button>
+                <div className="px-3 py-1 font-bold text-slate-800">
+                  Hal {currentPage} / {totalPages}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+                >
+                  Selanjutnya
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

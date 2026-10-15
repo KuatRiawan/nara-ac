@@ -1,19 +1,21 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-
+import { cn } from '../../lib/utils';
 import { useToast } from '../../components/ui/toast';
 import OfficialInvoicePaper from '../../components/OfficialInvoicePaper';
-import { Receipt, Search, Printer, CheckCircle2, Clock, CreditCard, Building2, X, Check, Edit3, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Receipt, Search, Printer, CheckCircle2, Clock, CreditCard, Building2, X, Check, Edit3, Plus, Trash2, Loader2, RefreshCw } from 'lucide-react';
 
-export default function AdminInvoices() {
+export default function AdminInvoices({ bookings: propBookings, onBookingUpdated }) {
   const { error: showError, success: showSuccess } = useToast();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | lunas | pending
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paidStatusMap, setPaidStatusMap] = useState({});
@@ -85,34 +87,56 @@ export default function AdminInvoices() {
     fetchPaymentSettings();
   }, []);
 
-  // Fetch bookings data
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get('/bookings');
-        const raw = res?.data?.data || res?.data || res;
-        const list = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
-        setBookings(list);
+  // Fetch bookings data (mengambil hingga 200 data dengan urutan terbaru agar booking baru selalu terdeteksi)
+  const fetchInvoices = useCallback(async (searchQuery = '') => {
+    setLoading(true);
+    try {
+      const params = { limit: 200, urut: 'terbaru' };
+      if (searchQuery && searchQuery.trim()) {
+        params.q = searchQuery.trim();
+      }
+      const res = await api.get('/bookings', { params });
+      const raw = res?.data?.data || res?.data || res;
+      const list = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
+      setBookings(list);
 
-        // Initialize paid status map from API data (status_pembayaran field from database)
-        const statusMapFromAPI = {};
-        list.forEach(b => {
-          if (b.status_pembayaran) {
-            statusMapFromAPI[b.id] = b.status_pembayaran === 'paid';
-          } else {
-            statusMapFromAPI[b.id] = b.status === 'done';
+      // Initialize paid status map from API data (status_pembayaran field from database)
+      const statusMapFromAPI = {};
+      list.forEach(b => {
+        if (b.status_pembayaran) {
+          statusMapFromAPI[b.id] = b.status_pembayaran === 'paid';
+        } else {
+          statusMapFromAPI[b.id] = b.status === 'done';
+        }
+      });
+      setPaidStatusMap(prev => ({ ...statusMapFromAPI, ...prev }));
+    } catch (err) {
+      showError('Gagal memuat data faktur: ' + (err?.error?.message || err?.response?.data?.error?.message || err?.message));
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  // Sinkronisasi otomatis dengan propBookings dari AdminDashboard jika tersedia
+  useEffect(() => {
+    if (propBookings && Array.isArray(propBookings) && propBookings.length > 0) {
+      setBookings(propBookings);
+      setPaidStatusMap(prev => {
+        const next = { ...prev };
+        propBookings.forEach(b => {
+          if (next[b.id] === undefined) {
+            next[b.id] = b.status_pembayaran ? b.status_pembayaran === 'paid' : b.status === 'done';
           }
         });
-        setPaidStatusMap(statusMapFromAPI);
-      } catch (err) {
-        showError('Gagal memuat data faktur: ' + (err?.error?.message || err?.response?.data?.error?.message || err?.message));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInvoices();
-  }, [showError]);
+        return next;
+      });
+      setLoading(false);
+    }
+  }, [propBookings]);
 
   const togglePaidStatus = async (bookingId) => {
     const currentStatus = paidStatusMap[bookingId] !== undefined ? paidStatusMap[bookingId] : false;
@@ -134,6 +158,10 @@ export default function AdminInvoices() {
         setBookings(prev => prev.map(b => (
           b.id === bookingId ? { ...b, status_pembayaran: newStatus ? 'paid' : 'pending' } : b
         )));
+
+        if (onBookingUpdated) {
+          onBookingUpdated();
+        }
 
         showSuccess(`Status pembayaran #${bookingId} berhasil diperbarui menjadi ${newStatus ? 'Lunas' : 'Pending'}.`);
       } else {
@@ -197,13 +225,23 @@ export default function AdminInvoices() {
 
   // Filtered invoices
   const filteredInvoices = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return invoicesData.filter(inv => {
-      const q = search.toLowerCase();
+      if (!q) {
+        if (statusFilter === 'lunas') return inv.isPaid;
+        if (statusFilter === 'pending') return !inv.isPaid;
+        return true;
+      }
       const matchSearch = 
-        inv.invNo.toLowerCase().includes(q) ||
+        (inv.invNo && inv.invNo.toLowerCase().includes(q)) ||
         (inv.kode_booking && inv.kode_booking.toLowerCase().includes(q)) ||
         (inv.customer?.nama && inv.customer.nama.toLowerCase().includes(q)) ||
-        (inv.layanan?.nama && inv.layanan.nama.toLowerCase().includes(q));
+        (inv.customer_nama && inv.customer_nama.toLowerCase().includes(q)) ||
+        (inv.customer?.kontak && inv.customer.kontak.toLowerCase().includes(q)) ||
+        (inv.kontak && inv.kontak.toLowerCase().includes(q)) ||
+        (inv.layanan?.nama && inv.layanan.nama.toLowerCase().includes(q)) ||
+        (inv.nama_layanan && inv.nama_layanan.toLowerCase().includes(q)) ||
+        String(inv.id).includes(q);
 
       if (!matchSearch) return false;
 
@@ -212,6 +250,18 @@ export default function AdminInvoices() {
       return true;
     });
   }, [invoicesData, search, statusFilter]);
+
+  // Reset pagination when search or statusFilter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
+
+  // Paginated invoices
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / itemsPerPage));
+  const paginatedInvoices = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredInvoices.slice(start, start + itemsPerPage);
+  }, [filteredInvoices, currentPage, itemsPerPage]);
 
   // Handle body class for printing
   useEffect(() => {
@@ -351,6 +401,20 @@ export default function AdminInvoices() {
           >
             <Building2 className="w-4 h-4 text-blue-600" />
             <span>Ubah Rekening Bank</span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              fetchInvoices(search);
+              if (onBookingUpdated) onBookingUpdated();
+              showSuccess('Data faktur dan kas pembayaran berhasil diperbarui.');
+            }}
+            variant="outline"
+            className="rounded-xl border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+            title="Segarkan Data Invoice"
+          >
+            <RefreshCw className={cn("w-4 h-4 text-slate-600", loading && "animate-spin text-blue-600")} />
+            <span>Segarkan</span>
           </Button>
 
           <Button
@@ -522,7 +586,7 @@ export default function AdminInvoices() {
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((inv) => (
+                paginatedInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-5">
                       <p className="font-mono font-black text-slate-900">{inv.invNo}</p>
@@ -588,6 +652,37 @@ export default function AdminInvoices() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* PAGINATION TOOLBAR */}
+        <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <div>
+            Menampilkan <strong className="text-slate-900">{filteredInvoices.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredInvoices.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredInvoices.length}</strong> faktur invoice
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Sebelumnya
+              </button>
+              <div className="px-3 py-1 font-bold text-slate-800">
+                Hal {currentPage} / {totalPages}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

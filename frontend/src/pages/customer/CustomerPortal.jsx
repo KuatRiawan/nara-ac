@@ -197,10 +197,18 @@ export default function CustomerPortal() {
         {/* ============================================================== */}
         {/* FOOTER                                                          */}
         {/* ============================================================== */}
-        <footer className="bg-white border-t border-slate-200/80 py-5 text-center text-xs text-slate-500 mt-auto">
-          <div className="max-w-7xl mx-auto px-4">
+        <footer className="bg-white border-t border-slate-200/80 py-5 text-xs text-slate-500 mt-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
             <p className="font-medium text-slate-600">&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-            <p className="mt-0.5 text-xs text-slate-500">Portal Pelanggan NARA AC</p>
+            <div className="flex items-center gap-3 font-medium">
+              <Link to="/terms" className="hover:text-blue-600 transition-colors">
+                Syarat &amp; Ketentuan
+              </Link>
+              <span className="text-slate-300">&bull;</span>
+              <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+                Kebijakan Privasi
+              </Link>
+            </div>
           </div>
         </footer>
       </div>

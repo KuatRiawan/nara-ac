@@ -102,6 +102,14 @@ router.get('/analytics/summary', requireAuth(['admin']), validate(Joi.object({
   res.json(out);
 }));
 
+router.get('/analytics/trends', requireAuth(['admin']), validate(Joi.object({
+  period: Joi.string().valid('7d', '30d', '90d', '1y').default('7d'),
+}), 'query'), wrap(async (req, res) => {
+  const { period } = req.valid.query;
+  const data = await analytics.trends(period);
+  res.json({ period, data });
+}));
+
 router.get('/predictions/latest', requireAuth(['admin']), validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
   const p = await analytics.latestPredictions();
   if (!p) throw E.notFound('Modul prediksi Data Science belum terintegrasi. Fitur ini masih dalam tahap pengembangan.');

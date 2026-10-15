@@ -534,12 +534,18 @@ export default function LoginPage() {
       {/* ============================================================== */}
       {/* 3. FOOTER RESMI (KONSISTEN DENGAN SELURUH SISTEM NARA AC)      */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto">
-        <div className="max-w-7xl mx-auto px-4">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-xs text-slate-500 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <p className="font-medium text-slate-600">&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Jalan Teluk Langsa RT. 002 RW. 016, Ciangsana, Gunung Putri, Kab. Bogor, Jawa Barat • WhatsApp: 0813-8529-3137
-          </p>
+          <div className="flex items-center gap-3 font-medium">
+            <Link to="/terms" className="hover:text-blue-600 transition-colors">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span className="text-slate-300">&bull;</span>
+            <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+              Kebijakan Privasi
+            </Link>
+          </div>
         </div>
       </footer>
 

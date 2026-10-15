@@ -86,6 +86,8 @@ export default function TechnicianJobDetail() {
       setUpdating(true);
       await api.patch(`/technician/jobs/${id}/${endpoint}`);
       await fetchJob();
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       const pendingList = err.response?.data?.error?.details?.checklist_pending;
       if (pendingList && pendingList.length > 0) {
@@ -103,6 +105,8 @@ export default function TechnicianJobDetail() {
     try {
       await api.patch(`/technician/jobs/${id}/checklist/${checklistItem.id}`, { status: next });
       await fetchJob();
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       showError(err.response?.data?.error?.message || err.error?.message || 'Gagal mengubah status checklist');
     }
@@ -286,7 +290,7 @@ export default function TechnicianJobDetail() {
               <p className="text-sm text-slate-600 mb-6 text-center">Silakan ambil dan unggah foto kondisi AC sebelum mulai dikerjakan.</p>
               <form onSubmit={(e) => addPhoto(e, 'before')} className="space-y-4 max-w-sm mx-auto">
                 <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition">
-                  <input type="file" id="before-photo" accept="image/png,image/jpeg,image/webp" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="hidden" />
+                  <input type="file" id="before-photo" accept="image/*,image/png,image/jpeg,image/webp" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="hidden" />
                   <label htmlFor="before-photo" className="cursor-pointer flex flex-col items-center justify-center gap-2">
                     <Camera className="w-8 h-8 text-slate-500" />
                     <span className="text-sm font-medium text-slate-600">{photoFile ? photoFile.name : 'Pilih Foto Sebelum'}</span>
@@ -476,7 +480,7 @@ export default function TechnicianJobDetail() {
                 ) : (
                   <form onSubmit={(e) => addPhoto(e, 'after')} className="space-y-4 max-w-sm mx-auto">
                     <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition">
-                      <input type="file" id="after-photo" accept="image/png,image/jpeg,image/webp" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="hidden" />
+                      <input type="file" id="after-photo" accept="image/*,image/png,image/jpeg,image/webp" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="hidden" />
                       <label htmlFor="after-photo" className="cursor-pointer flex flex-col items-center justify-center gap-2">
                         <Camera className="w-8 h-8 text-slate-500" />
                         <span className="text-sm font-medium text-slate-600">{photoFile ? photoFile.name : 'Pilih Foto Sesudah'}</span>

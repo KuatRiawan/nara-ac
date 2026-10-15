@@ -11,6 +11,8 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TechnicianDashboard = lazy(() => import('./pages/TechnicianDashboard'));
 const TechnicianJobDetail = lazy(() => import('./pages/TechnicianJobDetail'));
 const CustomerPortal = lazy(() => import('./pages/customer/CustomerPortal'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsConditionsPage = lazy(() => import('./pages/TermsConditionsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function PageLoader() {
@@ -36,6 +38,10 @@ function App() {
           <Route path="/invoices/:kode?" element={<StatusPage initialInvoiceOpen={true} />} />
           <Route path="/feedback/:kode" element={<FeedbackPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsConditionsPage />} />
+          <Route path="/terms-conditions" element={<TermsConditionsPage />} />
           <Route path="/admin/*" element={<AdminDashboard />} />
           <Route path="/technician" element={<Navigate to="/technician/dashboard" replace />} />
           <Route path="/technician/dashboard" element={<TechnicianDashboard />} />

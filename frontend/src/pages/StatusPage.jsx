@@ -10,7 +10,7 @@ import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/toast';
 import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
 import OfficialInvoicePaper from '../components/OfficialInvoicePaper';
-import { Search, Clock, Wrench, CheckCircle2, ArrowLeft, Loader2, Printer, ShieldCheck, FileText, Check, CalendarCheck, XCircle, AlertCircle, Copy, X, AlertTriangle, MessageSquare, Sparkles, CalendarDays } from 'lucide-react';
+import { Search, Clock, Wrench, CheckCircle2, ArrowLeft, Loader2, Printer, ShieldCheck, FileText, Check, CalendarCheck, XCircle, AlertCircle, Copy, X, AlertTriangle, MessageSquare, Sparkles, CalendarDays, Ticket } from 'lucide-react';
 
 export default function StatusPage({ initialInvoiceOpen = false }) {
   const { kode } = useParams();
@@ -408,42 +408,50 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
             <div className="bg-white rounded-3xl border border-sky-100 shadow-xl shadow-blue-900/5 p-6 sm:p-8 relative overflow-hidden">
               <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-600 via-sky-500 to-emerald-500" />
               
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                <div>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">
+              {/* Ticket Header & Status */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Ticket className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
                     KODE TIKET SERVIS
                   </span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl sm:text-4xl font-black text-blue-600 font-mono tracking-wider">
-                      {booking.kode_booking}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => copyBookingCode(booking.kode_booking)}
-                      className="py-1 px-2.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-blue-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-sky-100"
-                      title="Salin Kode Tiket"
-                    >
-                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedCode ? 'Tersalin' : 'Salin'}</span>
-                    </button>
-                  </div>
                 </div>
 
-                {/* Status Badge & Actions */}
-                <div className="flex flex-col sm:items-end gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className={cn(
-                    "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5 w-fit",
+                    "px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-2xs flex items-center gap-1.5",
                     statusInfo.color
                   )}>
                     {statusInfo.icon && React.createElement(statusInfo.icon, { className: "w-3.5 h-3.5" })}
                     <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                     {statusInfo.label}
                   </span>
-
-                  <span className="text-xs text-slate-500 font-semibold">
-                    Dibuat pada: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                  <span className="text-xs text-slate-500 font-semibold hidden sm:inline">
+                    Dibuat: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                 </div>
+              </div>
+
+              {/* Highlighted Ticket Box */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-sky-50/90 via-blue-50/50 to-slate-50 border border-sky-200/80 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 shadow-2xs">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                    Nomor Tiket Pemesanan Resmi
+                  </span>
+                  <div className="font-mono font-black text-blue-700 text-base sm:text-lg md:text-xl tracking-wider break-all select-all leading-snug">
+                    {booking.kode_booking}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => copyBookingCode(booking.kode_booking)}
+                  className="shrink-0 w-full sm:w-auto py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/20"
+                  title="Salin Kode Tiket"
+                >
+                  {copiedCode ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedCode ? 'Tersalin!' : 'Salin Kode'}</span>
+                </button>
               </div>
 
               {/* Step Progress Tracker (SOP Flow) */}
@@ -723,7 +731,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
-              className="invoice-modal-card bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
+              className="invoice-modal-card bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
             >
               {/* Modal Top Actions (Non-printable) */}
               <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
@@ -937,12 +945,18 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
       {/* ============================================================== */}
       {/* 6. FOOTER COPYRIGHT                                            */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto print:hidden">
-        <div className="max-w-7xl mx-auto px-4">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-xs text-slate-500 mt-auto print:hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Sistem Informasi Pelacakan Tiket Digital & Garansi Servis AC
-          </p>
+          <div className="flex items-center gap-3 font-medium">
+            <Link to="/terms" className="hover:text-blue-600 transition-colors">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span className="text-slate-300">&bull;</span>
+            <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+              Kebijakan Privasi
+            </Link>
+          </div>
         </div>
       </footer>
 

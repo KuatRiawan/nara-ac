@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../api';
 import { AuthContext } from '../AuthContext';
@@ -7,7 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { 
   MapPin, Clock, ArrowRight, User, 
   CheckCircle, History, ClipboardList, ChevronRight,
-  Phone, Search, ShieldCheck
+  Phone, Search, ShieldCheck, RefreshCw
 } from 'lucide-react';
 import { useToast } from '../components/ui/toast';
 import { cn } from '../lib/utils';
@@ -18,10 +18,77 @@ export default function TechnicianDashboard() {
   const { error: showError } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const [dashboardData, setDashboardData] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isMountedRef.current) return;
+    try {
+      if (!isSilent) setLoading(true);
+      else setIsRefreshing(true);
+
+      const [dashRes, jobsRes] = await Promise.all([
+        api.get('/technician/dashboard').catch(() => null),
+        api.get('/technician/jobs', { params: { limit: 100 } }).catch(() => null)
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      const dData = dashRes?.data || dashRes || null;
+      if (dData) {
+        setDashboardData(dData);
+      }
+
+      const rawJobs = jobsRes?.data?.data || jobsRes?.data || jobsRes || [];
+      const jobList = Array.isArray(rawJobs) ? rawJobs : [];
+
+      // Merge today's & upcoming jobs from dashboardData if not already present
+      const existingIds = new Set(jobList.map(j => j.id));
+      const merged = [...jobList];
+
+      if (dData?.pekerjaan_hari_ini && Array.isArray(dData.pekerjaan_hari_ini)) {
+        dData.pekerjaan_hari_ini.forEach(j => {
+          if (!existingIds.has(j.id)) {
+            merged.unshift(j);
+            existingIds.add(j.id);
+          }
+        });
+      }
+
+      if (dData?.pekerjaan_mendatang && Array.isArray(dData.pekerjaan_mendatang)) {
+        dData.pekerjaan_mendatang.forEach(j => {
+          if (!existingIds.has(j.id)) {
+            merged.push(j);
+            existingIds.add(j.id);
+          }
+        });
+      }
+
+      setJobs(merged);
+    } catch (err) {
+      if (!isSilent) {
+        showError('Gagal memuat pekerjaan: ' + (err.response?.data?.error?.message || err.message));
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    }
+  }, [showError]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -30,41 +97,74 @@ export default function TechnicianDashboard() {
       return;
     }
 
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/technician/jobs');
-        setJobs(res.data || []);
-      } catch (err) {
-        showError('Gagal memuat pekerjaan: ' + (err.response?.data?.error?.message || err.message));
-      } finally {
-        setLoading(false);
+    fetchData(false);
+
+    // Auto-poll every 10 seconds for real-time synchronization with Admin
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [user, authLoading, navigate, fetchData]);
+
+  // Real-time synchronization listeners across tabs and local events
+  useEffect(() => {
+    const handleSync = () => {
+      fetchData(true);
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'nara_booking_sync_timestamp') {
+        fetchData(true);
       }
     };
-    fetchJobs();
-  }, [user, authLoading, navigate, showError]);
+    const handleFocus = () => {
+      fetchData(true);
+    };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-bold">Memuat sesi...</div>;
-  if (!user) return null;
+    window.addEventListener('nara-booking-updated', handleSync);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
 
-  // Split jobs
-  const todayJobs = jobs.filter(job => {
-    if (!job.jadwal_mulai) return false;
-    const jobDate = new Date(job.jadwal_mulai).toDateString();
-    const today = new Date().toDateString();
-    return jobDate === today;
-  });
+    return () => {
+      window.removeEventListener('nara-booking-updated', handleSync);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchData]);
 
-  const upcomingJobs = jobs.filter(job => {
-    if (!job.jadwal_mulai) return false;
-    const jobDate = new Date(job.jadwal_mulai).getTime();
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    return jobDate > todayEnd.getTime();
-  });
+  // Prioritize exact today & upcoming jobs from backend dashboard endpoint
+  const todayJobs = useMemo(() => {
+    if (dashboardData?.pekerjaan_hari_ini && Array.isArray(dashboardData.pekerjaan_hari_ini)) {
+      return dashboardData.pekerjaan_hari_ini;
+    }
+    return jobs.filter(job => {
+      if (!job.jadwal_mulai) return false;
+      const jobDate = new Date(job.jadwal_mulai).toDateString();
+      const today = new Date().toDateString();
+      return jobDate === today;
+    });
+  }, [dashboardData, jobs]);
 
-  const completedJobs = jobs.filter(job => job.status?.toLowerCase() === 'done');
-  const inProgressJobs = jobs.filter(job => job.status?.toLowerCase() === 'on process');
+  const upcomingJobs = useMemo(() => {
+    if (dashboardData?.pekerjaan_mendatang && Array.isArray(dashboardData.pekerjaan_mendatang)) {
+      return dashboardData.pekerjaan_mendatang;
+    }
+    return jobs.filter(job => {
+      if (!job.jadwal_mulai) return false;
+      const jobDate = new Date(job.jadwal_mulai).getTime();
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      return jobDate > todayEnd.getTime();
+    });
+  }, [dashboardData, jobs]);
+
+  const completedJobs = useMemo(() => {
+    return jobs.filter(job => job.status?.toLowerCase() === 'done');
+  }, [jobs]);
+
+  const inProgressJobs = useMemo(() => {
+    return jobs.filter(job => job.status?.toLowerCase() === 'on process');
+  }, [jobs]);
 
   const getStatusBadge = (status) => {
     switch ((status || '').toLowerCase()) {
@@ -101,9 +201,9 @@ export default function TechnicianDashboard() {
           <div className="flex items-center gap-2.5">
             <User className="w-4 h-4 text-blue-500 shrink-0" />
             <span className="font-semibold text-slate-900">{job.nama_customer || job.nama || 'Pelanggan'}</span>
-            {job.telepon && (
+            {(job.kontak_customer || job.telepon) && (
               <a 
-                href={`tel:${job.telepon}`} 
+                href={`tel:${job.kontak_customer || job.telepon}`} 
                 className="ml-auto inline-flex items-center gap-1 text-xs text-blue-600 font-bold hover:underline"
                 onClick={e => e.stopPropagation()}
               >
@@ -324,6 +424,11 @@ export default function TechnicianDashboard() {
     }
 
     // DEFAULT: DASHBOARD OVERVIEW (/technician/dashboard)
+    const kpiHariIni = dashboardData?.ringkasan?.hari_ini ?? todayJobs.length;
+    const kpiMendatang = dashboardData?.pekerjaan_mendatang?.length ?? upcomingJobs.length;
+    const kpiBerjalan = dashboardData?.ringkasan?.berjalan ?? inProgressJobs.length;
+    const kpiSelesai = dashboardData?.ringkasan?.selesai ?? completedJobs.length;
+
     return (
       <div className="space-y-6">
         {/* KPI Cards Grid */}
@@ -331,7 +436,7 @@ export default function TechnicianDashboard() {
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tugas Hari Ini</span>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl sm:text-3xl font-black text-slate-900">{todayJobs.length}</span>
+              <span className="text-2xl sm:text-3xl font-black text-slate-900">{kpiHariIni}</span>
               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Tiket</span>
             </div>
           </div>
@@ -339,7 +444,7 @@ export default function TechnicianDashboard() {
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mendatang</span>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl sm:text-3xl font-black text-amber-600">{upcomingJobs.length}</span>
+              <span className="text-2xl sm:text-3xl font-black text-amber-600">{kpiMendatang}</span>
               <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">Jadwal</span>
             </div>
           </div>
@@ -347,7 +452,7 @@ export default function TechnicianDashboard() {
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sedang Proses</span>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl sm:text-3xl font-black text-blue-600">{inProgressJobs.length}</span>
+              <span className="text-2xl sm:text-3xl font-black text-blue-600">{kpiBerjalan}</span>
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">Aktif</span>
             </div>
           </div>
@@ -355,7 +460,7 @@ export default function TechnicianDashboard() {
           <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai</span>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl sm:text-3xl font-black text-emerald-600">{completedJobs.length}</span>
+              <span className="text-2xl sm:text-3xl font-black text-emerald-600">{kpiSelesai}</span>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">Sukses</span>
             </div>
           </div>
@@ -364,10 +469,22 @@ export default function TechnicianDashboard() {
         {/* Section: Tugas Hari Ini */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-              Tugas Hari Ini
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                Tugas Hari Ini
+              </h2>
+              <button
+                type="button"
+                onClick={() => fetchData(true)}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-600 hover:text-blue-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+                title="Sinkronkan data dengan sistem admin"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5 text-blue-600", isRefreshing && "animate-spin")} />
+                <span>{isRefreshing ? 'Menyinkron...' : 'Sinkron'}</span>
+              </button>
+            </div>
             <Link to="/technician/jobs" className="text-xs sm:text-sm font-bold text-blue-600 hover:underline flex items-center gap-1">
               Lihat Semua <ChevronRight className="w-3.5 h-3.5" />
             </Link>

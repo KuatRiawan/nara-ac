@@ -34,6 +34,8 @@ export default function AdminInventory() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | ok | warning
   const [categoryFilter, setCategoryFilter] = useState('all'); // all | freon | pipa | kabel | komponen
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Modals state
   const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -161,6 +163,18 @@ export default function AdminInventory() {
       return true;
     });
   }, [items, search, statusFilter, categoryFilter]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, categoryFilter]);
+
+  // Paginated items
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredItems.slice(start, start + itemsPerPage);
+  }, [filteredItems, currentPage, itemsPerPage]);
 
   // Helper icon by category
   const getCategoryIcon = (kat) => {
@@ -486,7 +500,7 @@ export default function AdminInventory() {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                paginatedItems.map((item) => {
                   const s = item.status_stok || (Number(item.stok) <= 0 ? 'out' : Number(item.stok) <= Number(item.min_stok) ? 'low' : 'ok');
                   const isLow = s === 'low';
                   const isOut = s === 'out';
@@ -584,6 +598,37 @@ export default function AdminInventory() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* PAGINATION TOOLBAR */}
+        <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <div>
+            Menampilkan <strong className="text-slate-900">{filteredItems.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredItems.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredItems.length}</strong> barang inventori
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Sebelumnya
+              </button>
+              <div className="px-3 py-1 font-bold text-slate-800">
+                Hal {currentPage} / {totalPages}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-2xs transition-all"
+              >
+                Selanjutnya
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
