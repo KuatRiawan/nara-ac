@@ -1,15 +1,24 @@
 const crypto = require('crypto');
 
-const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // tanpa 0/O/1/I/L
 
-function generateBookingCode() {
-  const bytes = crypto.randomBytes(4);
-  let s = '';
-  for (let i = 0; i < 4; i += 1) s += ALPHABET[bytes[i] % ALPHABET.length];
-  return `AC-${s}`;
+function generateBookingCode(date = new Date(), attempt = 0) {
+  // WIB is UTC+7
+  const d = new Date(date.getTime() + 7 * 3600000);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hh = pad(d.getUTCHours());
+  const mm = pad(d.getUTCMinutes());
+  const dd = pad(d.getUTCDate());
+  const mo = pad(d.getUTCMonth() + 1);
+  const yyyy = d.getUTCFullYear();
+  // 16 bytes = 128 bits of cryptographically secure pseudo-randomness
+  const rand = crypto.randomBytes(16).toString('hex').toUpperCase();
+  const base = `NARA-AC${hh}${mm}${dd}${mo}${yyyy}-${rand}`;
+  if (attempt === 0) return base;
+  const extraRand = crypto.randomBytes(4).toString('hex').toUpperCase();
+  return `${base}-${extraRand}`;
 }
 
-const BOOKING_CODE_RE = /\bAC-[A-HJKMNP-Z2-9]{4}\b/i;
+const BOOKING_CODE_RE = /\b(NARA-AC[A-Za-z0-9-]+|AC-[A-HJKMNP-Z2-9]{4}|BK-[A-Za-z0-9-]+)\b/i;
 
 /** Normalisasi nomor HP Indonesia ke format 08xxxxxxxxx. Null jika tidak valid. */
 function normalizePhone(raw) {
@@ -22,6 +31,20 @@ function normalizePhone(raw) {
 }
 
 const maskPhone = (p) => (p ? `${p.slice(0, 4)}****${p.slice(-2)}` : '');
+
+function maskCustomerName(name) {
+  if (!name || typeof name !== 'string') return 'Pelanggan NARA AC';
+  const parts = name.trim().split(/\s+/);
+  return parts.map((part) => {
+    if (part.length <= 2) return `${part[0]}*`;
+    return `${part[0]}${'*'.repeat(Math.min(part.length - 2, 4))}${part.slice(-1)}`;
+  }).join(' ');
+}
+
+/** Generate secure single-use feedback token */
+function generateFeedbackToken() {
+  return crypto.randomBytes(24).toString('hex');
+}
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
@@ -38,4 +61,14 @@ function getIdempotencyKey(providedKey) {
   return generateIdempotencyKey();
 }
 
-module.exports = { generateBookingCode, BOOKING_CODE_RE, normalizePhone, maskPhone, sha256, generateIdempotencyKey, getIdempotencyKey };
+module.exports = {
+  generateBookingCode,
+  BOOKING_CODE_RE,
+  normalizePhone,
+  maskPhone,
+  maskCustomerName,
+  generateFeedbackToken,
+  sha256,
+  generateIdempotencyKey,
+  getIdempotencyKey,
+};

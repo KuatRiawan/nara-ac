@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { query } = require('../db/pool');
 const { Joi, validate } = require('../middleware/validate');
 const { requireAuth, signToken } = require('../middleware/auth');
@@ -9,12 +10,24 @@ const { E } = require('../errors');
 
 const router = express.Router();
 
+// Rate limit khusus untuk login — cegah brute force (AUD-007)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  limit: 10, // maksimal 10 percobaan per 15 menit per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => res.status(429).json({
+    error: { code: 'RATE_LIMITED', message: 'Terlalu banyak percobaan login. Coba lagi setelah 15 menit.' },
+  }),
+});
+
 const loginSchema = Joi.object({
   email: Joi.string().email({ tlds: { allow: false } }).max(120).required().label('Email'),
   password: Joi.string().min(8).max(100).required().label('Password'),
 });
 
-router.post('/login', validate(loginSchema), wrap(async (req, res) => {
+router.post('/login', loginLimiter, validate(loginSchema), wrap(async (req, res) => {
   const u = (await query('SELECT * FROM users WHERE lower(email)=lower($1)', [req.body.email])).rows[0];
   // Pesan generik: tidak membocorkan apakah email terdaftar
   const bad = () => E.unauthorized('Email atau password salah.');
@@ -41,7 +54,6 @@ router.post('/login', validate(loginSchema), wrap(async (req, res) => {
   });
   
   res.json({
-    token,
     user,
   });
 }));
@@ -90,7 +102,6 @@ router.post('/register', validate(registerSchema), wrap(async (req, res) => {
   });
   
   res.status(201).json({
-    token,
     user: userResponse,
   });
 }));
@@ -156,14 +167,145 @@ router.patch('/password', requireAuth(), validate(changePasswordSchema), wrap(as
 // CSRF token endpoint - get a new CSRF token for state-changing requests
 router.get('/csrf-token', requireAuth(), wrap(csrfTokenHandler));
 
-// Logout endpoint - invalidasi token dengan menambahkan ke blacklist atau menghapus session
-// Untuk JWT, klien bertanggung jawab untuk menghapus token
-router.post('/logout', requireAuth(), wrap(async (req, res) => {
-  // Clear CSRF tokens for this user
+// Rate limiter for password reset to prevent abuse and account enumeration
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => res.status(429).json({
+    error: { code: 'RATE_LIMITED', message: 'Terlalu banyak permintaan reset password. Coba lagi dalam 15 menit.' },
+  }),
+});
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email({ tlds: { allow: false } }).max(120).required().label('Email'),
+});
+
+router.post('/forgot-password', resetPasswordLimiter, validate(forgotPasswordSchema), wrap(async (req, res) => {
+  const { email } = req.body;
+  const crypto = require('crypto');
+  const u = (await query('SELECT id, nama, email, aktif FROM users WHERE lower(email)=lower($1)', [email])).rows[0];
+
+  // Generic response to prevent email enumeration (FIND-03)
+  const genericMessage = 'Jika alamat email terdaftar di sistem kami, instruksi pemulihan kata sandi telah diproses sesuai kanal yang terkonfigurasi.';
+
+  if (u && u.aktif) {
+    // Generate secure random reset token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes validity
+
+    // Invalidate existing unused tokens for this user
+    await query('UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [u.id]);
+
+    // Store securely hashed token
+    await query(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [u.id, tokenHash, expiresAt],
+    );
+
+    const { audit, notify } = require('../services/common');
+    await audit(
+      { query },
+      { id: u.id, role: 'user', nama: u.nama },
+      'password_reset_requested',
+      'user',
+      u.id,
+      { metadata: { note: 'Password reset token generated' } },
+    );
+
+    // Send in-app notification since no external email provider is currently configured
+    await notify({ query }, {
+      role: u.role || 'customer',
+      id: u.role === 'customer' ? (u.customer_id || null) : null,
+      title: 'Permintaan Reset Password',
+      message: 'Permintaan reset password akun Anda telah diproses.',
+      type: 'system',
+    });
+
+    // In test environment only, return token for test verification
+    if (process.env.NODE_ENV === 'test' || process.env.ENABLE_DEV_RESET_TOKEN === 'true') {
+      return res.json({
+        success: true,
+        message: genericMessage,
+        delivery_channel: 'in_app_notification',
+        _dev_reset_token: rawToken,
+      });
+    }
+  }
+
+  res.json({
+    success: true,
+    message: genericMessage,
+    delivery_channel: 'in_app_notification',
+  });
+}));
+
+const resetPasswordSchema = Joi.object({
+  token: Joi.string().trim().hex().length(64).required().label('Token Reset'),
+  new_password: Joi.string().min(8).max(100).required().label('Password Baru'),
+});
+
+router.post('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), wrap(async (req, res) => {
+  const { token, new_password: newPassword } = req.body;
+  const crypto = require('crypto');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  const { withTx } = require('../db/pool');
+  await withTx(async (client) => {
+    const row = (await client.query(
+      `SELECT prt.id, prt.user_id, prt.expires_at, prt.used_at, u.email, u.nama, u.role
+       FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.token_hash = $1 FOR UPDATE`,
+      [tokenHash],
+    )).rows[0];
+
+    if (!row || row.used_at !== null || new Date(row.expires_at) < new Date()) {
+      throw E.validation('Token reset password tidak valid atau sudah kedaluwarsa.', {
+        token: 'Token kedaluwarsa atau tidak valid.',
+      });
+    }
+
+    // Hash new password and update user
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, row.user_id]);
+
+    // Invalidate token (single-use)
+    await client.query('UPDATE password_reset_tokens SET used_at = now() WHERE id = $1', [row.id]);
+    // Invalidate all other reset tokens for this user
+    await client.query('UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND id <> $2', [row.user_id, row.id]);
+
+    const { audit } = require('../services/common');
+    await audit(
+      client,
+      { id: row.user_id, role: row.role, nama: row.nama },
+      'password_reset_completed',
+      'user',
+      row.user_id,
+      { metadata: { note: 'Password successfully reset via token' } },
+    );
+  });
+
+  // Clear session cookie if any
+  res.clearCookie('nara_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+  });
+
+  res.json({
+    success: true,
+    message: 'Password berhasil direset. Silakan login kembali dengan password baru Anda.',
+  });
+}));
+
+// Logout endpoint - invalidasi token dan hapus session
+router.post('/logout', requireAuth(), wrap((req, res) => {
   clearCsrfTokens(req.user.id);
-  
-  // Di JWT, logout di client-side dengan menghapus token
-  // Clear HttpOnly cookie
   res.clearCookie('nara_token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

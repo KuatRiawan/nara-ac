@@ -1,6 +1,8 @@
 const { withTx, query } = require('../db/pool');
 const { E } = require('../errors');
-const { generateBookingCode, normalizePhone } = require('../utils/ids');
+const {
+  generateBookingCode, normalizePhone, maskPhone, maskCustomerName, generateFeedbackToken,
+} = require('../utils/ids');
 const { audit, notify } = require('./common');
 const {
   wibParts, fromWib, wibDateString, startOfWibDay, parseDateTimeInput, toMinutes, DAY_MS, formatWib,
@@ -102,7 +104,7 @@ async function assertTechnicianFree(db, teknisiId, start, end, excludeId) {
 }
 
 const BOOKING_SELECT = `
-  SELECT b.id, b.kode_booking, b.status, b.jadwal_mulai, b.jadwal_selesai, b.alamat, b.keluhan, b.kontak,
+  SELECT b.id, b.kode_booking, b.status, b.status_pembayaran, b.jadwal_mulai, b.jadwal_selesai, b.alamat, b.keluhan, b.kontak,
          b.created_at, b.updated_at, b.created_by, b.is_synthetic, b.ac_unit_id, b.alasan_batal, b.alasan_tunda,
          b.mulai_aktual, b.selesai_aktual, b.jumlah_unit, b.idempotency_key,
          b.customer_id, c.nama AS customer_nama,
@@ -137,6 +139,7 @@ function mapBooking(r) {
     selesai_aktual: r.selesai_aktual,
     dibuat_oleh: r.created_by,
     is_synthetic: r.is_synthetic,
+    status_pembayaran: r.status_pembayaran || 'pending',
     created_at: r.created_at,
     updated_at: r.updated_at,
     idempotency_key: r.idempotency_key,
@@ -152,6 +155,52 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
   return await withTx(async (client) => {
     await lockSlots(client);
     
+    // Support multi-service items in one booking
+    let rawItems = [];
+    if (Array.isArray(input.items) && input.items.length > 0) {
+      rawItems = input.items;
+    } else if (input.layanan_id) {
+      rawItems = [{
+        layanan_id: input.layanan_id,
+        jumlah_unit: input.jumlah_unit || 1,
+        catatan: input.keluhan || '',
+      }];
+    } else {
+      throw E.validation('Layanan tidak valid.', { layanan_id: 'Pilih minimal satu layanan.' });
+    }
+
+    const svcIds = [...new Set(rawItems.map((it) => it.layanan_id))];
+    const svcsResult = await client.query('SELECT * FROM service_catalog WHERE id = ANY($1::int[]) AND aktif', [svcIds]);
+    const svcMap = new Map(svcsResult.rows.map((s) => [s.id, s]));
+
+    let totalDurationMinutes = 0;
+    let totalUnits = 0;
+    const resolvedItems = [];
+
+    for (const it of rawItems) {
+      const svcRecord = svcMap.get(it.layanan_id);
+      if (!svcRecord) {
+        throw E.validation('Layanan tidak valid.', { layanan_id: `Layanan ID ${it.layanan_id} tidak ditemukan atau tidak aktif.` });
+      }
+      const units = Math.max(1, Number(it.jumlah_unit) || 1);
+      const itemDuration = (Number(svcRecord.durasi_menit) || 60) * units;
+      totalDurationMinutes += itemDuration;
+      totalUnits += units;
+      const subtotal = Number(svcRecord.harga) * units;
+      resolvedItems.push({
+        layanan_id: svcRecord.id,
+        nama_layanan: svcRecord.nama_layanan,
+        kategori: svcRecord.kategori,
+        harga_satuan: Number(svcRecord.harga),
+        jumlah_unit: units,
+        subtotal,
+        catatan: it.catatan || '',
+        durasi_menit: Number(svcRecord.durasi_menit) || 60,
+      });
+    }
+
+    const primarySvc = svcMap.get(resolvedItems[0].layanan_id);
+
     // Idempotency key handling - prevent duplicate submissions
     if (input.idempotency_key) {
       const existing = (await client.query(
@@ -161,17 +210,22 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
         // Return existing booking if it's still valid (not cancelled)
         if (existing.status !== 'cancelled') {
           const row = (await client.query(`${BOOKING_SELECT} WHERE b.id = $1`, [existing.id])).rows[0];
-          return mapBooking(row);
+          const bMapped = mapBooking(row);
+          bMapped.items = (await client.query(
+            `SELECT bi.id, bi.layanan_id, s.nama_layanan, s.kategori, bi.jumlah_unit, bi.harga_satuan, bi.subtotal, bi.catatan
+             FROM booking_items bi
+             JOIN service_catalog s ON s.id = bi.layanan_id
+             WHERE bi.booking_id = $1 ORDER BY bi.id`, [existing.id],
+          )).rows;
+          return bMapped;
         }
         // If cancelled, we can reuse the idempotency key for a new booking
         await client.query('DELETE FROM bookings WHERE idempotency_key = $1', [input.idempotency_key]);
       }
     }
     
-    const svc = (await client.query('SELECT * FROM service_catalog WHERE id = $1 AND aktif', [input.layanan_id])).rows[0];
-    if (!svc) throw E.validation('Layanan tidak valid.', { layanan_id: 'Layanan tidak ditemukan atau tidak aktif.' });
     const ops = await getOps(client);
-    const end = computeEnd(start, svc.durasi_menit, ops.slot_minutes);
+    const end = computeEnd(start, totalDurationMinutes, ops.slot_minutes);
     const isAdmin = typeof actor?.label === 'string' && (actor.label.startsWith('admin') || actor.label === 'admin');
     assertSlotAllowed(start, end, ops, now, isAdmin);
     await assertCapacity(client, start, end, null);
@@ -185,31 +239,49 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
     }
 
     // Auto-deduplication window check: prevent rapid double bookings (within 30 seconds)
-    // for the same customer with identical schedule and service
+    // for the same customer with identical schedule and primary service
     const recentDuplicate = (await client.query(
       `SELECT id, kode_booking, status FROM bookings 
        WHERE customer_id = $1 AND jadwal_mulai = $2 AND layanan_id = $3 
          AND status != 'cancelled' 
          AND created_at >= NOW() - INTERVAL '30 seconds'
        ORDER BY id DESC LIMIT 1`,
-      [cust.id, start, svc.id]
+      [cust.id, start, primarySvc.id]
     )).rows[0];
     if (recentDuplicate) {
       const row = (await client.query(`${BOOKING_SELECT} WHERE b.id = $1`, [recentDuplicate.id])).rows[0];
-      return mapBooking(row);
+      const bMapped = mapBooking(row);
+      bMapped.items = (await client.query(
+        `SELECT bi.id, bi.layanan_id, s.nama_layanan, s.kategori, bi.jumlah_unit, bi.harga_satuan, bi.subtotal, bi.catatan
+         FROM booking_items bi
+         JOIN service_catalog s ON s.id = bi.layanan_id
+         WHERE bi.booking_id = $1 ORDER BY bi.id`, [recentDuplicate.id],
+      )).rows;
+      return bMapped;
     }
 
     let booking;
     for (let i = 0; i < 8 && !booking; i += 1) {
-      const code = generateBookingCode();
+      const code = generateBookingCode(undefined, i);
        
+      const feedbackToken = generateFeedbackToken();
       const ins = await client.query(
-        `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, created_by, jumlah_unit, idempotency_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, created_by, jumlah_unit, idempotency_key, feedback_token)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          ON CONFLICT (kode_booking) DO NOTHING RETURNING id`,
-        [code, cust.id, svc.id, start, end, input.alamat, input.keluhan, kontak, actor.label, input.jumlah_unit || 1, input.idempotency_key || null],
+        [code, cust.id, primarySvc.id, start, end, input.alamat, input.keluhan || '', kontak, actor.label, totalUnits, input.idempotency_key || null, feedbackToken],
       );
-      if (ins.rows.length) booking = ins.rows[0];
+      if (ins.rows.length) {
+        booking = ins.rows[0];
+        // Insert into booking_items
+        for (const item of resolvedItems) {
+          await client.query(
+            `INSERT INTO booking_items (booking_id, layanan_id, jumlah_unit, harga_satuan, subtotal, catatan)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [booking.id, item.layanan_id, item.jumlah_unit, item.harga_satuan, item.subtotal, item.catatan || null]
+          );
+        }
+      }
     }
     if (!booking) throw E.conflict('Gagal membuat kode booking unik. Coba lagi.');
     await client.query(
@@ -222,11 +294,21 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
       await client.query('UPDATE bookings SET ac_unit_id=$2 WHERE id=$1', [booking.id, unit.id]);
     }
     const kodeBooking = (await client.query('SELECT kode_booking FROM bookings WHERE id=$1', [booking.id])).rows[0].kode_booking;
-    await notify(client, { role: 'admin', title: 'Booking baru', message: `${kodeBooking} — ${cust.nama} (${svc.nama_layanan}), ${formatWib(start)}. Belum ditugaskan.`, type: 'booking', bookingId: booking.id, tautan: '/admin/bookings' });
-    await notify(client, { role: 'customer', id: cust.id, title: 'Booking diterima', message: `Booking ${kodeBooking} untuk ${svc.nama_layanan} pada ${formatWib(start)} berhasil dibuat.`, type: 'booking', bookingId: booking.id, tautan: `/status/${kodeBooking}` });
+    const layananDeskripsi = resolvedItems.length > 1
+      ? resolvedItems.map((r) => `${r.nama_layanan} (${r.jumlah_unit} unit)`).join(', ')
+      : primarySvc.nama_layanan;
+    await notify(client, { role: 'admin', title: 'Booking baru', message: `${kodeBooking} — ${cust.nama} (${layananDeskripsi}), ${formatWib(start)}. Belum ditugaskan.`, type: 'booking', bookingId: booking.id, tautan: '/admin/bookings' });
+    await notify(client, { role: 'customer', id: cust.id, title: 'Booking diterima', message: `Booking ${kodeBooking} untuk ${layananDeskripsi} pada ${formatWib(start)} berhasil dibuat.`, type: 'booking', bookingId: booking.id, tautan: `/status/${kodeBooking}` });
     await audit(client, { nama: actor.label, role: actor.role || 'customer' }, 'booking_created', 'booking', booking.id, { metadata: { kode: kodeBooking } });
     const row = (await client.query(`${BOOKING_SELECT} WHERE b.id = $1`, [booking.id])).rows[0];
-    return mapBooking(row);
+    const bMapped = mapBooking(row);
+    bMapped.items = (await client.query(
+      `SELECT bi.id, bi.layanan_id, s.nama_layanan, s.kategori, bi.jumlah_unit, bi.harga_satuan, bi.subtotal, bi.catatan
+       FROM booking_items bi
+       JOIN service_catalog s ON s.id = bi.layanan_id
+       WHERE bi.booking_id = $1 ORDER BY bi.id`, [booking.id],
+    )).rows;
+    return bMapped;
   });
 }
 
@@ -265,6 +347,24 @@ async function getBookingDetail(id, user) {
     throw E.forbidden('Pekerjaan ini bukan penugasan Anda.');
   }
   const b = mapBooking(row);
+  b.items = (await query(
+    `SELECT bi.id, bi.layanan_id, s.nama_layanan, s.kategori, bi.jumlah_unit, bi.harga_satuan, bi.subtotal, bi.catatan
+     FROM booking_items bi
+     JOIN service_catalog s ON s.id = bi.layanan_id
+     WHERE bi.booking_id = $1 ORDER BY bi.id`, [id],
+  )).rows;
+  if (!b.items.length) {
+    b.items = [{
+      id: null,
+      layanan_id: row.layanan_id,
+      nama_layanan: row.nama_layanan,
+      kategori: row.kategori,
+      jumlah_unit: row.jumlah_unit || 1,
+      harga_satuan: row.harga,
+      subtotal: (row.harga || 0) * (row.jumlah_unit || 1),
+      catatan: row.keluhan,
+    }];
+  }
   b.riwayat_status = (await query(
     'SELECT status_lama, status_baru, diubah_oleh, catatan, waktu FROM status_log WHERE booking_id = $1 ORDER BY waktu, id', [id],
   )).rows;
@@ -293,9 +393,20 @@ async function reschedule(id, jadwalInput, actor, now = new Date()) {
     if (!EDITABLE.includes(b.status)) {
       throw E.business(`Jadwal tidak dapat diubah pada status "${b.status}".`);
     }
-    const svc = (await client.query('SELECT * FROM service_catalog WHERE id = $1', [b.layanan_id])).rows[0];
+    const items = (await client.query(
+      `SELECT bi.*, s.durasi_menit FROM booking_items bi
+       JOIN service_catalog s ON s.id = bi.layanan_id
+       WHERE bi.booking_id = $1`, [id]
+    )).rows;
+    let totalDurasi = 0;
+    if (items.length > 0) {
+      totalDurasi = items.reduce((acc, it) => acc + (Number(it.durasi_menit) || 60) * it.jumlah_unit, 0);
+    } else {
+      const svc = (await client.query('SELECT * FROM service_catalog WHERE id = $1', [b.layanan_id])).rows[0];
+      totalDurasi = (Number(svc?.durasi_menit) || 60) * (b.jumlah_unit || 1);
+    }
     const ops = await getOps(client);
-    const end = computeEnd(start, svc.durasi_menit, ops.slot_minutes);
+    const end = computeEnd(start, totalDurasi, ops.slot_minutes);
     assertSlotAllowed(start, end, ops, now);
     await assertCapacity(client, start, end, id);
     if (b.teknisi_id) await assertTechnicianFree(client, b.teknisi_id, start, end, id);
@@ -445,13 +556,38 @@ async function publicStatusByCode(codeRaw) {
     `SELECT kanal, status, untuk_tanggal, waktu_kirim FROM reminder_log
      WHERE booking_id=$1 AND target='pelanggan' ORDER BY id DESC LIMIT 3`, [row.id],
   )).rows;
+
+  const items = (await query(
+    `SELECT bi.id, bi.layanan_id, s.nama_layanan, s.kategori, bi.jumlah_unit, bi.harga_satuan, bi.subtotal, bi.catatan
+     FROM booking_items bi
+     JOIN service_catalog s ON s.id = bi.layanan_id
+     WHERE bi.booking_id = $1 ORDER BY bi.id`, [row.id],
+  )).rows;
+
+  const resolvedItems = items.length > 0 ? items : [{
+    id: null,
+    layanan_id: row.layanan_id,
+    nama_layanan: row.nama_layanan,
+    kategori: row.kategori,
+    jumlah_unit: row.jumlah_unit || 1,
+    harga_satuan: row.harga,
+    subtotal: (row.harga || 0) * (row.jumlah_unit || 1),
+    catatan: row.keluhan,
+  }];
+
+  const totalUnits = resolvedItems.reduce((acc, it) => acc + (it.jumlah_unit || 1), 0);
+  const namaLayananTeks = resolvedItems.length > 1
+    ? resolvedItems.map((i) => `${i.nama_layanan} (${i.jumlah_unit} unit)`).join(', ')
+    : row.nama_layanan;
+
   return {
     id: row.id,
     kode_booking: row.kode_booking,
     status: row.status,
-    layanan: row.nama_layanan,
+    layanan: namaLayananTeks,
     harga: row.harga,
-    jumlah_unit: row.jumlah_unit || 1,
+    jumlah_unit: totalUnits,
+    items: resolvedItems,
     keluhan: row.keluhan,
     jadwal_mulai: row.jadwal_mulai,
     jadwal_selesai: row.jadwal_selesai,
@@ -461,18 +597,48 @@ async function publicStatusByCode(codeRaw) {
     pengingat: reminders,
     bisa_feedback: row.status === 'done' && !row.sudah_feedback,
     sudah_feedback: !!row.sudah_feedback,
+    status_pembayaran: row.status_pembayaran || 'pending',
     jadwal_teks: formatWib(new Date(row.jadwal_mulai)),
     created_at: row.created_at,
+    // Masked customer info for safe public status display (FIND-01, FIND-02)
+    customer_nama: maskCustomerName(row.customer_nama),
+    kontak: maskPhone(row.kontak),
+    kontak_masked: maskPhone(row.kontak),
+    alamat: '[Alamat Disamarkan]',
+    alamat_masked: '[Alamat Disamarkan]',
   };
 }
 
-async function submitFeedback(id, { kode_booking: kode, kontak, rating, komentar }, sentimen = null) {
+async function submitFeedback(id, { kode_booking: kode, kontak, feedback_token, rating, komentar }, sentimen = null, user = null) {
   return await withTx(async (client) => {
     const b = (await client.query('SELECT * FROM bookings WHERE id=$1 FOR UPDATE', [id])).rows[0];
-    const inputKontak = String(kontak || '');
-    const bookingKontak = String(b?.kontak || '');
-    const ok = b && b.kode_booking === String(kode).toUpperCase() && bookingKontak.length >= 6 && inputKontak.length >= 6 && bookingKontak.slice(-6) === inputKontak.slice(-6);
-    if (!ok) throw E.notFound('Booking tidak ditemukan atau data verifikasi tidak cocok.');
+    if (!b) throw E.notFound('Booking tidak ditemukan.');
+    if (String(kode || '').trim().toUpperCase() !== b.kode_booking) {
+      throw E.notFound('Kode booking tidak sesuai.');
+    }
+
+    // Ownership verification: single-use feedback_token, matching customer user, or full normalized phone
+    let verified = false;
+    if (feedback_token && b.feedback_token && feedback_token === b.feedback_token) {
+      verified = true;
+    } else if (user && user.role === 'customer' && (user.customerId === b.customer_id || user.customer_id === b.customer_id)) {
+      verified = true;
+    } else if (user && (user.role === 'admin' || user.role === 'technician')) {
+      verified = true;
+    } else if (kontak) {
+      const inputNorm = normalizePhone(kontak);
+      const bNorm = normalizePhone(b.kontak);
+      if (inputNorm && bNorm && inputNorm === bNorm) {
+        verified = true;
+      } else if (String(kontak).trim().length >= 6 && String(b.kontak || '').slice(-6) === String(kontak).trim().slice(-6)) {
+        verified = true;
+      }
+    }
+
+    if (!verified) {
+      throw E.forbidden('Verifikasi feedback gagal. Gunakan tautan resmi dari notifikasi atau masukkan nomor kontak yang sesuai saat booking.');
+    }
+
     if (b.status !== 'done') throw E.business('Feedback hanya dapat diberikan setelah pekerjaan berstatus "done".');
     const ex = await client.query('SELECT 1 FROM feedback WHERE booking_id=$1', [id]);
     if (ex.rows.length) throw E.conflict('Feedback untuk booking ini sudah pernah dikirim. Terima kasih!');
@@ -480,6 +646,8 @@ async function submitFeedback(id, { kode_booking: kode, kontak, rating, komentar
       'INSERT INTO feedback (booking_id, rating, komentar, sentimen) VALUES ($1,$2,$3,$4)',
       [id, rating, komentar || null, sentimen],
     );
+    // Invalidate the single-use token upon successful feedback
+    await client.query('UPDATE bookings SET feedback_token = NULL WHERE id = $1', [id]);
     await notify(client, {
       role: 'admin', title: rating <= 2 ? 'Feedback rating rendah' : 'Feedback baru',
       message: `${b.kode_booking} diberi rating ${rating}/5${komentar ? `: "${String(komentar).slice(0, 80)}"` : ''}`,
@@ -489,7 +657,15 @@ async function submitFeedback(id, { kode_booking: kode, kontak, rating, komentar
   });
 }
 
-async function getAvailability(dateStr, layananId, now = new Date()) {
+async function getAvailability(dateStr, layananId, jumlahUnitOrNow = 1, maybeNow = new Date()) {
+  let jumlahUnit = 1;
+  let now = maybeNow;
+  if (jumlahUnitOrNow instanceof Date) {
+    now = jumlahUnitOrNow;
+    jumlahUnit = 1;
+  } else if (typeof jumlahUnitOrNow === 'number') {
+    jumlahUnit = Math.max(1, jumlahUnitOrNow);
+  }
   const svc = (await query('SELECT * FROM service_catalog WHERE id=$1 AND aktif', [layananId])).rows[0];
   if (!svc) throw E.validation('Layanan tidak valid.', { layanan_id: 'Layanan tidak ditemukan atau tidak aktif.' });
   const ops = await getOps();
@@ -507,9 +683,10 @@ async function getAvailability(dateStr, layananId, now = new Date()) {
   const slots = [];
   const openMin = toMinutes(ops.open);
   const closeMin = toMinutes(ops.close);
+  const totalDuration = (Number(svc.durasi_menit) || 60) * jumlahUnit;
   for (let t = openMin; t < closeMin; t += ops.slot_minutes) {
     const start = fromWib(y, m, d, Math.floor(t / 60), t % 60);
-    const end = computeEnd(start, svc.durasi_menit, ops.slot_minutes);
+    const end = computeEnd(start, totalDuration, ops.slot_minutes);
     let tersedia = true;
     let alasan = null;
     try { assertSlotAllowed(start, end, ops, now); } catch (e) { tersedia = false; alasan = e.detail ? e.detail.jadwal_mulai : e.message; }
@@ -556,35 +733,67 @@ async function verifyPublicBooking(kode, kontak) {
 function calculateInvoice(booking) {
   if (!booking) return null;
   
-  const basePrice = booking.harga || 0;
-  const units = booking.jumlah_unit || 1;
-  const subtotal = basePrice * units;
-  
-  // Apply discounts based on units
+  let items = [];
+  let subtotal = 0;
+  let totalUnits = 0;
+
+  if (Array.isArray(booking.items) && booking.items.length > 0) {
+    items = booking.items.map((it) => {
+      const itemSubtotal = (it.subtotal !== null && it.subtotal !== undefined)
+        ? Number(it.subtotal)
+        : (Number(it.harga_satuan || it.harga || 0) * Number(it.jumlah_unit || 1));
+      subtotal += itemSubtotal;
+      totalUnits += Number(it.jumlah_unit || 1);
+      return {
+        layanan_id: it.layanan_id,
+        nama_layanan: it.nama_layanan || it.nama || booking.layanan || 'Servis AC',
+        harga_satuan: Number(it.harga_satuan || it.harga || 0),
+        jumlah_unit: Number(it.jumlah_unit || 1),
+        subtotal: itemSubtotal,
+        catatan: it.catatan || '',
+      };
+    });
+  } else {
+    const basePrice = Number(booking.harga) || 0;
+    totalUnits = Number(booking.jumlah_unit) || 1;
+    subtotal = basePrice * totalUnits;
+    items = [{
+      layanan_id: booking.layanan?.id || booking.layanan_id,
+      nama_layanan: booking.layanan?.nama || booking.layanan || 'Servis AC',
+      harga_satuan: basePrice,
+      jumlah_unit: totalUnits,
+      subtotal,
+      catatan: booking.keluhan || '',
+    }];
+  }
+
+  // Apply discounts based on total units: 5% for 2 units, 10% for >= 3 units
   let discount = 0;
-  if (units === 2) {
+  if (totalUnits === 2) {
     discount = Math.round(subtotal * 0.05);
-  } else if (units >= 3) {
+  } else if (totalUnits >= 3) {
     discount = Math.round(subtotal * 0.1);
   }
-  
+
   const total = subtotal - discount;
-  
+
   // Determine warranty based on service type
   let warrantyText = '14 Hari Kalender';
-  const serviceName = (booking.layanan || '').toLowerCase();
-  if (serviceName.includes('freon') && serviceName.includes('core')) {
+  const allNames = items.map((i) => (i.nama_layanan || '').toLowerCase()).join(' ');
+  if (allNames.includes('freon') && allNames.includes('core')) {
     warrantyText = '45 Hari Penuh Garansi Dingin';
-  } else if (serviceName.includes('core')) {
+  } else if (allNames.includes('core')) {
     warrantyText = '30 Hari Penuh Garansi Pengerjaan';
   }
-  
+
   return {
-    basePrice,
-    units,
+    basePrice: items.length === 1 ? items[0].harga_satuan : 0,
+    units: totalUnits,
+    items,
     subtotal,
     discount,
     total,
+    status_pembayaran: booking.status_pembayaran || 'pending',
     warrantyText,
   };
 }

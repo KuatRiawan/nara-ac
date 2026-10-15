@@ -65,9 +65,16 @@ async function seed() {
       VALUES 
       ('Citra Lestari', '085512341234', 'Jl. Merdeka No.10, Jakarta', true),
       ('Dani Pratama', '085512341235', 'Jl. Sudirman No.5, Jakarta', true)
+      ON CONFLICT (kontak) DO NOTHING
       RETURNING id;
     `);
     const customers = custRes.rows;
+    
+    // If no rows returned, fetch existing ones
+    if (customers.length === 0) {
+      const existingCust = await client.query(`SELECT id FROM customers WHERE kontak IN ('085512341234', '085512341235')`);
+      customers.push(...existingCust.rows);
+    }
 
     // 6. Inventory
     console.log('Seeding inventory...');
@@ -84,23 +91,29 @@ async function seed() {
     const svcs = (await client.query('SELECT id FROM service_catalog')).rows;
     
     if (customers.length > 0 && svcs.length > 0 && techs.length > 0) {
-      // 1 Past booking
-      await client.query(`
-        INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, status, teknisi_id, is_synthetic)
-        VALUES (
-          'BK-PAST-001', $1, $2, now() - interval '2 days', now() - interval '2 days' + interval '1 hour',
-          'Jl. Merdeka No.10', 'AC kurang dingin', '085512341234', 'done', $3, true
-        ) ON CONFLICT (kode_booking) DO NOTHING;
-      `, [customers[0].id, svcs[0].id, techs[0].id]);
-
-      // 1 Upcoming booking
-      await client.query(`
-        INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, status, teknisi_id, is_synthetic)
-        VALUES (
-          'BK-FUT-001', $1, $2, now() + interval '1 days', now() + interval '1 days' + interval '1 hour',
-          'Jl. Sudirman No.5', 'AC netes air', '085512341235', 'scheduled', $3, true
-        ) ON CONFLICT (kode_booking) DO NOTHING;
-      `, [customers[1].id, svcs[1].id, techs[1].id]);
+      // Check if seed bookings already exist
+      const existingPast = (await client.query('SELECT 1 FROM bookings WHERE kode_booking = $1', ['BK-PAST-001'])).rows.length > 0;
+      const existingFut = (await client.query('SELECT 1 FROM bookings WHERE kode_booking = $1', ['BK-FUT-001'])).rows.length > 0;
+      
+      if (!existingPast) {
+        await client.query(`
+          INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, status, teknisi_id, is_synthetic, status_pembayaran)
+          VALUES (
+            'BK-PAST-001', $1, $2, now() - interval '2 days', now() - interval '2 days' + interval '1 hour',
+            'Jl. Merdeka No.10', 'AC kurang dingin', '085512341234', 'done', $3, true, 'paid'
+          ) ON CONFLICT (kode_booking) DO NOTHING;
+        `, [customers[0].id, svcs[0].id, techs[0].id]);
+      }
+      
+      if (!existingFut) {
+        await client.query(`
+          INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, status, teknisi_id, is_synthetic, status_pembayaran)
+          VALUES (
+            'BK-FUT-001', $1, $2, now() + interval '1 days', now() + interval '1 days' + interval '1 hour',
+            'Jl. Sudirman No.5', 'AC netes air', '085512341235', 'scheduled', $3, true, 'pending'
+          ) ON CONFLICT (kode_booking) DO NOTHING;
+        `, [customers[1].id, svcs[1].id, techs[1].id]);
+      }
     }
 
     await client.query('COMMIT');

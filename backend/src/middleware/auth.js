@@ -53,4 +53,4 @@ function signToken(user) {
   );
 }
 
-module.exports = { requireAuth, optionalAuth, signToken };
+module.exports = { requireAuth, optionalAuth, signToken, parseToken };

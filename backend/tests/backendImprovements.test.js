@@ -13,7 +13,7 @@ const { TRANSITIONS, changeStatus, addInventoryUsage } = require('../src/service
 
 describe('Backend Improvements - Phase 3', () => {
   describe('BE-001: Advisory Lock Race Condition Prevention', () => {
-    test('pg_advisory_xact_lock is used in createBooking', async () => {
+    test('pg_advisory_xact_lock is used in createBooking', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -25,7 +25,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(bookingService).toContain('booking-slots');
     });
 
-    test('pg_advisory_xact_lock is used in workflowService assign', async () => {
+    test('pg_advisory_xact_lock is used in workflowService assign', () => {
       const fs = require('fs');
       const path = require('path');
       const workflowService = fs.readFileSync(
@@ -37,7 +37,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(workflowService).toContain('booking-slots');
     });
 
-    test('pg_advisory_xact_lock is used in reschedule', async () => {
+    test('pg_advisory_xact_lock is used in reschedule', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -50,7 +50,7 @@ describe('Backend Improvements - Phase 3', () => {
   });
 
   describe('BE-006: Idempotency Key Support', () => {
-    test('Booking service handles idempotency_key in createBooking', async () => {
+    test('Booking service handles idempotency_key in createBooking', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -62,7 +62,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(bookingService).toContain('input.idempotency_key');
     });
 
-    test('Idempotency key functions exist in utils/ids.js', async () => {
+    test('Idempotency key functions exist in utils/ids.js', () => {
       const fs = require('fs');
       const path = require('path');
       const idsJs = fs.readFileSync(
@@ -74,7 +74,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(idsJs).toContain('getIdempotencyKey');
     });
 
-    test('Migration 007 adds idempotency_key column', async () => {
+    test('Migration 007 adds idempotency_key column', () => {
       const fs = require('fs');
       const path = require('path');
       const migration = fs.readFileSync(
@@ -97,7 +97,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(TRANSITIONS.cancelled).toEqual([]);
     });
 
-    test('changeStatus validates transitions', async () => {
+    test('changeStatus validates transitions', () => {
       // This test verifies that changeStatus checks TRANSITIONS
       const fs = require('fs');
       const path = require('path');
@@ -110,18 +110,18 @@ describe('Backend Improvements - Phase 3', () => {
       expect(bookingService).toContain('includes(newStatus)');
     });
 
-    test('Illegal transition from done to scheduled is rejected', async () => {
+    test('Illegal transition from done to scheduled is rejected', () => {
       // This verifies the logic exists to reject illegal transitions
       expect(TRANSITIONS.done).not.toContain('scheduled');
     });
 
-    test('Legal transition from scheduled to on process is allowed', async () => {
+    test('Legal transition from scheduled to on process is allowed', () => {
       expect(TRANSITIONS.scheduled).toContain('on process');
     });
   });
 
   describe('BE-020-025: Reminder Deduplication', () => {
-    test('Reminder log table has UNIQUE constraint', async () => {
+    test('Reminder log table has UNIQUE constraint', () => {
       const fs = require('fs');
       const path = require('path');
       const migration = fs.readFileSync(
@@ -132,7 +132,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(migration).toContain('UNIQUE (booking_id, target, untuk_tanggal)');
     });
 
-    test('Reminder service uses ON CONFLICT DO NOTHING', async () => {
+    test('Reminder service uses ON CONFLICT DO NOTHING', () => {
       const fs = require('fs');
       const path = require('path');
       const reminderService = fs.readFileSync(
@@ -144,7 +144,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(reminderService).toContain('DO NOTHING');
     });
 
-    test('Reminder service filters out cancelled bookings', async () => {
+    test('Reminder service filters out cancelled bookings', () => {
       const fs = require('fs');
       const path = require('path');
       const reminderService = fs.readFileSync(
@@ -158,7 +158,7 @@ describe('Backend Improvements - Phase 3', () => {
   });
 
   describe('BE-030-033: Inventory Validation', () => {
-    test('Inventory usage validates stock availability', async () => {
+    test('Inventory usage validates stock availability', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -175,7 +175,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(workflowService).toContain('FOR UPDATE');
     });
 
-    test('Inventory usage uses transaction', async () => {
+    test('Inventory usage uses transaction', () => {
       const fs = require('fs');
       const path = require('path');
       const workflowService = fs.readFileSync(
@@ -186,7 +186,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(workflowService).toContain('withTx');
     });
 
-    test('Inventory adjustments are logged', async () => {
+    test('Inventory adjustments are logged', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -199,7 +199,7 @@ describe('Backend Improvements - Phase 3', () => {
   });
 
   describe('Observability Improvements', () => {
-    test('Migration 007 adds indexes for performance', async () => {
+    test('Migration 007 adds indexes for performance', () => {
       const fs = require('fs');
       const path = require('path');
       const migration = fs.readFileSync(
@@ -212,7 +212,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(migration).toContain('idx_reminder_booking');
     });
 
-    test('Error handler uses structured logging', async () => {
+    test('Error handler uses structured logging', () => {
       const fs = require('fs');
       const path = require('path');
       const errorHandler = fs.readFileSync(
@@ -225,7 +225,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(errorHandler).toContain("require('../utils/logger')");
     });
 
-    test('Reminder service is production-safe', async () => {
+    test('Reminder service is production-safe', () => {
       const fs = require('fs');
       const path = require('path');
       const reminderService = fs.readFileSync(
@@ -236,7 +236,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(reminderService).toContain("process.env.NODE_ENV !== 'production'");
     });
 
-    test('Logger utility exists', async () => {
+    test('Logger utility exists', () => {
       const fs = require('fs');
       const path = require('path');
       const logger = fs.readFileSync(
@@ -250,7 +250,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(logger).toContain('logError');
     });
 
-    test('App.js uses request logger', async () => {
+    test('App.js uses request logger', () => {
       const fs = require('fs');
       const path = require('path');
       const app = fs.readFileSync(

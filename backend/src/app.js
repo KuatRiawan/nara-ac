@@ -9,13 +9,38 @@ const config = require('./config');
 const { pool } = require('./db/pool');
 const { filePath } = require('./utils/upload');
 const { errorHandler, notFoundHandler, wrap } = require('./middleware/errorHandler');
+const { csrfProtection } = require('./middleware/csrf');
 const { requestLogger, healthCheckHandler } = require('./utils/logger');
 
 function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: config.isProd ? ["'self'"] : ["'self'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", ...config.corsOrigins],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // diperlukan agar SPA dapat load gambar eksternal
+  }));
+  // Staging environment protection - prevent search engine indexing on staging (FIND-18)
+  if (process.env.APP_ENV === 'staging' || process.env.IS_STAGING === 'true') {
+    app.use((_req, res, next) => {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      next();
+    });
+  }
+
   app.use(cookieParser());
   app.use(cors({
     origin(origin, cb) {
@@ -34,9 +59,18 @@ function createApp() {
       // Izinkan jika origin ada di list
       if (config.corsOrigins.includes(origin)) return cb(null, true);
       
-      // Di development, izinkan local origins
-      if (!config.isProd && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-        return cb(null, true);
+      // Di development, izinkan local origins pada port umum dengan strict URL parsing (FIND-10)
+      if (!config.isProd) {
+        try {
+          const parsed = new URL(origin);
+          const devPorts = ['5173', '3000', '8080', '4173'];
+          const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+          if (isLocalhost && devPorts.includes(parsed.port)) {
+            return cb(null, true);
+          }
+        } catch {
+          return cb(null, false);
+        }
       }
       
       return cb(null, false);
@@ -48,12 +82,15 @@ function createApp() {
   }));
   app.use(express.json({ limit: '50kb' }));
   app.use(rateLimit({
-    windowMs: 60000, limit: 600, standardHeaders: true, legacyHeaders: false,
+    windowMs: 60000, limit: 200, standardHeaders: true, legacyHeaders: false,
     skip: () => process.env.NODE_ENV === 'test',
   }));
 
   // Request logging and correlation ID (BE-051, BE-054)
   app.use(requestLogger);
+
+  // CSRF protection for state-changing requests (AUD-004)
+  app.use(csrfProtection);
 
   // Health check with dependency checks (BE-052, BE-053)
   app.get('/health', wrap(healthCheckHandler));
