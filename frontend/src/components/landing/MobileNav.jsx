@@ -10,6 +10,7 @@ const easeOutCubic = [0.16, 1, 0.3, 1];
 export default function MobileNav({ isOpen, onClose, scrollTo }) {
   const navLinks = [
     { name: 'Beranda', id: 'home' },
+    { name: 'Klien Kami', id: 'klien-kami' },
     { name: 'Layanan AC', id: 'layanan' },
     { name: 'Keunggulan', id: 'keunggulan' },
     { name: 'Cara Kerja', id: 'cara-kerja' },

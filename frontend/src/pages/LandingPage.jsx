@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/badge';
 import CompanyLogo from '../components/CompanyLogo';
 import FAQAccordion from '../components/landing/FAQAccordion';
 import TrustBar from '../components/landing/TrustBar';
+import ClientLogosSection from '../components/landing/ClientLogosSection';
 import GallerySection from '../components/landing/GallerySection';
 import MobileNav from '../components/landing/MobileNav';
 import AirflowBreeze from '../components/landing/AirflowBreeze';
@@ -310,6 +311,7 @@ export default function LandingPage() {
           <nav className="hidden lg:flex items-center gap-7 text-sm font-bold text-slate-700">
             {[
               { id: 'home', label: 'Beranda' },
+              { id: 'klien-kami', label: 'Klien Kami' },
               { id: 'layanan', label: 'Layanan' },
               { id: 'keunggulan', label: 'Keunggulan' },
               { id: 'cara-kerja', label: 'Cara Kerja' },
@@ -513,6 +515,11 @@ export default function LandingPage() {
       {/* 3. TRUST MARQUEE & CREDENTIALS STRIP                           */}
       {/* ============================================================== */}
       <TrustBar />
+
+      {/* ============================================================== */}
+      {/* 3.5. KLIEN & MITRA KORPORAT                                   */}
+      {/* ============================================================== */}
+      <ClientLogosSection />
 
       {/* ============================================================== */}
       {/* 4. PERBANDINGAN PAKET & CAKUPAN PENGERJAAN AC                   */}
@@ -1358,7 +1365,7 @@ export default function LandingPage() {
             <FAQAccordion
               index={4}
               question="Apakah NARA AC melayani pengerjaan untuk kantor, ruko, atau instansi?"
-              answer="Tentu. Selain rumah tinggal, CV. Nara Teknindotama melayani kantor, ruko, restoran, klinik, dan instansi dengan opsi pembuatan invoice resmi dan penawaran kerja sama pemeliharaan rutin berkala."
+              answer="Tentu. Selain hunian residensial, CV. Nara Teknindotama telah dipercaya melayani berbagai instansi dan perusahaan terkemuka seperti Bank Permata, PT. ASEPHI, PT. Amrita Mahesa Prima, PT. Bandar Aneka Teknik Indonesia, PT. Juritsu, dan PT. Resik Cemerlang dengan opsi invoice resmi berbadan hukum dan kontrak kerja sama perawatan rutin berkala (MoU/SLA)."
             />
             <FAQAccordion
               index={5}
