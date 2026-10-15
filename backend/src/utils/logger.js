@@ -84,10 +84,13 @@ function requestLogger(req, res, next) {
   });
   
   res.on('close', () => {
-    const durationMs = Number(process.hrtime.bigint() - req.startTime) / 1_000_000;
-    log('warn', req, 'Request closed before completion', {
-      durationMs: Math.round(durationMs * 100) / 100,
-    });
+    // Only warn if client disconnected before response finished writing
+    if (!res.writableEnded) {
+      const durationMs = Number(process.hrtime.bigint() - req.startTime) / 1_000_000;
+      log('warn', req, 'Request closed before completion', {
+        durationMs: Math.round(durationMs * 100) / 100,
+      });
+    }
   });
   
   next();
