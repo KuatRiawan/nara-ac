@@ -1,13 +1,7 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api';
-import {
-  Calendar as CalendarIcon, Clock, Wrench, Plus, Search, Filter,
-  CheckCircle2, AlertCircle, AlertTriangle, User, Phone, MapPin,
-  ExternalLink, Copy, Check, ChevronDown, RefreshCw, X, Eye,
-  MessageSquare, UserCheck, UserPlus, Tag, ShieldAlert, ArrowUpDown,
-  CalendarClock, Printer, Receipt, FileText
-} from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Wrench, Plus, Search, CheckCircle2, AlertCircle, AlertTriangle, Phone, MapPin, ExternalLink, Copy, Check, ChevronDown, RefreshCw, X, Eye, MessageSquare, UserCheck, UserPlus, ArrowUpDown, CalendarClock, Printer, Receipt } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -39,6 +33,17 @@ export default function AdminBookings({
   // Modal Invoice State
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
+  // Escape key to close invoice modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isInvoiceModalOpen) {
+        setIsInvoiceModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isInvoiceModalOpen]);
 
   // Modal Reschedule State
   const [rescheduleBooking, setRescheduleBooking] = useState(null);
@@ -294,13 +299,13 @@ export default function AdminBookings({
     tomorrow.setDate(today.getDate() + 1);
     const isTomorrow = date.toDateString() === tomorrow.toDateString();
 
-    if (isToday) return <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded ml-1.5">Hari Ini</span>;
-    if (isTomorrow) return <span className="inline-block px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded ml-1.5">Besok</span>;
+    if (isToday) return <span className="inline-block px-1.5 py-0.5 text-xs font-bold bg-blue-100 text-blue-700 rounded ml-1.5">Hari Ini</span>;
+    if (isTomorrow) return <span className="inline-block px-1.5 py-0.5 text-xs font-bold bg-amber-100 text-amber-700 rounded ml-1.5">Besok</span>;
     return null;
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0 font-sans">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0 font-sans">
       {/* HEADER: Standard Clean Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -334,14 +339,14 @@ export default function AdminBookings({
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Tiket</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Tiket</span>
             <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
               <CalendarIcon className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-slate-900">{metrics.total}</span>
-            <span className="text-xs text-slate-400 font-medium">semua data</span>
+            <span className="text-xs text-slate-500 font-medium">semua data</span>
           </div>
         </div>
 
@@ -357,7 +362,7 @@ export default function AdminBookings({
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Perlu Teknisi</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Perlu Teknisi</span>
               {metrics.unassigned > 0 && (
                 <span className="flex h-2 w-2 relative">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -396,7 +401,7 @@ export default function AdminBookings({
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">On Process</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">On Process</span>
             <div className="w-10 h-10 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
               <Wrench className="w-5 h-5" />
             </div>
@@ -420,14 +425,14 @@ export default function AdminBookings({
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Selesai Bergaransi</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Selesai Bergaransi</span>
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-emerald-700">{metrics.done}</span>
-            <span className="text-xs text-slate-400 font-medium">selesai servis</span>
+            <span className="text-xs text-slate-500 font-medium">selesai servis</span>
           </div>
         </div>
       </div>
@@ -438,18 +443,19 @@ export default function AdminBookings({
         <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* Search Box */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               placeholder="Cari kode tiket (BK-...), pelanggan, no telepon, teknisi, atau alamat..."
-              className="w-full pl-10 pr-9 py-2.5 bg-gray-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+              aria-label="Cari booking"
+              className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 p-0.5 rounded cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -463,7 +469,7 @@ export default function AdminBookings({
               <select
                 value={filterTechnician}
                 onChange={(e) => { setFilterTechnician(e.target.value); setCurrentPage(1); }}
-                className="appearance-none w-full bg-white border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-xs sm:text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm"
+                className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-3 pr-8 text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm"
               >
                 <option value="all">Semua Teknisi</option>
                 <option value="unassigned">⚠️ Belum Ada Teknisi</option>
@@ -471,7 +477,7 @@ export default function AdminBookings({
                   <option key={t.id} value={t.id}>{t.nama}</option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
 
             {/* Sorting */}
@@ -479,13 +485,13 @@ export default function AdminBookings({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none w-full bg-white border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 text-xs sm:text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm"
+                className="appearance-none w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-3 pr-8 text-xs sm:text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm"
               >
                 <option value="schedule_asc">Jadwal: Terdekat</option>
                 <option value="schedule_desc">Jadwal: Terjauh</option>
                 <option value="created_desc">Terbaru Diinput</option>
               </select>
-              <ArrowUpDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <ArrowUpDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
 
             {/* Reset Filter Button if active */}
@@ -503,18 +509,18 @@ export default function AdminBookings({
         </div>
 
         {/* Row 2: Status Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-gray-100 scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100 scrollbar-none">
           <button
             onClick={() => { setFilterStatus('all'); setCurrentPage(1); }}
             className={cn(
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'all'
-                ? "bg-gray-900 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>Semua</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'all' ? "bg-gray-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'all' ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-700")}>
               {bookings.length}
             </span>
           </button>
@@ -529,7 +535,7 @@ export default function AdminBookings({
             )}
           >
             <span>Belum Ditugaskan</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'unassigned' ? "bg-amber-700 text-white" : "bg-amber-200 text-amber-900")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'unassigned' ? "bg-amber-700 text-white" : "bg-amber-200 text-amber-900")}>
               {metrics.unassigned}
             </span>
           </button>
@@ -540,11 +546,11 @@ export default function AdminBookings({
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'scheduled'
                 ? "bg-blue-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>Scheduled</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'scheduled' ? "bg-blue-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'scheduled' ? "bg-blue-700 text-white" : "bg-slate-200 text-slate-700")}>
               {metrics.scheduled}
             </span>
           </button>
@@ -555,11 +561,11 @@ export default function AdminBookings({
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'on process'
                 ? "bg-sky-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>On Process</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'on process' ? "bg-sky-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'on process' ? "bg-sky-700 text-white" : "bg-slate-200 text-slate-700")}>
               {metrics.onProcess}
             </span>
           </button>
@@ -570,11 +576,11 @@ export default function AdminBookings({
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'done'
                 ? "bg-emerald-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>Done</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'done' ? "bg-emerald-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'done' ? "bg-emerald-700 text-white" : "bg-slate-200 text-slate-700")}>
               {metrics.done}
             </span>
           </button>
@@ -585,11 +591,11 @@ export default function AdminBookings({
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'delayed'
                 ? "bg-orange-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>Delayed</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'delayed' ? "bg-orange-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'delayed' ? "bg-orange-700 text-white" : "bg-slate-200 text-slate-700")}>
               {metrics.delayed}
             </span>
           </button>
@@ -600,11 +606,11 @@ export default function AdminBookings({
               "px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5",
               filterStatus === 'cancelled'
                 ? "bg-rose-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             )}
           >
             <span>Cancelled</span>
-            <span className={cn("text-[10px] px-1.5 py-0.2 rounded-full", filterStatus === 'cancelled' ? "bg-rose-700 text-white" : "bg-gray-200 text-gray-700")}>
+            <span className={cn("text-xs px-1.5 py-0.2 rounded-full", filterStatus === 'cancelled' ? "bg-rose-700 text-white" : "bg-slate-200 text-slate-700")}>
               {metrics.cancelled}
             </span>
           </button>
@@ -616,23 +622,23 @@ export default function AdminBookings({
         {loading ? (
           <div className="p-16 text-center">
             <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-900 font-bold text-base">Memuat Data Booking...</p>
-            <p className="text-xs text-gray-500 mt-1">Mengambil jadwal dan status teknisi terkini.</p>
+            <p className="text-slate-900 font-bold text-base">Memuat Data Booking...</p>
+            <p className="text-xs text-slate-500 mt-1">Mengambil jadwal dan status teknisi terkini.</p>
           </div>
         ) : filteredBookings.length === 0 ? (
           /* EMPTY STATE */
           <div className="p-16 text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 mx-auto mb-4">
               <Search className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Tidak Ada Tiket Booking Ditemukan</h3>
-            <p className="text-xs text-gray-500 mt-1 mb-6">
+            <h3 className="text-base font-bold text-slate-900">Tidak Ada Tiket Booking Ditemukan</h3>
+            <p className="text-xs text-slate-500 mt-1 mb-6">
               Tidak ada data yang cocok dengan kriteria pencarian atau filter yang Anda pilih saat ini.
             </p>
             <Button
               onClick={handleResetFilters}
               variant="outline"
-              className="rounded-xl border-gray-200 font-bold text-xs cursor-pointer"
+              className="rounded-xl border-slate-200 font-bold text-xs cursor-pointer"
             >
               Reset Semua Filter
             </Button>
@@ -646,27 +652,27 @@ export default function AdminBookings({
                 const waLink = getWhatsAppLink(b.customer?.kontak || b.kontak, b.kode_booking, b.customer?.nama || b.nama);
 
                 return (
-                  <div key={b.id} className="p-4 space-y-3 hover:bg-gray-50/50 transition-colors">
+                  <div key={b.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
                     {/* Top Row: Ticket Code & Schedule Date */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={(e) => handleCopyCode(b.kode_booking, e)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-gray-800 font-mono text-xs border border-gray-200 bg-gray-50 font-bold hover:bg-gray-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-slate-800 font-mono text-xs border border-slate-200 bg-slate-50 font-bold hover:bg-slate-100 cursor-pointer"
                           title="Klik untuk salin kode tiket"
                         >
                           <span>{b.kode_booking}</span>
                           {copiedCode === b.kode_booking ? (
                             <Check className="w-3 h-3 text-emerald-600" />
                           ) : (
-                            <Copy className="w-3 h-3 text-gray-400" />
+                            <Copy className="w-3 h-3 text-slate-500" />
                           )}
                         </button>
                         {getDateLabel(b.jadwal_mulai)}
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs text-gray-600 font-bold">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <div className="flex items-center gap-1 text-xs text-slate-600 font-bold">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
                         <span>
                           {b.jadwal_mulai
                             ? `${new Date(b.jadwal_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`
@@ -678,13 +684,13 @@ export default function AdminBookings({
                     {/* Customer & Service Info */}
                     <div className="flex justify-between items-start gap-2">
                       <div>
-                        <h4 className="font-bold text-sm text-gray-900 leading-snug">
+                        <h4 className="font-bold text-sm text-slate-900 leading-snug">
                           {b.customer?.nama || b.nama || '-'}
                         </h4>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                           <span>{b.layanan?.nama_layanan || b.layanan?.nama || b.nama_layanan || 'Service AC'}</span>
                           {b.jumlah_unit > 1 && (
-                            <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded text-[10px]">
+                            <span className="font-bold text-blue-600 bg-blue-50 px-1 rounded text-xs">
                               {b.jumlah_unit} Unit
                             </span>
                           )}
@@ -695,31 +701,32 @@ export default function AdminBookings({
                       {waLink && (
                         <a
                           href={waLink}
-                          target="_blank"
-                          rel="noreferrer"
+                          target="_blank" rel="noopener noreferrer"
                           className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors cursor-pointer"
                           title="Chat WhatsApp Pelanggan"
                         >
                           <MessageSquare className="w-4 h-4" />
+<span className="sr-only"> (buka di tab baru)</span>
                         </a>
                       )}
                     </div>
 
                     {/* Address snippet if available */}
                     {b.alamat && (
-                      <p className="text-xs text-gray-500 flex items-start gap-1 line-clamp-1">
-                        <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-slate-500 flex items-start gap-1 line-clamp-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
                         <span>{b.alamat}</span>
                       </p>
                     )}
 
                     {/* Assignment & Status Controls */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
                       {/* Status Selector */}
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Status</label>
+                        <label htmlFor="admin-bookings-f1" className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Status</label>
                         <div className="relative">
                           <select
+                            id="admin-bookings-f1"
                             value={b.status}
                             onChange={(e) => handleStatus && handleStatus(b.id, e.target.value)}
                             className={cn(
@@ -729,7 +736,7 @@ export default function AdminBookings({
                                   b.status === 'done' ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
                                     b.status === 'cancelled' ? "bg-rose-50 text-rose-800 border-rose-200" :
                                       b.status === 'delayed' ? "bg-orange-50 text-orange-800 border-orange-200" :
-                                        "bg-gray-50 text-gray-800 border-gray-200"
+                                        "bg-slate-50 text-slate-800 border-slate-200"
                             )}
                           >
                             <option value="scheduled">Scheduled</option>
@@ -738,22 +745,30 @@ export default function AdminBookings({
                             <option value="delayed">Delayed</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
-                          <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                         </div>
                       </div>
 
                       {/* Technician Assign Selector */}
                       <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Teknisi</label>
+                        <label htmlFor="admin-bookings-f2" className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Teknisi</label>
                         {isAdmin ? (
                           <div className="relative">
                             <select
+                              id="admin-bookings-f2"
                               value={assignedTech?.id || ''}
-                              onChange={(e) => handleAssign && handleAssign(b.id, parseInt(e.target.value))}
+                              onChange={(e) => {
+                                const tId = parseInt(e.target.value);
+                                if (tId && handleAssign) {
+                                  handleAssign(b.id, tId);
+                                  if (onBookingCreated) onBookingCreated();
+                                  window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+                                }
+                              }}
                               className={cn(
                                 "appearance-none w-full border rounded-xl py-1.5 pl-2.5 pr-7 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer shadow-sm",
                                 assignedTech
-                                  ? "bg-white text-gray-800 border-gray-200"
+                                  ? "bg-white text-slate-800 border-slate-200"
                                   : "bg-amber-50 text-amber-800 border-amber-300 font-bold"
                               )}
                             >
@@ -762,11 +777,11 @@ export default function AdminBookings({
                                 <option key={t.id} value={t.id}>{t.nama}</option>
                               ))}
                             </select>
-                            <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-xs text-gray-700 py-1.5 font-bold">
-                            <Wrench className="w-3.5 h-3.5 text-gray-400" />
+                          <div className="flex items-center gap-1.5 text-xs text-slate-700 py-1.5 font-bold">
+                            <Wrench className="w-3.5 h-3.5 text-slate-500" />
                             <span>{assignedTech?.nama || 'Belum ditugaskan'}</span>
                           </div>
                         )}
@@ -790,7 +805,7 @@ export default function AdminBookings({
                         variant="outline"
                         size="sm"
                         onClick={() => openReschedule(b)}
-                        className="text-xs font-bold text-gray-700 border-gray-200 hover:bg-gray-100 h-8 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-100 h-8 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
                         title="Ubah Tanggal"
                       >
                         <CalendarClock className="w-3.5 h-3.5 text-blue-600" />
@@ -816,7 +831,7 @@ export default function AdminBookings({
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap">
                 <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-500 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
                     <th className="py-4 px-6">Waktu & Jadwal</th>
                     <th className="py-4 px-6">Kode & Layanan</th>
                     <th className="py-4 px-6">Pelanggan & Lokasi</th>
@@ -841,15 +856,15 @@ export default function AdminBookings({
                         {/* WAKTU & JADWAL */}
                         <td className="py-3.5 px-6">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-900 text-sm">
+                            <span className="font-bold text-slate-900 text-sm">
                               {b.jadwal_mulai
                                 ? new Date(b.jadwal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                                 : '-'}
                             </span>
                             {getDateLabel(b.jadwal_mulai)}
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1 font-semibold">
-                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1 font-semibold">
+                            <Clock className="w-3.5 h-3.5 text-slate-500" />
                             <span>
                               {b.jadwal_mulai
                                 ? `${new Date(b.jadwal_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`
@@ -861,12 +876,12 @@ export default function AdminBookings({
                         {/* KODE & LAYANAN */}
                         <td className="py-3.5 px-6">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-xs font-bold text-gray-800 bg-gray-100 border border-gray-200/90 px-2 py-0.5 rounded-md">
+                            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 border border-slate-200/90 px-2 py-0.5 rounded-md">
                               {b.kode_booking}
                             </span>
                             <button
                               onClick={(e) => handleCopyCode(b.kode_booking, e)}
-                              className="text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors cursor-pointer"
+                              className="text-slate-500 hover:text-slate-600 p-0.5 rounded transition-colors cursor-pointer"
                               title="Salin Kode Tiket"
                             >
                               {copiedCode === b.kode_booking ? (
@@ -877,16 +892,16 @@ export default function AdminBookings({
                             </button>
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <span className="font-bold text-xs text-gray-900">
+                            <span className="font-bold text-xs text-slate-900">
                               {b.layanan?.nama_layanan || b.layanan?.nama || b.nama_layanan || 'Service AC'}
                             </span>
                             {b.jumlah_unit > 1 && (
-                              <span className="text-[10px] font-black bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200/50">
+                              <span className="text-xs font-black bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200/50">
                                 {b.jumlah_unit} Unit
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-400 font-medium">
+                          <div className="text-xs text-slate-500 font-medium">
                             {formatRupiah(b.layanan?.harga || 0)}
                           </div>
                         </td>
@@ -898,29 +913,29 @@ export default function AdminBookings({
                               {(b.customer?.nama || b.nama || 'C').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-bold text-sm text-gray-900 leading-tight">
+                              <div className="font-bold text-sm text-slate-900 leading-tight">
                                 {b.customer?.nama || b.nama || '-'}
                               </div>
-                              <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                                <Phone className="w-3 h-3 text-gray-400" />
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                <Phone className="w-3 h-3 text-slate-500" />
                                 <span>{b.customer?.kontak || b.kontak || '-'}</span>
                                 {waLink && (
                                   <a
                                     href={waLink}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                    target="_blank" rel="noopener noreferrer"
                                     className="text-emerald-600 hover:text-emerald-700 font-bold hover:underline flex items-center gap-0.5 ml-1"
                                     title="Hubungi via WhatsApp"
                                   >
                                     <MessageSquare className="w-3 h-3" />
                                     <span>WA</span>
+<span className="sr-only"> (buka di tab baru)</span>
                                   </a>
                                 )}
                               </div>
                             </div>
                           </div>
                           {b.alamat && (
-                            <div className="text-xs text-gray-400 truncate max-w-[220px] mt-1 ml-9" title={b.alamat}>
+                            <div className="text-xs text-slate-500 truncate max-w-[220px] mt-1 ml-9" title={b.alamat}>
                               {b.alamat}
                             </div>
                           )}
@@ -932,11 +947,18 @@ export default function AdminBookings({
                             <div className="relative inline-block w-48">
                               <select
                                 value={assignedTech?.id || ''}
-                                onChange={(e) => handleAssign && handleAssign(b.id, parseInt(e.target.value))}
+                                onChange={(e) => {
+                                  const tId = parseInt(e.target.value);
+                                  if (tId && handleAssign) {
+                                    handleAssign(b.id, tId);
+                                    if (onBookingCreated) onBookingCreated();
+                                    window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+                                  }
+                                }}
                                 className={cn(
                                   "appearance-none w-full border rounded-xl py-2 pl-3 pr-8 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm transition-all",
                                   assignedTech
-                                    ? "bg-white text-gray-800 border-gray-200"
+                                    ? "bg-white text-slate-800 border-slate-200"
                                     : "bg-amber-50 text-amber-800 border-amber-300 font-bold"
                                 )}
                               >
@@ -945,12 +967,12 @@ export default function AdminBookings({
                                   <option key={t.id} value={t.id}>{t.nama}</option>
                                 ))}
                               </select>
-                              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                              <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 text-xs">
                               {assignedTech ? (
-                                <div className="flex items-center gap-1.5 text-gray-800 font-bold">
+                                <div className="flex items-center gap-1.5 text-slate-800 font-bold">
                                   <UserCheck className="w-4 h-4 text-emerald-600" />
                                   <span>{assignedTech.nama}</span>
                                 </div>
@@ -977,7 +999,7 @@ export default function AdminBookings({
                                     b.status === 'done' ? "bg-emerald-50 text-emerald-800 border-emerald-200" :
                                       b.status === 'cancelled' ? "bg-rose-50 text-rose-800 border-rose-200" :
                                         b.status === 'delayed' ? "bg-orange-50 text-orange-800 border-orange-200" :
-                                          "bg-gray-50 text-gray-800 border-gray-200"
+                                          "bg-slate-50 text-slate-800 border-slate-200"
                               )}
                             >
                               <option value="scheduled">Scheduled</option>
@@ -986,7 +1008,7 @@ export default function AdminBookings({
                               <option value="delayed">Delayed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
-                            <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                           </div>
                         </td>
 
@@ -1008,7 +1030,7 @@ export default function AdminBookings({
                               variant="outline"
                               size="sm"
                               onClick={() => openReschedule(b)}
-                              className="text-xs font-bold text-gray-700 border-gray-200 hover:bg-gray-100 h-8 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
+                              className="text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-100 h-8 px-2 rounded-lg flex items-center gap-1 cursor-pointer"
                               title="Ubah Tanggal"
                             >
                               <CalendarClock className="w-3.5 h-3.5 text-blue-600" />
@@ -1034,9 +1056,9 @@ export default function AdminBookings({
             </div>
 
             {/* PAGINATION TOOLBAR */}
-            <div className="p-4 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 font-medium">
+            <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
               <div>
-                Menampilkan <strong className="text-gray-900">{Math.min(filteredBookings.length, (currentPage - 1) * itemsPerPage + 1)}</strong> - <strong className="text-gray-900">{Math.min(filteredBookings.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-gray-900">{filteredBookings.length}</strong> tiket booking
+                Menampilkan <strong className="text-slate-900">{Math.min(filteredBookings.length, (currentPage - 1) * itemsPerPage + 1)}</strong> - <strong className="text-slate-900">{Math.min(filteredBookings.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredBookings.length}</strong> tiket booking
               </div>
 
               {totalPages > 1 && (
@@ -1044,17 +1066,17 @@ export default function AdminBookings({
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm transition-all"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm transition-all"
                   >
                     Sebelumnya
                   </button>
-                  <div className="px-3 py-1 font-bold text-gray-800">
+                  <div className="px-3 py-1 font-bold text-slate-800">
                     Hal {currentPage} / {totalPages}
                   </div>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm transition-all"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm transition-all"
                   >
                     Selanjutnya
                   </button>
@@ -1070,10 +1092,10 @@ export default function AdminBookings({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-start">
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm font-black bg-white border border-gray-200 px-2.5 py-1 rounded-lg text-gray-900">
+                  <span className="font-mono text-sm font-black bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-900">
                     {selectedBookingForDetail.kode_booking}
                   </span>
                   <Badge className={cn(
@@ -1084,16 +1106,21 @@ export default function AdminBookings({
                           selectedBookingForDetail.status === 'delayed' ? "bg-orange-100 text-orange-800" :
                             "bg-rose-100 text-rose-800"
                   )}>
-                    {selectedBookingForDetail.status}
+                    {selectedBookingForDetail.status === 'done' ? <CheckCircle2 className="w-3 h-3 mr-1" /> :
+                     selectedBookingForDetail.status === 'on process' ? <Wrench className="w-3 h-3 mr-1" /> :
+                     selectedBookingForDetail.status === 'scheduled' ? <CalendarClock className="w-3 h-3 mr-1" /> :
+                     selectedBookingForDetail.status === 'delayed' ? <AlertCircle className="w-3 h-3 mr-1" /> :
+                     <AlertTriangle className="w-3 h-3 mr-1" />}
+                    {selectedBookingForDetail.status.toUpperCase()}
                   </Badge>
                 </div>
-                <h3 className="text-base font-black text-gray-900 mt-2">
+                <h3 className="text-base font-black text-slate-900 mt-2">
                   Rincian Tiket Booking Servis
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedBookingForDetail(null)}
-                className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1104,8 +1131,8 @@ export default function AdminBookings({
               {/* Jadwal Pelaksanaan */}
               <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-100 flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">Waktu Jadwal</span>
-                  <div className="flex items-center gap-2 text-gray-900 font-bold">
+                  <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">Waktu Jadwal</span>
+                  <div className="flex items-center gap-2 text-slate-900 font-bold">
                     <CalendarIcon className="w-4 h-4 text-blue-600" />
                     <span>
                       {selectedBookingForDetail.jadwal_mulai
@@ -1113,7 +1140,7 @@ export default function AdminBookings({
                         : '-'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-700 font-semibold text-xs">
+                  <div className="flex items-center gap-2 text-slate-700 font-semibold text-xs">
                     <Clock className="w-4 h-4 text-blue-600" />
                     <span>
                       {selectedBookingForDetail.jadwal_mulai
@@ -1135,64 +1162,64 @@ export default function AdminBookings({
               </div>
 
               {/* Data Pelanggan */}
-              <div className="space-y-2 border-b border-gray-100 pb-4">
-                <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider text-gray-400">Informasi Pelanggan</h4>
+              <div className="space-y-2 border-b border-slate-100 pb-4">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Informasi Pelanggan</h4>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Nama Pelanggan:</span>
-                  <span className="font-bold text-gray-900">{selectedBookingForDetail.customer?.nama || selectedBookingForDetail.nama || '-'}</span>
+                  <span className="text-slate-500">Nama Pelanggan:</span>
+                  <span className="font-bold text-slate-900">{selectedBookingForDetail.customer?.nama || selectedBookingForDetail.nama || '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Nomor Telepon:</span>
+                  <span className="text-slate-500">Nomor Telepon:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-gray-900">{selectedBookingForDetail.customer?.kontak || selectedBookingForDetail.kontak || '-'}</span>
+                    <span className="font-mono font-bold text-slate-900">{selectedBookingForDetail.customer?.kontak || selectedBookingForDetail.kontak || '-'}</span>
                     {getWhatsAppLink(selectedBookingForDetail.customer?.kontak || selectedBookingForDetail.kontak, selectedBookingForDetail.kode_booking, selectedBookingForDetail.customer?.nama || selectedBookingForDetail.nama) && (
                       <a
                         href={getWhatsAppLink(selectedBookingForDetail.customer?.kontak || selectedBookingForDetail.kontak, selectedBookingForDetail.kode_booking, selectedBookingForDetail.customer?.nama || selectedBookingForDetail.nama)}
-                        target="_blank"
-                        rel="noreferrer"
+                        target="_blank" rel="noopener noreferrer"
                         className="text-emerald-600 hover:text-emerald-700 font-bold hover:underline inline-flex items-center gap-1"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>Chat WA</span>
+<span className="sr-only"> (buka di tab baru)</span>
                       </a>
                     )}
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-gray-500 shrink-0">Alamat Servis:</span>
-                  <span className="font-medium text-gray-800 text-right">{selectedBookingForDetail.alamat || '-'}</span>
+                  <span className="text-slate-500 shrink-0">Alamat Servis:</span>
+                  <span className="font-medium text-slate-800 text-right">{selectedBookingForDetail.alamat || '-'}</span>
                 </div>
               </div>
 
               {/* Layanan & Unit AC */}
-              <div className="space-y-2 border-b border-gray-100 pb-4">
-                <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider text-gray-400">Layanan & Unit AC</h4>
+              <div className="space-y-2 border-b border-slate-100 pb-4">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Layanan & Unit AC</h4>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Layanan:</span>
-                  <span className="font-bold text-gray-900">{selectedBookingForDetail.layanan?.nama_layanan || selectedBookingForDetail.layanan?.nama || selectedBookingForDetail.nama_layanan || 'Service AC'}</span>
+                  <span className="text-slate-500">Layanan:</span>
+                  <span className="font-bold text-slate-900">{selectedBookingForDetail.layanan?.nama_layanan || selectedBookingForDetail.layanan?.nama || selectedBookingForDetail.nama_layanan || 'Service AC'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Jumlah Unit:</span>
-                  <span className="font-bold text-gray-900">{selectedBookingForDetail.jumlah_unit || 1} Unit</span>
+                  <span className="text-slate-500">Jumlah Unit:</span>
+                  <span className="font-bold text-slate-900">{selectedBookingForDetail.jumlah_unit || 1} Unit</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Estimasi Biaya Dasar:</span>
+                  <span className="text-slate-500">Estimasi Biaya Dasar:</span>
                   <span className="font-bold text-blue-600">{formatRupiah(selectedBookingForDetail.layanan?.harga || 0)}</span>
                 </div>
                 {selectedBookingForDetail.keluhan && (
-                  <div className="pt-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <span className="text-[11px] font-bold text-gray-500 block mb-1">Catatan Keluhan:</span>
-                    <p className="text-gray-700 italic text-xs leading-relaxed">"{selectedBookingForDetail.keluhan}"</p>
+                  <div className="pt-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="text-xs font-bold text-slate-500 block mb-1">Catatan Keluhan:</span>
+                    <p className="text-slate-700 italic text-xs leading-relaxed">"{selectedBookingForDetail.keluhan}"</p>
                   </div>
                 )}
               </div>
 
               {/* Teknisi Bertugas */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 text-xs uppercase tracking-wider text-gray-400">Penugasan Teknisi</h4>
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Penugasan Teknisi</h4>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Teknisi:</span>
-                  <span className="font-bold text-gray-900">
+                  <span className="text-slate-500">Teknisi:</span>
+                  <span className="font-bold text-slate-900">
                     {getAssignedTechnician(selectedBookingForDetail)?.nama || (
                       <span className="text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded">Belum Ditugaskan</span>
                     )}
@@ -1202,7 +1229,7 @@ export default function AdminBookings({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:p-5 border-t border-gray-100 bg-gray-50/50 flex flex-wrap justify-between items-center gap-3">
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
               <div className="flex items-center gap-3">
                 <Button
                   size="sm"
@@ -1215,18 +1242,18 @@ export default function AdminBookings({
 
                 <a
                   href={`/status/${selectedBookingForDetail.kode_booking}`}
-                  target="_blank"
-                  rel="noreferrer"
+                  target="_blank" rel="noopener noreferrer"
                   className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Buka Status Publik</span>
+<span className="sr-only"> (buka di tab baru)</span>
                 </a>
               </div>
 
               <Button
                 onClick={() => setSelectedBookingForDetail(null)}
-                className="bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl px-5 h-9 cursor-pointer"
+                className="bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl px-5 h-9 cursor-pointer"
               >
                 Tutup
               </Button>
@@ -1239,19 +1266,19 @@ export default function AdminBookings({
       {rescheduleBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
                   <CalendarClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-gray-900 text-base">Ubah Tanggal Servis</h3>
-                  <span className="font-mono text-xs text-gray-500 font-bold">{rescheduleBooking.kode_booking}</span>
+                  <h3 className="font-black text-slate-900 text-base">Ubah Tanggal Servis</h3>
+                  <span className="font-mono text-xs text-slate-500 font-bold">{rescheduleBooking.kode_booking}</span>
                 </div>
               </div>
               <button
                 onClick={() => setRescheduleBooking(null)}
-                className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1265,30 +1292,32 @@ export default function AdminBookings({
 
               {/* Tanggal Baru */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-bookings-f3" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Tanggal Baru:
                 </label>
                 <input
+                  id="admin-bookings-f3"
                   type="date"
                   required
                   value={newRescheduleDate}
                   onChange={(e) => setNewRescheduleDate(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
-                <span className="text-[11px] text-gray-400 mt-1 block">
+                <span className="text-xs text-slate-500 mt-1 block">
                   *Operasional: Senin - Sabtu (Minggu Libur)
                 </span>
               </div>
 
               {/* Jam Baru */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-bookings-f4" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Jam Kunjungan:
                 </label>
                 <select
+                  id="admin-bookings-f4"
                   value={newRescheduleTime}
                   onChange={(e) => setNewRescheduleTime(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                 >
                   <option value="08:00">08:00 WIB</option>
                   <option value="09:00">09:00 WIB</option>
@@ -1303,16 +1332,17 @@ export default function AdminBookings({
 
               {/* Alasan Perubahan */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-bookings-f5" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Alasan Perubahan Jadwal:
                 </label>
                 <textarea
+                  id="admin-bookings-f5"
                   rows={2}
                   required
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
                   placeholder="Contoh: Permintaan pelanggan atau teknisi berhalangan"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -1321,7 +1351,7 @@ export default function AdminBookings({
                   type="button"
                   variant="outline"
                   onClick={() => setRescheduleBooking(null)}
-                  className="rounded-xl border-gray-200 font-bold text-xs h-9 cursor-pointer"
+                  className="rounded-xl border-slate-200 font-bold text-xs h-9 cursor-pointer"
                 >
                   Batal
                 </Button>
@@ -1359,18 +1389,6 @@ export default function AdminBookings({
           onClick={(e) => { if (e.target === e.currentTarget) setIsInvoiceModalOpen(false); }}
           className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex justify-center items-start p-3 sm:p-6 lg:p-8 invoice-modal-backdrop print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
         >
-          {/* Floating Close Button in Top Right */}
-          <button
-            type="button"
-            onClick={() => setIsInvoiceModalOpen(false)}
-            className="fixed top-4 right-4 z-50 p-2 sm:px-3 sm:py-2 rounded-full bg-slate-800/90 text-white hover:bg-rose-600 shadow-xl border border-slate-700/80 cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold print:hidden"
-            title="Tutup Invoice (Esc)"
-            aria-label="Tutup Invoice"
-          >
-            <X className="w-4 h-4" />
-            <span className="hidden sm:inline">Tutup (Esc)</span>
-          </button>
-
           <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-2 sm:my-4 animate-in fade-in zoom-in-95 duration-200 invoice-modal-card relative flex flex-col print:overflow-visible print:max-w-none print:w-full print:border-none print:shadow-none print:my-0 print:rounded-none">
             
             {/* Modal Header Actions */}
@@ -1414,14 +1432,6 @@ export default function AdminBookings({
             {/* Modal Bottom Bar */}
             <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 print:hidden">
               <span className="truncate pr-2">Gunakan tombol <strong>Cetak / Download PDF</strong> untuk menyimpan dokumen faktur resmi.</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setIsInvoiceModalOpen(false)}
-                className="text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl cursor-pointer shrink-0"
-              >
-                Tutup Tampilan
-              </Button>
             </div>
 
           </div>

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /technician/
+Disallow: /customer/
+Disallow: /login
+Disallow: /api/
+
+Sitemap: https://nara-ac.id/sitemap.xml

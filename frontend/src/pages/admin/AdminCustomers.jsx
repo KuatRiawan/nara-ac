@@ -1,18 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import api from '../../api';
-import { 
-  Search, Plus, User, MapPin, Phone, History, AirVent, ChevronRight, 
-  ChevronLeft, MessageSquare, Edit2, Trash2, CheckCircle2, AlertCircle, 
-  Clock, Star, Calendar, X, RefreshCw, ExternalLink, ShieldCheck, 
-  Sparkles, Layers, Check, Copy
-} from 'lucide-react';
+import { Search, Plus, User, MapPin, Phone, History, AirVent, ChevronRight, ChevronLeft, MessageSquare, Edit2, Trash2, Star, X, RefreshCw, ExternalLink, Layers } from 'lucide-react';
 import { useToast } from '../../components/ui/toast';
 import { getErrorMessage } from '../../utils/errors';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { cn } from '../../lib/utils';
 import AddressSelector from '../../components/booking/AddressSelector';
+import ConfirmationModal from '../../components/ui/ConfirmationModal';
 
 export default function AdminCustomers() {
   const { error: showError, success: showSuccess } = useToast();
@@ -35,6 +31,10 @@ export default function AdminCustomers() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [customerFormData, setCustomerFormData] = useState({ nama: '', kontak: '', alamat: '' });
   const [submittingCustomer, setSubmittingCustomer] = useState(false);
+
+  // Confirmation Modal State (replaces confirm() for destructive actions)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+  const closeConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false, onConfirm: null }));
 
   // AC Unit Modals State
   const [showAddACModal, setShowAddACModal] = useState(false);
@@ -273,16 +273,25 @@ export default function AdminCustomers() {
     }
   };
 
-  const handleDeleteACUnit = async (unitId) => {
-    if (!confirm('Apakah Anda yakin ingin menonaktifkan unit AC ini?')) return;
-    try {
-      await api.delete(`/admin/ac-units/${unitId}`);
-      showSuccess('Unit AC berhasil dinonaktifkan');
-      await refreshCurrentCustomer();
-      fetchCustomers();
-    } catch (err) {
-      showError(getErrorMessage(err, 'Gagal menghapus unit AC'));
-    }
+  const handleDeleteACUnit = (unitId) => {
+    const unit = acUnitsList.find(u => u.id === unitId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Hapus Unit AC',
+      message: `Apakah Anda yakin ingin menonaktifkan unit AC ${unit?.brand || ''} (${unit?.lokasi || ''})? Tindakan ini tidak dapat dibatalkan.`,
+      onConfirm: async () => {
+        try {
+          await api.delete(`/admin/ac-units/${unitId}`);
+          showSuccess('Unit AC berhasil dinonaktifkan');
+          await refreshCurrentCustomer();
+          fetchCustomers();
+        } catch (err) {
+          showError(getErrorMessage(err, 'Gagal menghapus unit AC'));
+        } finally {
+          closeConfirmModal();
+        }
+      }
+    });
   };
 
   // Filtered Customers
@@ -313,7 +322,7 @@ export default function AdminCustomers() {
   const waLink = selectedCustomer ? getWhatsAppLink(selectedCustomer.kontak, selectedCustomer.nama) : null;
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0 font-sans">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0 font-sans">
       {selectedCustomer ? (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Back Button */}
@@ -341,41 +350,41 @@ export default function AdminCustomers() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                       {selectedCustomer.nama}
                     </h1>
-                    <Badge variant="outline" className="bg-gray-50 text-gray-700 font-mono text-[11px] font-bold">
+                    <Badge variant="outline" className="bg-slate-50 text-slate-700 font-mono text-xs font-bold">
                       CUST-#{selectedCustomer.id}
                     </Badge>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-y-2 gap-x-4 mt-2 text-xs sm:text-sm text-gray-600">
-                    <div className="flex items-center gap-1.5 font-semibold text-gray-900">
-                      <Phone className="w-4 h-4 text-gray-400" />
+                  <div className="flex flex-wrap items-center gap-y-2 gap-x-4 mt-2 text-xs sm:text-sm text-slate-600">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-900">
+                      <Phone className="w-4 h-4 text-slate-500" />
                       <span>{selectedCustomer.kontak || '-'}</span>
                       {waLink && (
                         <a
                           href={waLink}
-                          target="_blank"
-                          rel="noreferrer"
+                          target="_blank" rel="noopener noreferrer"
                           className="text-emerald-600 hover:text-emerald-700 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-md hover:bg-emerald-100 transition-colors ml-1 inline-flex items-center gap-1"
                         >
                           <MessageSquare className="w-3 h-3" />
                           <span>Chat WhatsApp</span>
+<span className="sr-only"> (buka di tab baru)</span>
                         </a>
                       )}
                     </div>
 
-                    <div className="flex items-start gap-1.5 text-gray-600 max-w-xl">
+                    <div className="flex items-start gap-1.5 text-slate-600 max-w-xl">
                       <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <div className="flex flex-col gap-1">
-                        <span className="font-medium text-gray-800 leading-snug">
+                        <span className="font-medium text-slate-800 leading-snug">
                           {selectedCustomer.alamat || 'Alamat belum diisi'}
                         </span>
                         {(() => {
                           const parsed = formatAddressDisplay(selectedCustomer.alamat);
                           return parsed.patokan ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60 font-medium w-fit">
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60 font-medium w-fit">
                               <span>📍 Patokan:</span>
                               <span className="font-bold">{parsed.patokan}</span>
                             </span>
@@ -393,9 +402,9 @@ export default function AdminCustomers() {
                   variant="outline"
                   size="sm"
                   onClick={() => openEditCustomer(selectedCustomer)}
-                  className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold h-9 px-4 flex items-center gap-1.5 cursor-pointer shadow-sm flex-1 md:flex-none justify-center"
+                  className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold h-9 px-4 flex items-center gap-1.5 cursor-pointer shadow-sm flex-1 md:flex-none justify-center"
                 >
-                  <Edit2 className="w-3.5 h-3.5 text-gray-500" />
+                  <Edit2 className="w-3.5 h-3.5 text-slate-500" />
                   <span>Edit Profil</span>
                 </Button>
               </div>
@@ -403,21 +412,21 @@ export default function AdminCustomers() {
           </div>
 
         {/* INTEGRATED TAB NAVIGATION */}
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-2 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('units')}
             className={cn(
               "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap",
               activeTab === 'units'
                 ? "bg-blue-600 text-white shadow-sm"
-                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             )}
           >
             <AirVent className="w-4 h-4" />
             <span>Unit AC Terdaftar</span>
             <span className={cn(
-              "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
-              activeTab === 'units' ? "bg-blue-700 text-white" : "bg-gray-100 text-gray-700"
+              "text-xs px-1.5 py-0.2 rounded-full font-bold",
+              activeTab === 'units' ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             )}>
               {acUnitsList.length}
             </span>
@@ -429,14 +438,14 @@ export default function AdminCustomers() {
               "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap",
               activeTab === 'history'
                 ? "bg-blue-600 text-white shadow-sm"
-                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             )}
           >
             <History className="w-4 h-4" />
             <span>Riwayat Booking & Servis</span>
             <span className={cn(
-              "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
-              activeTab === 'history' ? "bg-blue-700 text-white" : "bg-gray-100 text-gray-700"
+              "text-xs px-1.5 py-0.2 rounded-full font-bold",
+              activeTab === 'history' ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             )}>
               {historyList.length}
             </span>
@@ -448,14 +457,14 @@ export default function AdminCustomers() {
               "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap",
               activeTab === 'feedback'
                 ? "bg-blue-600 text-white shadow-sm"
-                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             )}
           >
             <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
             <span>Ulasan & Rating</span>
             <span className={cn(
-              "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
-              activeTab === 'feedback' ? "bg-blue-700 text-white" : "bg-gray-100 text-gray-700"
+              "text-xs px-1.5 py-0.2 rounded-full font-bold",
+              activeTab === 'feedback' ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
             )}>
               {feedbackList.length}
             </span>
@@ -467,8 +476,8 @@ export default function AdminCustomers() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-black text-gray-900 text-base">Inventaris Unit AC Pelanggan</h3>
-                <p className="text-xs text-gray-500">Unit AC terdaftar yang siap dipilih saat penjadwalan servis.</p>
+                <h3 className="font-black text-slate-900 text-base">Inventaris Unit AC Pelanggan</h3>
+                <p className="text-xs text-slate-500">Unit AC terdaftar yang siap dipilih saat penjadwalan servis.</p>
               </div>
               {acUnitsList.length > 0 && (
                 <Button
@@ -483,12 +492,12 @@ export default function AdminCustomers() {
             </div>
 
             {acUnitsList.length === 0 ? (
-              <div className="p-16 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
+              <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
                   <AirVent className="w-7 h-7" />
                 </div>
-                <h4 className="font-bold text-gray-900 text-base">Belum Ada Unit AC Terdaftar</h4>
-                <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto mb-4">
+                <h4 className="font-bold text-slate-900 text-base">Belum Ada Unit AC Terdaftar</h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto mb-4">
                   Daftarkan unit AC milik pelanggan ini untuk memudahkan teknisi mengetahui spesifikasi PK, tipe, dan riwayat perbaikannya.
                 </p>
                 <Button
@@ -504,7 +513,7 @@ export default function AdminCustomers() {
                 {acUnitsList.map(unit => (
                   <div 
                     key={unit.id}
-                    className="bg-white rounded-2xl border border-gray-200/90 shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between relative overflow-hidden group"
+                    className="bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between relative overflow-hidden group"
                   >
                     <div>
                       {/* Header Unit */}
@@ -514,38 +523,38 @@ export default function AdminCustomers() {
                             <AirVent className="w-5 h-5" />
                           </div>
                           <div>
-                            <h4 className="font-black text-gray-900 text-base leading-tight">
+                            <h4 className="font-black text-slate-900 text-base leading-tight">
                               {unit.brand}
                             </h4>
-                            <span className="text-xs text-gray-500 font-medium">{unit.model || 'Standard Unit'}</span>
+                            <span className="text-xs text-slate-500 font-medium">{unit.model || 'Standard Unit'}</span>
                           </div>
                         </div>
 
-                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 font-bold text-[11px] px-2 py-0.5">
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-200 font-bold text-xs px-2 py-0.5">
                           {unit.kapasitas_pk != null ? `${unit.kapasitas_pk} PK` : '1 PK'}
                         </Badge>
                       </div>
 
                       {/* Detail Spesifikasi */}
-                      <div className="space-y-2 text-xs bg-gray-50/70 p-3 rounded-xl border border-gray-100 my-3">
+                      <div className="space-y-2 text-xs bg-slate-50/70 p-3 rounded-xl border border-slate-100 my-3">
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Tipe AC:</span>
-                          <span className="font-bold text-gray-900">{unit.tipe || 'Split Wall'}</span>
+                          <span className="text-slate-500">Tipe AC:</span>
+                          <span className="font-bold text-slate-900">{unit.tipe || 'Split Wall'}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Lokasi Unit:</span>
-                          <span className="font-bold text-gray-900">{unit.lokasi || '-'}</span>
+                          <span className="text-slate-500">Lokasi Unit:</span>
+                          <span className="font-bold text-slate-900">{unit.lokasi || '-'}</span>
                         </div>
                         {unit.nomor_seri && (
                           <div className="flex justify-between">
-                            <span className="text-gray-500">No. Seri:</span>
-                            <span className="font-mono font-bold text-gray-800">{unit.nomor_seri}</span>
+                            <span className="text-slate-500">No. Seri:</span>
+                            <span className="font-mono font-bold text-slate-800">{unit.nomor_seri}</span>
                           </div>
                         )}
                         {unit.tanggal_pasang && (
                           <div className="flex justify-between">
-                            <span className="text-gray-500">Dipasang:</span>
-                            <span className="font-semibold text-gray-800">
+                            <span className="text-slate-500">Dipasang:</span>
+                            <span className="font-semibold text-slate-800">
                               {new Date(unit.tanggal_pasang).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
                             </span>
                           </div>
@@ -553,28 +562,28 @@ export default function AdminCustomers() {
                       </div>
 
                       {unit.catatan && (
-                        <p className="text-[11px] text-gray-500 italic line-clamp-2 mb-3">
+                        <p className="text-xs text-slate-500 italic line-clamp-2 mb-3">
                           "{unit.catatan}"
                         </p>
                       )}
                     </div>
 
                     {/* Actions */}
-                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-gray-400 font-mono">
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 font-mono">
                         UNIT-#{unit.id}
                       </span>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => openEditACModal(unit)}
-                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           title="Edit Unit AC"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteACUnit(unit.id)}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Hapus / Nonaktifkan Unit AC"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -592,22 +601,22 @@ export default function AdminCustomers() {
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div>
-              <h3 className="font-black text-gray-900 text-base">Riwayat Servis Pelanggan</h3>
-              <p className="text-xs text-gray-500">Seluruh catatan tiket pekerjaan servis AC yang pernah dipesan oleh pelanggan ini.</p>
+              <h3 className="font-black text-slate-900 text-base">Riwayat Servis Pelanggan</h3>
+              <p className="text-xs text-slate-500">Seluruh catatan tiket pekerjaan servis AC yang pernah dipesan oleh pelanggan ini.</p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200/90 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
               {historyList.length === 0 ? (
-                <div className="p-16 text-center text-gray-500">
-                  <History className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                  <p className="font-bold text-gray-900 text-sm">Belum ada riwayat servis</p>
-                  <p className="text-xs text-gray-400 mt-1">Pelanggan ini belum pernah menyelesaikan tiket booking servis.</p>
+                <div className="p-16 text-center text-slate-500">
+                  <History className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                  <p className="font-bold text-slate-900 text-sm">Belum ada riwayat servis</p>
+                  <p className="text-xs text-slate-500 mt-1">Pelanggan ini belum pernah menyelesaikan tiket booking servis.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap text-xs sm:text-sm">
                     <thead>
-                      <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-400 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
                         <th className="py-3.5 px-6">Waktu & Jadwal</th>
                         <th className="py-3.5 px-6">Kode Tiket</th>
                         <th className="py-3.5 px-6">Layanan</th>
@@ -620,44 +629,44 @@ export default function AdminCustomers() {
                     <tbody className="divide-y divide-gray-100">
                       {historyList.map(h => (
                         <tr key={h.id} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="py-3.5 px-6 font-bold text-gray-900">
+                          <td className="py-3.5 px-6 font-bold text-slate-900">
                             {h.jadwal_mulai ? new Date(h.jadwal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-                            <div className="text-[11px] font-normal text-gray-500">
+                            <div className="text-xs font-normal text-slate-500">
                               {h.jadwal_mulai ? new Date(h.jadwal_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : ''}
                             </div>
                           </td>
 
                           <td className="py-3.5 px-6">
-                            <span className="font-mono text-xs font-bold bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200">
+                            <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
                               {h.kode_booking}
                             </span>
                           </td>
 
-                          <td className="py-3.5 px-6 font-semibold text-gray-800">
+                          <td className="py-3.5 px-6 font-semibold text-slate-800">
                             {h.nama_layanan || 'Service AC'}
                           </td>
 
-                          <td className="py-3.5 px-6 text-gray-600">
+                          <td className="py-3.5 px-6 text-slate-600">
                             {h.brand ? (
                               <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">
                                 {h.brand} ({h.lokasi_unit || 'Unit'})
                               </span>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-slate-500">-</span>
                             )}
                           </td>
 
-                          <td className="py-3.5 px-6 font-medium text-gray-700">
+                          <td className="py-3.5 px-6 font-medium text-slate-700">
                             {h.teknisi || 'Belum ditugaskan'}
                           </td>
 
                           <td className="py-3.5 px-6">
                             <Badge className={cn(
-                              "text-[10px] font-black uppercase px-2 py-0.5",
+                              "text-xs font-black uppercase px-2 py-0.5",
                               h.status === 'done' ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
                               h.status === 'on process' ? "bg-sky-100 text-sky-800 border-sky-200" :
                               h.status === 'scheduled' ? "bg-amber-100 text-amber-800 border-amber-200" :
-                              "bg-gray-100 text-gray-700"
+                              "bg-slate-100 text-slate-700"
                             )}>
                               {h.status}
                             </Badge>
@@ -666,12 +675,12 @@ export default function AdminCustomers() {
                           <td className="py-3.5 px-6 text-right">
                             <a
                               href={`/status/${h.kode_booking}`}
-                              target="_blank"
-                              rel="noreferrer"
+                              target="_blank" rel="noopener noreferrer"
                               className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                               <span>Lihat</span>
+<span className="sr-only"> (buka di tab baru)</span>
                             </a>
                           </td>
                         </tr>
@@ -688,20 +697,20 @@ export default function AdminCustomers() {
         {activeTab === 'feedback' && (
           <div className="space-y-4">
             <div>
-              <h3 className="font-black text-gray-900 text-base">Ulasan & Kepuasan Pelanggan</h3>
-              <p className="text-xs text-gray-500">Feedback kepuasan yang dikirimkan pelanggan setelah teknisi menyelesaikan pekerjaan.</p>
+              <h3 className="font-black text-slate-900 text-base">Ulasan & Kepuasan Pelanggan</h3>
+              <p className="text-xs text-slate-500">Feedback kepuasan yang dikirimkan pelanggan setelah teknisi menyelesaikan pekerjaan.</p>
             </div>
 
             {feedbackList.length === 0 ? (
-              <div className="p-16 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
-                <Star className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="font-bold text-gray-900 text-sm">Belum ada ulasan</p>
-                <p className="text-xs text-gray-400 mt-1">Pelanggan belum mengirimkan ulasan rating untuk servis yang telah selesai.</p>
+              <div className="p-16 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <Star className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                <p className="font-bold text-slate-900 text-sm">Belum ada ulasan</p>
+                <p className="text-xs text-slate-500 mt-1">Pelanggan belum mengirimkan ulasan rating untuk servis yang telah selesai.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {feedbackList.map((f, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm">
+                  <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-sm">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map(st => (
@@ -709,21 +718,21 @@ export default function AdminCustomers() {
                             key={st} 
                             className={cn(
                               "w-4 h-4",
-                              st <= (f.rating || 5) ? "text-amber-500 fill-amber-500" : "text-gray-300"
+                              st <= (f.rating || 5) ? "text-amber-500 fill-amber-500" : "text-slate-400"
                             )} 
                           />
                         ))}
                       </div>
-                      <span className="font-mono text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                      <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
                         {f.kode_booking}
                       </span>
                     </div>
 
-                    <p className="text-sm text-gray-800 leading-relaxed font-medium">
+                    <p className="text-sm text-slate-800 leading-relaxed font-medium">
                       "{f.komentar || 'Pelayanan memuaskan, teknisi ramah dan rapi.'}"
                     </p>
 
-                    <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100">
+                    <div className="text-xs text-slate-500 pt-2 border-t border-slate-100">
                       {f.waktu ? new Date(f.waktu).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-'}
                     </div>
                   </div>
@@ -764,9 +773,9 @@ export default function AdminCustomers() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Pelanggan</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Total Pelanggan</span>
               <span className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 block">{metrics.totalCust}</span>
-              <span className="text-xs text-slate-400 font-medium mt-0.5 block">Tercatat di sistem</span>
+              <span className="text-xs text-slate-500 font-medium mt-0.5 block">Tercatat di sistem</span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <User className="w-6 h-6" />
@@ -775,9 +784,9 @@ export default function AdminCustomers() {
 
           <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider block">Unit AC Terdaftar</span>
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-wider block">Unit AC Terdaftar</span>
               <span className="text-2xl sm:text-3xl font-black text-blue-700 mt-1 block">{metrics.totalAC} Unit</span>
-              <span className="text-xs text-slate-400 font-medium mt-0.5 block">Aset terpasang aktif</span>
+              <span className="text-xs text-slate-500 font-medium mt-0.5 block">Aset terpasang aktif</span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <AirVent className="w-6 h-6" />
@@ -786,9 +795,9 @@ export default function AdminCustomers() {
 
           <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">Integrasi CRM</span>
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block">Integrasi CRM</span>
               <span className="text-base sm:text-lg font-black text-slate-900 mt-1 block">Profil & AC Terpusat</span>
-              <span className="text-xs text-slate-400 font-medium mt-0.5 block">Riwayat servis terekam</span>
+              <span className="text-xs text-slate-500 font-medium mt-0.5 block">Riwayat servis terekam</span>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
               <Layers className="w-6 h-6" />
@@ -799,18 +808,19 @@ export default function AdminCustomers() {
         {/* SEARCH & FILTER TOOLBAR */}
         <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari nama pelanggan, nomor WhatsApp, atau alamat..."
+              aria-label="Cari pelanggan"
               className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 p-0.5 rounded cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -853,22 +863,22 @@ export default function AdminCustomers() {
         {loading ? (
           <div className="p-16 text-center">
             <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-900 font-bold text-base">Memuat Data Pelanggan...</p>
-            <p className="text-xs text-gray-500 mt-1">Mengambil direktori profil dan unit AC pelanggan.</p>
+            <p className="text-slate-900 font-bold text-base">Memuat Data Pelanggan...</p>
+            <p className="text-xs text-slate-500 mt-1">Mengambil direktori profil dan unit AC pelanggan.</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
           <div className="p-16 text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 mx-auto mb-4">
               <User className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-gray-900">Tidak Ada Pelanggan Ditemukan</h3>
-            <p className="text-xs text-gray-500 mt-1 mb-6">
+            <h3 className="text-base font-bold text-slate-900">Tidak Ada Pelanggan Ditemukan</h3>
+            <p className="text-xs text-slate-500 mt-1 mb-6">
               Tidak ada data yang cocok dengan kata kunci pencarian Anda.
             </p>
             <Button
               onClick={() => { setSearch(''); setFilterType('all'); }}
               variant="outline"
-              className="rounded-xl border-gray-200 font-bold text-xs cursor-pointer"
+              className="rounded-xl border-slate-200 font-bold text-xs cursor-pointer"
             >
               Reset Filter
             </Button>
@@ -895,10 +905,10 @@ export default function AdminCustomers() {
                           {(c.nama || 'P').charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="font-bold text-gray-900 text-sm truncate">
+                          <h4 className="font-bold text-slate-900 text-sm truncate">
                             {c.nama}
                           </h4>
-                          <span className="font-mono text-[10px] text-gray-400 font-bold">
+                          <span className="font-mono text-xs text-slate-500 font-bold">
                             CUST-#{c.id}
                           </span>
                         </div>
@@ -908,19 +918,19 @@ export default function AdminCustomers() {
                         {waLink && (
                           <a
                             href={waLink}
-                            target="_blank"
-                            rel="noreferrer"
+                            target="_blank" rel="noopener noreferrer"
                             className="text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-xl transition-colors inline-flex"
                             title="Chat WhatsApp"
                           >
                             <MessageSquare className="w-4 h-4" />
+<span className="sr-only"> (buka di tab baru)</span>
                           </a>
                         )}
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => openEditCustomer(c, e)}
-                          className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 rounded-xl"
+                          className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 rounded-xl"
                           title="Edit Pelanggan"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -930,19 +940,19 @@ export default function AdminCustomers() {
 
                     {/* Contact & Units Badge */}
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 font-mono font-semibold text-gray-800">
-                        <Phone className="w-3.5 h-3.5 text-gray-400" />
+                      <div className="flex items-center gap-1.5 font-mono font-semibold text-slate-800">
+                        <Phone className="w-3.5 h-3.5 text-slate-500" />
                         <span>{c.kontak || '-'}</span>
                       </div>
 
                       <div>
                         {acCount > 0 ? (
-                          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-lg border border-blue-200 text-[11px]">
+                          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-lg border border-blue-200 text-xs">
                             <AirVent className="w-3 h-3" />
                             <span>{acCount} Unit AC</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-[11px] italic">
+                          <span className="text-slate-500 text-xs italic">
                             Belum ada AC
                           </span>
                         )}
@@ -950,24 +960,24 @@ export default function AdminCustomers() {
                     </div>
 
                     {/* Alamat Terstruktur */}
-                    <div className="bg-gray-50/80 p-2.5 rounded-xl border border-gray-100/90 text-xs space-y-1.5">
-                      <div className="flex items-start gap-1.5 text-gray-800 font-medium">
+                    <div className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100/90 text-xs space-y-1.5">
+                      <div className="flex items-start gap-1.5 text-slate-800 font-medium">
                         <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">{parsed.mainText || c.alamat || '-'}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-1 pt-0.5">
                         {parsed.city && (
-                          <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md border border-blue-100/80">
+                          <span className="text-xs font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md border border-blue-100/80">
                             {parsed.city.replace('Kota Adm. ', '')}
                           </span>
                         )}
                         {parsed.district && (
-                          <span className="text-[10px] font-medium bg-white text-slate-700 px-1.5 py-0.5 rounded-md border border-slate-200">
+                          <span className="text-xs font-medium bg-white text-slate-700 px-1.5 py-0.5 rounded-md border border-slate-200">
                             Kec. {parsed.district}
                           </span>
                         )}
                         {parsed.patokan && (
-                          <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-medium truncate max-w-[180px]">
+                          <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-medium truncate max-w-[180px]">
                             📍 {parsed.patokan}
                           </span>
                         )}
@@ -994,7 +1004,7 @@ export default function AdminCustomers() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap text-xs sm:text-sm">
                 <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-400 text-[11px] uppercase tracking-wider font-bold">
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
                     <th className="py-4 px-6">Pelanggan</th>
                     <th className="py-4 px-6">Kontak & WhatsApp</th>
                     <th className="py-4 px-6">Alamat Domisili</th>
@@ -1020,10 +1030,10 @@ export default function AdminCustomers() {
                               {(c.nama || 'P').charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
+                              <div className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">
                                 {c.nama}
                               </div>
-                              <span className="font-mono text-[10px] text-gray-400 font-bold">
+                              <span className="font-mono text-xs text-slate-500 font-bold">
                                 ID: #{c.id}
                               </span>
                             </div>
@@ -1033,49 +1043,49 @@ export default function AdminCustomers() {
                         {/* Kontak */}
                         <td className="py-3.5 px-6" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold text-gray-800">{c.kontak || '-'}</span>
+                            <span className="font-mono font-semibold text-slate-800">{c.kontak || '-'}</span>
                             {waLink && (
                               <a
                                 href={waLink}
-                                target="_blank"
-                                rel="noreferrer"
+                                target="_blank" rel="noopener noreferrer"
                                 className="text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 p-1 rounded-md transition-colors inline-flex"
                                 title="Chat WhatsApp"
                               >
                                 <MessageSquare className="w-3.5 h-3.5" />
+<span className="sr-only"> (buka di tab baru)</span>
                               </a>
                             )}
                           </div>
                         </td>
 
                         {/* Alamat */}
-                        <td className="py-3.5 px-6 text-gray-600 max-w-xs" title={c.alamat}>
+                        <td className="py-3.5 px-6 text-slate-600 max-w-xs" title={c.alamat}>
                           {(() => {
                             const parsed = formatAddressDisplay(c.alamat);
                             return (
                               <div className="flex flex-col gap-1 min-w-0 max-w-[280px]">
-                                <div className="flex items-center gap-1.5 text-gray-900 font-semibold text-xs truncate">
+                                <div className="flex items-center gap-1.5 text-slate-900 font-semibold text-xs truncate">
                                   <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                                   <span className="truncate">{parsed.mainText || '-'}</span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1">
                                   {parsed.city && (
-                                  <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md border border-blue-100/80">
+                                  <span className="text-xs font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-md border border-blue-100/80">
                                     {parsed.city.replace('Kota Adm. ', '')}
                                   </span>
                                 )}
                                 {parsed.district && (
-                                  <span className="text-[10px] font-medium bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-md">
+                                  <span className="text-xs font-medium bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-md">
                                     Kec. {parsed.district}
                                   </span>
                                 )}
                                 {parsed.patokan && (
-                                  <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-medium truncate max-w-[130px]" title={`Patokan: ${parsed.patokan}`}>
+                                  <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/60 font-medium truncate max-w-[130px]" title={`Patokan: ${parsed.patokan}`}>
                                     📍 {parsed.patokan}
                                   </span>
                                 )}
                                 {!parsed.city && !parsed.district && !parsed.patokan && c.alamat && (
-                                  <span className="text-[11px] text-gray-400 truncate max-w-[200px]">
+                                  <span className="text-xs text-slate-500 truncate max-w-[200px]">
                                     {c.alamat}
                                   </span>
                                 )}
@@ -1093,7 +1103,7 @@ export default function AdminCustomers() {
                             <span>{acCount} Unit</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs italic">
+                          <span className="text-slate-500 text-xs italic">
                             Belum ada AC
                           </span>
                         )}
@@ -1106,7 +1116,7 @@ export default function AdminCustomers() {
                             variant="ghost"
                             size="sm"
                             onClick={(e) => openEditCustomer(c, e)}
-                            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 rounded-lg cursor-pointer"
+                            className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0 rounded-lg cursor-pointer"
                             title="Edit Data Pelanggan"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -1138,13 +1148,13 @@ export default function AdminCustomers() {
       {(showAddCustomerModal || editingCustomer) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] shadow-2xl overflow-hidden border border-slate-200 flex flex-col">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0">
-              <h2 className="text-base font-black text-gray-900">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center shrink-0">
+              <h2 className="text-base font-black text-slate-900">
                 {editingCustomer ? 'Edit Data Pelanggan' : 'Tambah Pelanggan Baru'}
               </h2>
               <button 
                 onClick={() => { setShowAddCustomerModal(false); setEditingCustomer(null); }}
-                className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg cursor-pointer"
+                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1152,35 +1162,37 @@ export default function AdminCustomers() {
 
             <form onSubmit={handleSaveCustomer} className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm overflow-y-auto">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-customers-f1" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Nama Lengkap:
                 </label>
-                <input 
+                <input
+                  id="admin-customers-f1" 
                   type="text" 
                   required
                   value={customerFormData.nama}
                   onChange={(e) => setCustomerFormData({ ...customerFormData, nama: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="Contoh: Bpk. Bambang Wijaya"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-customers-f2" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Nomor WhatsApp / Kontak:
                 </label>
-                <input 
+                <input
+                  id="admin-customers-f2" 
                   type="text" 
                   required
                   value={customerFormData.kontak}
                   onChange={(e) => setCustomerFormData({ ...customerFormData, kontak: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-gray-900 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-slate-900 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="081234567890"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+              <div role="group" aria-labelledby="customer-alamat-label">
+                <label id="customer-alamat-label" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Alamat Domisili / Lokasi Unit:
                 </label>
                 <AddressSelector
@@ -1190,12 +1202,12 @@ export default function AdminCustomers() {
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-gray-100">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
                 <Button 
                   type="button" 
                   variant="outline"
                   onClick={() => { setShowAddCustomerModal(false); setEditingCustomer(null); }}
-                  className="rounded-xl border-gray-200 font-bold text-xs h-9 cursor-pointer"
+                  className="rounded-xl border-slate-200 font-bold text-xs h-9 cursor-pointer"
                 >
                   Batal
                 </Button>
@@ -1217,16 +1229,16 @@ export default function AdminCustomers() {
       {(showAddACModal || editingACUnit) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
                   <AirVent className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-gray-900">
+                  <h2 className="text-base font-black text-slate-900">
                     {editingACUnit ? 'Edit Data Unit AC' : 'Tambah Unit AC Pelanggan'}
                   </h2>
-                  <span className="text-xs text-gray-500 font-medium">
+                  <span className="text-xs text-slate-500 font-medium">
                     Milik: {selectedCustomer?.nama}
                   </span>
                 </div>
@@ -1234,7 +1246,7 @@ export default function AdminCustomers() {
 
               <button 
                 onClick={() => { setShowAddACModal(false); setEditingACUnit(null); }}
-                className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg cursor-pointer"
+                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1244,13 +1256,14 @@ export default function AdminCustomers() {
               <div className="grid grid-cols-2 gap-3">
                 {/* Brand AC */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f1" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Merk / Brand:
                   </label>
                   <select
+                    id="admin-customers-f1"
                     value={acFormData.brand}
                     onChange={(e) => setAcFormData({ ...acFormData, brand: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                   >
                     <option value="Daikin">Daikin</option>
                     <option value="Panasonic">Panasonic</option>
@@ -1268,13 +1281,14 @@ export default function AdminCustomers() {
 
                 {/* Kapasitas PK */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f2" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Kapasitas (PK):
                   </label>
                   <select
+                    id="admin-customers-f2"
                     value={acFormData.kapasitas_pk}
                     onChange={(e) => setAcFormData({ ...acFormData, kapasitas_pk: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-bold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                   >
                     <option value="0.5">0.5 PK (1/2 PK)</option>
                     <option value="0.75">0.75 PK (3/4 PK)</option>
@@ -1290,13 +1304,14 @@ export default function AdminCustomers() {
               <div className="grid grid-cols-2 gap-3">
                 {/* Tipe AC */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f3" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Tipe AC:
                   </label>
                   <select
+                    id="admin-customers-f3"
                     value={acFormData.tipe}
                     onChange={(e) => setAcFormData({ ...acFormData, tipe: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                   >
                     <option value="Split Wall">Split Wall</option>
                     <option value="Inverter">Inverter</option>
@@ -1308,72 +1323,77 @@ export default function AdminCustomers() {
 
                 {/* Model / Seri */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f4" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Model / Seri:
                   </label>
                   <input
+                    id="admin-customers-f4"
                     type="text"
                     value={acFormData.model}
                     onChange={(e) => setAcFormData({ ...acFormData, model: e.target.value })}
                     placeholder="Contoh: Flash Inverter FTKQ25"
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               {/* Lokasi Penempatan Unit */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-customers-f5" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Lokasi Penempatan Unit:
                 </label>
                 <input
+                  id="admin-customers-f5"
                   type="text"
                   required
                   value={acFormData.lokasi}
                   onChange={(e) => setAcFormData({ ...acFormData, lokasi: e.target.value })}
                   placeholder="Contoh: Kamar Tidur Utama (Lt. 2), Ruang Tamu, Kantor"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
               {/* Tanggal Pasang & Catatan */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f6" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Tanggal Pemasangan:
                   </label>
                   <input
+                    id="admin-customers-f6"
                     type="date"
                     value={acFormData.tanggal_pasang}
                     onChange={(e) => setAcFormData({ ...acFormData, tanggal_pasang: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="admin-customers-f7" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Nomor Seri (Opsional):
                   </label>
                   <input
+                    id="admin-customers-f7"
                     type="text"
                     value={acFormData.nomor_seri}
                     onChange={(e) => setAcFormData({ ...acFormData, nomor_seri: e.target.value })}
                     placeholder="SN12345678"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-customers-f8" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Catatan Kondisi Unit:
                 </label>
                 <textarea
+                  id="admin-customers-f8"
                   rows="2"
                   value={acFormData.catatan}
                   onChange={(e) => setAcFormData({ ...acFormData, catatan: e.target.value })}
                   placeholder="Catatan riwayat freon, kendala hembusan, dsb..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                 />
               </div>
 
@@ -1382,7 +1402,7 @@ export default function AdminCustomers() {
                   type="button" 
                   variant="outline"
                   onClick={() => { setShowAddACModal(false); setEditingACUnit(null); }}
-                  className="rounded-xl border-gray-200 font-bold text-xs h-9 cursor-pointer"
+                  className="rounded-xl border-slate-200 font-bold text-xs h-9 cursor-pointer"
                 >
                   Batal
                 </Button>

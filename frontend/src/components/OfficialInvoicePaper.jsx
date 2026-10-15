@@ -6,21 +6,13 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
   // Safe extraction of fields from either public booking or admin booking
   const b = booking || {};
 
-  // Bank account payment information
-  const [internalPaymentSettings, setInternalPaymentSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('nara_payment_accounts');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // Fallback silently if localStorage is restricted or corrupted
-    }
-    return {
-      accounts: [
-        { id: '1', bank_name: 'BCA', account_number: '8720-9182-33', account_holder: 'CV NARA TEKNINDOTAMA' },
-        { id: '2', bank_name: 'Mandiri', account_number: '137-00-9821-4451', account_holder: 'CV NARA TEKNINDOTAMA' },
-      ],
-      instruction_note: '*Tersedia juga opsi pembayaran tunai / QRIS langsung kepada teknisi setelah pekerjaan selesai di lokasi.'
-    };
+  // Bank account payment information — selalu diambil dari API, tidak perlu cache di localStorage (AUD-005)
+  const [internalPaymentSettings, setInternalPaymentSettings] = useState({
+    accounts: [
+      { id: '1', bank_name: 'BCA', account_number: '8720-9182-33', account_holder: 'CV NARA TEKNINDOTAMA' },
+      { id: '2', bank_name: 'Mandiri', account_number: '137-00-9821-4451', account_holder: 'CV NARA TEKNINDOTAMA' },
+    ],
+    instruction_note: '*Tersedia juga opsi pembayaran tunai / QRIS langsung kepada teknisi setelah pekerjaan selesai di lokasi.'
   });
 
   useEffect(() => {
@@ -34,11 +26,6 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         const data = (res && Array.isArray(res.accounts)) ? res : (res?.data?.accounts ? res.data : (res?.data?.data?.accounts ? res.data.data : null));
         if (isMounted && data && Array.isArray(data.accounts)) {
           setInternalPaymentSettings(data);
-          try {
-            localStorage.setItem('nara_payment_accounts', JSON.stringify(data));
-          } catch {
-            // Silently skip caching if storage quota is exceeded
-          }
         }
       })
       .catch(() => {});
@@ -79,8 +66,37 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
     'Cuci AC Standard';
 
   const basePrice = Number(b.harga || b.layanan?.harga || b.basePrice || 75000);
-  const units = Number(b.jumlah_unit || b.unit || 1);
-  const subtotal = basePrice * units;
+
+  const invoiceItems = useMemo(() => {
+    if (Array.isArray(b.items) && b.items.length > 0) {
+      return b.items.map((it) => ({
+        nama: it.nama_layanan || it.nama || namaLayanan,
+        units: Number(it.jumlah_unit || 1),
+        hargaSatuan: Number(it.harga_satuan || it.harga || basePrice),
+        subtotal: Number(it.subtotal != null ? it.subtotal : (Number(it.harga_satuan || it.harga || basePrice) * Number(it.jumlah_unit || 1))),
+        catatan: it.catatan || '',
+      }));
+    }
+    const defaultUnits = Number(b.jumlah_unit || b.unit || 1);
+    return [{
+      nama: namaLayanan,
+      units: defaultUnits,
+      hargaSatuan: basePrice,
+      subtotal: basePrice * defaultUnits,
+      catatan: '',
+    }];
+  }, [b.items, b.jumlah_unit, b.unit, b.harga, b.layanan, b.basePrice, namaLayanan, basePrice]);
+
+  const units = useMemo(() => {
+    if (b.units !== undefined) return Number(b.units);
+    if (b.jumlah_unit !== undefined) return Number(b.jumlah_unit);
+    return invoiceItems.reduce((acc, it) => acc + it.units, 0);
+  }, [b.units, b.jumlah_unit, invoiceItems]);
+
+  const subtotal = useMemo(() => {
+    if (b.subtotal !== undefined) return Number(b.subtotal);
+    return invoiceItems.reduce((acc, it) => acc + it.subtotal, 0);
+  }, [b.subtotal, invoiceItems]);
 
   // Multi-unit discount calculation: 5% for 2 units, 10% for 3+ units
   const discount = useMemo(() => {
@@ -95,6 +111,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
   // Warranty duration text
   const warrantyText = useMemo(() => {
     if (b.garansi) return b.garansi;
+    if (b.warrantyText) return b.warrantyText;
     const sName = namaLayanan.toLowerCase();
     if (sName.includes('freon') && sName.includes('core')) {
       return '45 Hari Penuh Garansi Dingin';
@@ -104,12 +121,14 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       return '30 Hari Kalender Garansi Instalasi';
     }
     return '14 Hari Kalender Garansi Pengerjaan';
-  }, [namaLayanan, b.garansi]);
+  }, [namaLayanan, b.garansi, b.warrantyText]);
 
   // Is Paid status
   const isPaid = isPaidOverride !== undefined 
     ? Boolean(isPaidOverride) 
-    : (b.isPaid !== undefined ? Boolean(b.isPaid) : b.status === 'done');
+    : (b.isPaid !== undefined 
+        ? Boolean(b.isPaid) 
+        : (b.status_pembayaran ? b.status_pembayaran === 'paid' : b.status === 'done'));
 
   // Format date helper
   const formatDate = (dateStr) => {
@@ -175,10 +194,10 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
                   24 HOUR SERVICE
                 </span>
               </div>
-              <p className="text-[11px] font-bold text-blue-700 tracking-wider uppercase mt-1">
+              <p className="text-xs font-bold text-blue-700 tracking-wider uppercase mt-1">
                 Layanan Spesialis Perawatan & Reparasi Pendingin Udara (AC)
               </p>
-              <p className="text-[10px] text-slate-600 leading-snug mt-1">
+              <p className="text-xs text-slate-600 leading-snug mt-1">
                 <strong>Alamat:</strong> Jalan Teluk Langsa RT. 002 RW. 016, Ciangsana, Gunung Putri, Kab. Bogor, Jawa Barat<br />
                 <strong>Kontak:</strong> WhatsApp: 0813-8529-3137 | Email: narateknindotama@gmail.com | Web: www.narateknindotama.com<br />
                 <strong>Legalitas:</strong> NIB: 2805250066735 | NPWP: 10.000.000.0-258.288 | AHU-0045403-AH.01.14 Tahun 2025
@@ -196,7 +215,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
                 {invNumber}
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 mt-1.5 font-medium">
+            <p className="text-xs text-slate-500 mt-1.5 font-medium">
               Terbit: {todayStr}
             </p>
             <span className={cn(
@@ -221,20 +240,20 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs">
         {/* Left: Ditujukan Kepada */}
         <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
             DITUJUKAN KEPADA (PELANGGAN):
           </span>
           <p className="font-black text-slate-950 text-sm">
             {customerNama}
           </p>
-          <p className="text-slate-600 mt-0.5 font-mono text-[11px]">
+          <p className="text-slate-600 mt-0.5 font-mono text-xs">
             WhatsApp / Kontak: {customerKontak}
           </p>
           <p className="text-slate-700 mt-1 leading-snug">
             <strong>Alamat Servis:</strong> {customerAlamat}
           </p>
           {keluhan && (
-            <p className="text-slate-500 mt-1 text-[11px] italic">
+            <p className="text-slate-500 mt-1 text-xs italic">
               Keluhan Awal: &ldquo;{keluhan}&rdquo;
             </p>
           )}
@@ -242,19 +261,19 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
 
         {/* Right: Rincian Jadwal & Teknisi */}
         <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 text-right">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
             RINCIAN JADWAL & TEKNISI BERTUGAS:
           </span>
-          <p className="text-slate-800 text-[11px]">
+          <p className="text-slate-800 text-xs">
             Hari, Tanggal: <strong>{jadwalMulai ? formatDate(jadwalMulai) : todayStr}</strong>
           </p>
-          <p className="text-slate-800 mt-0.5 text-[11px]">
+          <p className="text-slate-800 mt-0.5 text-xs">
             Waktu Kunjungan: <strong>Pukul {jadwalMulai ? formatTime(jadwalMulai) : '09:00'} WIB</strong>
           </p>
-          <p className="text-slate-800 mt-0.5 text-[11px]">
+          <p className="text-slate-800 mt-0.5 text-xs">
             Teknisi Penanggung Jawab: <strong>{teknisiNama}</strong>
           </p>
-          <p className="text-blue-700 mt-1 text-[10px] font-bold">
+          <p className="text-blue-700 mt-1 text-xs font-bold">
             Standar SOP 7 Langkah Pembersihan & Keselamatan Kerja
           </p>
         </div>
@@ -264,9 +283,10 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       {/* 3. TABEL ITEM LAYANAN SERVIS & MULTI-UNIT                      */}
       {/* ============================================================== */}
       <div className="py-3.5 border-b border-slate-200">
-        <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-left text-xs min-w-[500px]">
           <thead>
-            <tr className="border-b-2 border-slate-800 bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+            <tr className="border-b-2 border-slate-800 bg-slate-100 text-slate-700 font-bold uppercase tracking-wider text-xs">
               <th className="py-2 px-2 text-center w-10">No</th>
               <th className="py-2 px-2">Deskripsi Layanan Servis</th>
               <th className="py-2 px-2 text-center w-16">Unit</th>
@@ -275,24 +295,27 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            <tr>
-              <td className="py-2.5 px-2 text-center font-mono font-bold">1</td>
-              <td className="py-2.5 px-2">
-                <p className="font-bold text-slate-900 text-xs">{namaLayanan}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Pembersihan evaporator, kondensor, blower indoor, drainase air, pengecekan kelistrikan & tekanan freon (SOP 7 Langkah NARA AC)
-                </p>
-              </td>
-              <td className="py-2.5 px-2 text-center font-bold font-mono">{units}</td>
-              <td className="py-2.5 px-2 text-right font-mono">Rp {basePrice.toLocaleString('id-ID')}</td>
-              <td className="py-2.5 px-2 text-right font-bold font-mono text-slate-950">
-                Rp {subtotal.toLocaleString('id-ID')}
-              </td>
-            </tr>
+            {invoiceItems.map((item, idx) => (
+              <tr key={idx}>
+                <td className="py-2.5 px-2 text-center font-mono font-bold">{idx + 1}</td>
+                <td className="py-2.5 px-2">
+                  <p className="font-bold text-slate-900 text-xs">{item.nama}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {item.catatan ? `Catatan: ${item.catatan} — ` : ''}
+                    Pembersihan evaporator, kondensor, blower indoor, drainase air, pengecekan kelistrikan & tekanan freon (SOP 7 Langkah NARA AC)
+                  </p>
+                </td>
+                <td className="py-2.5 px-2 text-center font-bold font-mono">{item.units}</td>
+                <td className="py-2.5 px-2 text-right font-mono">Rp {item.hargaSatuan.toLocaleString('id-ID')}</td>
+                <td className="py-2.5 px-2 text-right font-bold font-mono text-slate-950">
+                  Rp {item.subtotal.toLocaleString('id-ID')}
+                </td>
+              </tr>
+            ))}
 
             {discount > 0 && (
               <tr className="bg-emerald-50 text-emerald-900 font-medium">
-                <td className="py-2 px-2 text-center font-mono">2</td>
+                <td className="py-2 px-2 text-center font-mono">{invoiceItems.length + 1}</td>
                 <td className="py-2 px-2">
                   Diskon Spesial Paket Multi-Unit ({units === 2 ? '5%' : '10%'})
                 </td>
@@ -305,6 +328,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ============================================================== */}
@@ -313,29 +337,29 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
       <div className="grid grid-cols-2 gap-4 py-3.5 border-b border-slate-200 text-xs avoid-page-break">
         {/* Left: Instruksi Pembayaran Rekening Perusahaan */}
         <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="font-bold text-slate-900 text-[11px] block mb-1">
+          <span className="font-bold text-slate-900 text-xs block mb-1">
             Instruksi Pembayaran Resmi CV. Nara Teknindotama:
           </span>
-          <p className="text-slate-600 text-[10px] mb-2 leading-tight">
+          <p className="text-slate-600 text-xs mb-2 leading-tight">
             Pembayaran non-tunai sah hanya ditujukan ke rekening perusahaan resmi:
           </p>
-          <div className="space-y-1 font-mono text-[11px] bg-white p-2 rounded-lg border border-slate-200">
+          <div className="space-y-1 font-mono text-xs bg-white p-2 rounded-lg border border-slate-200">
             {activePayment?.accounts && activePayment.accounts.length > 0 ? (
               activePayment.accounts.map((acc, idx) => (
                 <div key={acc.id || idx} className="flex justify-between items-center gap-2">
                   <span><strong>Bank {acc.bank_name}:</strong> {acc.account_number}</span>
-                  <span className="text-[10px] text-slate-500 whitespace-nowrap">a.n {acc.account_holder}</span>
+                  <span className="text-xs text-slate-500 whitespace-nowrap">a.n {acc.account_holder}</span>
                 </div>
               ))
             ) : (
               <div className="flex justify-between items-center">
                 <span><strong>Bank BCA:</strong> 8720-9182-33</span>
-                <span className="text-[10px] text-slate-500">a.n CV NARA TEKNINDOTAMA</span>
+                <span className="text-xs text-slate-500">a.n CV NARA TEKNINDOTAMA</span>
               </div>
             )}
           </div>
           {activePayment?.instruction_note ? (
-            <p className="text-[10px] text-slate-500 mt-1.5 italic leading-tight">
+            <p className="text-xs text-slate-500 mt-1.5 italic leading-tight">
               {activePayment.instruction_note}
             </p>
           ) : null}
@@ -361,7 +385,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
               Rp {total.toLocaleString('id-ID')}
             </span>
           </div>
-          <p className="text-[10px] text-slate-400">
+          <p className="text-xs text-slate-500">
             Harga sudah termasuk biaya operasional & alat SOP teknisi.
           </p>
         </div>
@@ -374,17 +398,17 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         {/* Left: Garansi & Tanda Terima Pelanggan */}
         <div>
           <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 mb-3">
-            <span className="font-bold text-sky-900 text-[11px] block mb-0.5">
+            <span className="font-bold text-sky-900 text-xs block mb-0.5">
               Jaminan Garansi Resmi NARA AC:
             </span>
-            <p className="text-sky-800 text-[10px] leading-relaxed">
+            <p className="text-sky-800 text-xs leading-relaxed">
               Layanan ini dilindungi garansi <strong>{warrantyText}</strong>. Jika terjadi kendala dingin atau bocor pasca-servis, klaim mudah via WhatsApp <strong>0813-8529-3137</strong> dengan melampirkan nomor tiket <strong>{kodeBooking}</strong>.
             </p>
           </div>
 
           <div className="text-center w-48">
-            <p className="text-[11px] text-slate-600 mb-8">Tanda Terima Pelanggan,</p>
-            <div className="border-b border-slate-400 w-full pb-1 text-[11px] font-bold text-slate-800">
+            <p className="text-xs text-slate-600 mb-8">Tanda Terima Pelanggan,</p>
+            <div className="border-b border-slate-400 w-full pb-1 text-xs font-bold text-slate-800">
               ( {customerNama || 'Pelanggan'} )
             </div>
           </div>
@@ -392,7 +416,7 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
 
         {/* Right: Pengesahan CV. NARA TEKNINDOTAMA */}
         <div className="text-right flex flex-col items-end">
-          <p className="text-[11px] text-slate-600 mb-0.5">
+          <p className="text-xs text-slate-600 mb-0.5">
             Kab. Bogor, {todayStr}
           </p>
           <p className="text-xs font-black text-slate-900 mb-1.5">
@@ -410,10 +434,10 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
             </div>
           </div>
 
-          <div className="border-b border-slate-900 w-44 text-center font-bold text-slate-900 pb-1 text-[11px]">
+          <div className="border-b border-slate-900 w-44 text-center font-bold text-slate-900 pb-1 text-xs">
             ( Administrasi & Operasional )
           </div>
-          <span className="text-[9px] text-slate-400 uppercase mt-0.5">
+          <span className="text-[9px] text-slate-500 uppercase mt-0.5">
             Dokumen Elektronik Resmi & Sah
           </span>
         </div>

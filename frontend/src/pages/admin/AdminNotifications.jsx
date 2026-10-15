@@ -1,22 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { 
-  Bell, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Info, 
-  Clock, 
-  Check, 
-  Calendar, 
-  Wrench, 
-  Receipt, 
-  AirVent,
-  ExternalLink,
-  RefreshCw,
-  Sparkles,
-  Inbox
-} from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, Clock, Check, Calendar, Wrench, Receipt, ExternalLink, RefreshCw, Inbox } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useToast } from '../../components/ui/toast';
 import { Button } from '../../components/ui/button';
@@ -166,7 +151,7 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
     <div className={cn(
       isDrawer 
         ? "w-full flex flex-col space-y-4" 
-        : "flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0 font-sans"
+        : "flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0 font-sans"
     )}>
       
       {/* Standalone Header (only visible on direct page view, not in drawer) */}
@@ -229,7 +214,7 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
           >
             <span>Belum Dibaca</span>
             {unreadCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+              <span className="px-1.5 py-0.2 rounded-full text-xs font-black bg-rose-500 text-white">
                 {unreadCount}
               </span>
             )}
@@ -241,7 +226,7 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
             type="button"
             onClick={markAllAsRead}
             disabled={markingAll}
-            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer flex items-center gap-1"
+            className="text-xs font-bold text-blue-600 hover:text-blue-700 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer flex items-center gap-1"
             title="Tandai semua telah dibaca"
           >
             <Check className="w-3.5 h-3.5" />
@@ -253,19 +238,19 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
       {/* Notifications List */}
       <div className="space-y-2.5">
         {loading ? (
-          <div className="p-12 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80 flex flex-col items-center justify-center">
+          <div className="p-12 text-center text-slate-500 bg-white rounded-3xl border border-slate-200/80 flex flex-col items-center justify-center">
             <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mb-2" />
             <p className="text-xs font-medium">Memuat notifikasi sistem...</p>
           </div>
         ) : notifications.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80 flex flex-col items-center justify-center">
+          <div className="p-12 text-center text-slate-500 bg-white rounded-3xl border border-slate-200/80 flex flex-col items-center justify-center">
             <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-3 border border-slate-100">
               <Inbox className="w-7 h-7" />
             </div>
             <h4 className="text-sm font-bold text-slate-800 mb-1">
               {filter === 'unread' ? 'Tidak Ada Notifikasi Baru' : 'Belum Ada Notifikasi'}
             </h4>
-            <p className="text-xs text-slate-400 max-w-xs">
+            <p className="text-xs text-slate-500 max-w-xs">
               {filter === 'unread'
                 ? 'Semua notifikasi telah Anda baca. Sistem terpantau aman dan terkendali.'
                 : 'Pemberitahuan booking baru dan penugasan teknisi akan muncul di sini.'}
@@ -300,8 +285,8 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
                         <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0 inline-block" />
                       )}
                     </div>
-                    <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap flex items-center gap-1 shrink-0">
-                      <Clock className="w-3 h-3 text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-500 whitespace-nowrap flex items-center gap-1 shrink-0">
+                      <Clock className="w-3 h-3 text-slate-500" />
                       {formatTimeAgo(n.created_at)}
                     </span>
                   </div>
@@ -312,7 +297,7 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
 
                   {/* Optional action link */}
                   {hasLink && (
-                    <div className="mt-2.5 flex items-center gap-1 text-[11px] font-bold text-blue-600 group-hover:text-blue-700">
+                    <div className="mt-2.5 flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:text-blue-700">
                       <span>Buka detail</span>
                       <ExternalLink className="w-3 h-3" />
                     </div>
@@ -324,7 +309,7 @@ export default function AdminNotifications({ isDrawer = false, onClose, onRefres
                   <button
                     type="button"
                     onClick={(e) => markAsRead(n.id, e)}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-100/60 transition-colors shrink-0 cursor-pointer"
+                    className="p-1.5 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-100/60 transition-colors shrink-0 cursor-pointer"
                     title="Tandai telah dibaca"
                     aria-label="Tandai telah dibaca"
                   >

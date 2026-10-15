@@ -4,6 +4,58 @@ import { LogOut, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 /**
+ * Focus trap utility - keep focus within the dialog
+ */
+const FOCUSABLE_SELECTORS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function useFocusTrap(ref, isOpen) {
+  useEffect(() => {
+    if (!isOpen || !ref.current) return;
+    
+    const focusableElements = ref.current.querySelectorAll(FOCUSABLE_SELECTORS);
+    if (focusableElements.length === 0) return;
+    
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    
+    const handleTabKey = (e) => {
+      if (e.key !== 'Tab') return;
+      
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+    
+    const handleFocusIn = (e) => {
+      // If focus goes outside the dialog
+      if (ref.current && !ref.current.contains(e.target)) {
+        firstElement.focus();
+      }
+    };
+    
+    const dialog = ref.current;
+    dialog.addEventListener('keydown', handleTabKey);
+    document.addEventListener('focusin', handleFocusIn);
+    
+    // Focus first element on open
+    firstElement.focus();
+    
+    return () => {
+      dialog.removeEventListener('keydown', handleTabKey);
+      document.removeEventListener('focusin', handleFocusIn);
+    };
+  }, [isOpen]);
+}
+
+/**
  * LogoutConfirmationDialog Component
  * - Menampilkan dialog konfirmasi sebelum logout
  * - Dapat dioperasikan dengan keyboard (Escape untuk batal, Enter untuk logout)
@@ -15,7 +67,10 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
   const dialogRef = useRef(null);
   const confirmButtonRef = useRef(null);
 
-  // Focus management saat dialog dibuka
+  // Focus trap untuk memastikan focus tetap di dalam dialog
+  useFocusTrap(dialogRef, isOpen);
+
+  // Focus management saat dialog dibuka (fallback)
   useEffect(() => {
     if (isOpen && dialogRef.current) {
       // Focus ke tombol confirm setelah dialog terbuka
@@ -84,6 +139,16 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in zoom-in-95 duration-200"
         role="document"
         tabIndex={-1}
+        onKeyDown={(e) => {
+          // Tangani Escape dan Enter
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          } else if (e.key === 'Enter' && !isLoading) {
+            e.preventDefault();
+            handleConfirm();
+          }
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -94,7 +159,7 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
             <div>
               <h2
                 id="logout-title"
-                className="text-lg font-black text-gray-900 tracking-tight"
+                className="text-lg font-black text-slate-900 tracking-tight"
               >
                 Keluar dari akun?
               </h2>
@@ -104,7 +169,7 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
           <button
             onClick={onCancel}
             disabled={isLoading}
-            className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Tutup dialog"
             type="button"
           >
@@ -116,7 +181,7 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
         <div className="mb-6">
           <p
             id="logout-message"
-            className="text-sm text-gray-600 leading-relaxed"
+            className="text-sm text-slate-600 leading-relaxed"
           >
             {message}
           </p>
@@ -127,7 +192,7 @@ export default function LogoutConfirmationDialog({ isOpen, onConfirm, onCancel, 
           <button
             onClick={onCancel}
             disabled={isLoading}
-            className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             type="button"
           >
             Batal

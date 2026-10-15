@@ -1,10 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, Calculator, CalendarCheck, Clock, ShieldCheck, 
-  Sparkles, ArrowRight, Check, Wrench, ChevronRight
-} from 'lucide-react';
+import { Search, Calculator, Clock, ShieldCheck, ArrowRight, Check, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export default function HeroInteractiveCard({ services = [] }) {
@@ -13,6 +10,7 @@ export default function HeroInteractiveCard({ services = [] }) {
 
   // Tracker state
   const [trackingInput, setTrackingInput] = useState('');
+  const [trackingError, setTrackingError] = useState('');
 
   // Estimator state
   const [unitCount, setUnitCount] = useState(2);
@@ -81,8 +79,22 @@ export default function HeroInteractiveCard({ services = [] }) {
 
   const handleTrackSubmit = (e) => {
     e.preventDefault();
-    if (!trackingInput.trim()) return;
-    navigate(`/status/${encodeURIComponent(trackingInput.trim())}`);
+    const trimmed = trackingInput.trim();
+    if (!trimmed) {
+      setTrackingError('Masukkan kode booking.');
+      return;
+    }
+    const bookingCodePattern = /^(NARA-AC[A-Za-z0-9-]+|AC-[A-Za-z0-9-]+|BK-[A-Za-z0-9-]+)$/i;
+    if (/^\d{6,15}$/.test(trimmed)) {
+      setTrackingError('Pencarian publik hanya mendukung Kode Booking (contoh: AC-XXXX atau BK-...). Nomor HP tidak dapat digunakan demi perlindungan privasi data pelanggan.');
+      return;
+    }
+    if (!bookingCodePattern.test(trimmed)) {
+      setTrackingError('Format kode booking tidak valid. Gunakan format AC-XXXX atau BK-20261014-XXXX.');
+      return;
+    }
+    setTrackingError('');
+    navigate(`/status/${encodeURIComponent(trimmed.toUpperCase())}`);
   };
 
   const handleBookingRedirect = () => {
@@ -146,8 +158,8 @@ export default function HeroInteractiveCard({ services = [] }) {
             >
               {/* Jumlah Unit Selector */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <div role="group" aria-labelledby="hero-unit-count-label" className="flex items-center justify-between mb-2">
+                  <label id="hero-unit-count-label" className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Jumlah Unit AC
                   </label>
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
@@ -174,7 +186,7 @@ export default function HeroInteractiveCard({ services = [] }) {
 
               {/* Paket Pilihan */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                <label id="hero-service-label" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Pilih Paket Servis
                 </label>
                 <div className="space-y-2">
@@ -203,16 +215,16 @@ export default function HeroInteractiveCard({ services = [] }) {
                           <div>
                             <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                               {opt.name}
-                              <span className="text-[10px] font-bold text-blue-600 bg-sky-100 px-1.5 py-0.2 rounded">
+                              <span className="text-xs font-bold text-blue-600 bg-sky-100 px-1.5 py-0.2 rounded">
                                 {opt.badge}
                               </span>
                             </p>
-                            <p className="text-[11px] text-slate-500">{opt.desc}</p>
+                            <p className="text-xs text-slate-500">{opt.desc}</p>
                           </div>
                         </div>
                         <span className="text-xs font-extrabold text-slate-900 font-mono">
                           Rp {(opt.basePrice / 1000).toLocaleString('id-ID')}k
-                          <span className="text-[10px] font-normal text-slate-500">/unit</span>
+                          <span className="text-xs font-normal text-slate-500">/unit</span>
                         </span>
                       </div>
                     );
@@ -250,7 +262,7 @@ export default function HeroInteractiveCard({ services = [] }) {
 
                 <div className="pt-2 border-t border-sky-200 flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                    <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Total Estimasi Biaya
                     </span>
                     <p className="text-xl sm:text-2xl font-black text-blue-700 font-mono">
@@ -278,27 +290,37 @@ export default function HeroInteractiveCard({ services = [] }) {
               className="space-y-4"
             >
               <div>
-                <span className="text-[11px] font-bold tracking-widest uppercase text-blue-600">Portal Publik</span>
+                <span className="text-xs font-bold tracking-widest uppercase text-blue-600">Portal Publik</span>
                 <h4 className="text-lg font-black text-slate-900 mt-0.5">Lacak Status Pengerjaan</h4>
                 <p className="text-xs text-slate-600 mt-1">
-                  Masukkan nomor HP pemesan atau kode tiket booking untuk memantau perjalanan teknisi secara langsung.
+                  Masukkan kode tiket booking resmi untuk memantau perjalanan teknisi secara langsung.
                 </p>
               </div>
 
               <form onSubmit={handleTrackSubmit} className="space-y-3 pt-2">
                 <div>
                   <label htmlFor="hero-track-input" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Nomor HP / Kode Booking
+                    Kode Booking Layanan
                   </label>
                   <input
                     id="hero-track-input"
                     type="text"
                     value={trackingInput}
-                    onChange={(e) => setTrackingInput(e.target.value)}
-                    placeholder="Contoh: BK-2026-001 atau 0812..."
+                    onChange={(e) => {
+                      setTrackingInput(e.target.value);
+                      if (trackingError) setTrackingError('');
+                    }}
+                    placeholder="Contoh: AC-WXYZ atau BK-20261014-0001"
                     className="w-full bg-sky-50/60 border border-sky-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-mono"
+                    aria-describedby={trackingError ? 'hero-track-error' : undefined}
                     required
                   />
+                  {trackingError && (
+                    <p id="hero-track-error" role="alert" className="text-xs text-rose-600 font-medium mt-1.5 flex items-start gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>{trackingError}</span>
+                    </p>
+                  )}
                 </div>
 
                 <Button
@@ -317,7 +339,7 @@ export default function HeroInteractiveCard({ services = [] }) {
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
                     <div>
                       <p className="text-xs font-mono font-bold text-slate-900">BK-AC-STANDARD</p>
-                      <p className="text-[11px] text-slate-500">Status: Selesai Pengerjaan</p>
+                      <p className="text-xs text-slate-500">Status: Selesai Pengerjaan</p>
                     </div>
                   </div>
                   <Link to="/status" className="text-xs font-bold text-blue-600 hover:text-blue-700">

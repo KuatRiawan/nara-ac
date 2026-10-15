@@ -16,7 +16,7 @@ export default function FAQAccordion({ question, answer, index }) {
       className={`rounded-2xl border transition-all duration-300 ${
         open 
           ? 'bg-blue-50/40 border-blue-200 shadow-sm' 
-          : 'bg-white border-gray-100 hover:border-gray-200 shadow-2xs'
+          : 'bg-white border-slate-100 hover:border-slate-200 shadow-2xs'
       }`}
     >
       <button 
@@ -27,12 +27,12 @@ export default function FAQAccordion({ question, answer, index }) {
         aria-controls={`faq-answer-${index}`}
         id={`faq-btn-${index}`}
       >
-        <span className="font-bold text-base sm:text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+        <span className="font-bold text-base sm:text-lg text-slate-900 group-hover:text-blue-600 transition-colors">
           {question}
         </span>
         <div 
           className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
-            open ? 'bg-blue-600 text-white rotate-180' : 'bg-gray-100 text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-600'
+            open ? 'bg-blue-600 text-white rotate-180' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
           }`}
         >
           <ChevronDown className="w-4 h-4" />
@@ -51,7 +51,7 @@ export default function FAQAccordion({ question, answer, index }) {
             transition={{ duration: 0.35, ease: easeOutCubic }}
             className="overflow-hidden"
           >
-            <div className="px-5 sm:px-6 pb-5 pt-1 text-gray-600 text-sm sm:text-base leading-relaxed border-t border-blue-100/60 mt-1">
+            <div className="px-5 sm:px-6 pb-5 pt-1 text-slate-600 text-sm sm:text-base leading-relaxed border-t border-blue-100/60 mt-1">
               {answer}
             </div>
           </motion.div>

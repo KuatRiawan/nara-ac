@@ -1,23 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
-import { 
-  Calendar as CalendarIcon, Clock, Wrench, AlertCircle, AlertTriangle, 
-  CheckCircle, CheckCircle2, ChevronRight, ChevronLeft, X, Sparkles, 
-  User, Phone, MapPin, RefreshCw, MessageSquare, Copy, Check, 
-  ShieldAlert, UserCheck, UserPlus, Info, CalendarClock
-} from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Wrench, AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, ChevronLeft, X, Sparkles, Phone, MapPin, RefreshCw, Copy, Check, UserCheck, UserPlus, CalendarClock } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { 
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, 
-  format, isSameMonth, isSameDay, addMonths, subMonths, isSunday 
-} from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, format, isSameMonth, isSameDay, addMonths, subMonths, isSunday } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useToast } from '../../components/ui/toast';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { getErrorMessage } from '../../utils/errors';
 
-export default function AdminSchedule() {
+export default function AdminSchedule({ onBookingAssigned }) {
   const { error: showError, success: showSuccess } = useToast();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -132,6 +124,10 @@ export default function AdminSchedule() {
       setAssigningBooking(null);
       setIsModalOpen(false);
       fetchMonthSchedule();
+      if (onBookingAssigned) {
+        onBookingAssigned();
+      }
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
       showError(msg);
@@ -235,16 +231,16 @@ export default function AdminSchedule() {
         </button>
 
         {/* INFO TIKET BOOKING YANG SEDANG DITUGASKAN */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/90 p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-black bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-md">
                   {assigningBooking.kode_booking}
                 </span>
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Smart Penugasan Teknisi</span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Smart Penugasan Teknisi</span>
               </div>
-              <h2 className="text-xl font-black text-gray-900 mt-1">
+              <h2 className="text-xl font-black text-slate-900 mt-1">
                 {assigningBooking.customer?.nama || assigningBooking.nama || 'Pelanggan'}
               </h2>
             </div>
@@ -254,12 +250,12 @@ export default function AdminSchedule() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50/70 p-4 rounded-xl border border-gray-100 text-xs sm:text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50/70 p-4 rounded-xl border border-slate-100 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-blue-600 shrink-0" />
               <div>
-                <span className="text-gray-400 text-[10px] uppercase font-bold block">Jadwal Servis</span>
-                <span className="font-bold text-gray-900">
+                <span className="text-slate-500 text-xs uppercase font-bold block">Jadwal Servis</span>
+                <span className="font-bold text-slate-900">
                   {new Date(assigningBooking.jadwal_mulai).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })}, {new Date(assigningBooking.jadwal_mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                 </span>
               </div>
@@ -268,8 +264,8 @@ export default function AdminSchedule() {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
               <div>
-                <span className="text-gray-400 text-[10px] uppercase font-bold block">Layanan & Unit</span>
-                <span className="font-bold text-gray-900">
+                <span className="text-slate-500 text-xs uppercase font-bold block">Layanan & Unit</span>
+                <span className="font-bold text-slate-900">
                   {assigningBooking.layanan?.nama_layanan || assigningBooking.layanan?.nama || assigningBooking.nama_layanan || 'Service AC'}
                   {assigningBooking.jumlah_unit > 1 && ` (${assigningBooking.jumlah_unit} Unit)`}
                 </span>
@@ -279,8 +275,8 @@ export default function AdminSchedule() {
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
               <div className="truncate">
-                <span className="text-gray-400 text-[10px] uppercase font-bold block">Lokasi Pelanggan</span>
-                <span className="font-medium text-gray-800 truncate block" title={assigningBooking.alamat}>
+                <span className="text-slate-500 text-xs uppercase font-bold block">Lokasi Pelanggan</span>
+                <span className="font-medium text-slate-800 truncate block" title={assigningBooking.alamat}>
                   {assigningBooking.alamat || '-'}
                 </span>
               </div>
@@ -292,27 +288,27 @@ export default function AdminSchedule() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-black text-gray-900 text-lg flex items-center gap-2">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 <span>Rekomendasi Teknisi Terbaik</span>
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Dianalisa berdasarkan jadwal, ketersediaan slot, dan beban pekerjaan hari ini.
               </p>
             </div>
           </div>
 
           {loadingRecs ? (
-            <div className="text-center p-16 bg-white rounded-2xl border border-gray-200">
+            <div className="text-center p-16 bg-white rounded-2xl border border-slate-200">
               <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
-              <p className="text-gray-900 font-bold text-sm">Menganalisa Jadwal Teknisi...</p>
-              <p className="text-xs text-gray-400 mt-1">Mengecek ketersediaan waktu dan kapasitas operasional.</p>
+              <p className="text-slate-900 font-bold text-sm">Menganalisa Jadwal Teknisi...</p>
+              <p className="text-xs text-slate-500 mt-1">Mengecek ketersediaan waktu dan kapasitas operasional.</p>
             </div>
           ) : recommendations.length === 0 ? (
-            <div className="bg-white rounded-2xl p-10 text-center border border-gray-200">
-              <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-              <p className="font-bold text-gray-900 text-sm">Belum ada rekomendasi yang tersedia</p>
-              <p className="text-xs text-gray-500 mt-1">Silakan tugaskan teknisi secara manual melalui daftar teknisi.</p>
+            <div className="bg-white rounded-2xl p-10 text-center border border-slate-200">
+              <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+              <p className="font-bold text-slate-900 text-sm">Belum ada rekomendasi yang tersedia</p>
+              <p className="text-xs text-slate-500 mt-1">Silakan tugaskan teknisi secara manual melalui daftar teknisi.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -322,13 +318,13 @@ export default function AdminSchedule() {
                   className={cn(
                     "bg-white rounded-2xl border p-5 transition-all relative overflow-hidden flex flex-col justify-between shadow-sm",
                     tech.direkomendasikan ? "border-emerald-300 ring-2 ring-emerald-500/20 shadow-emerald-500/5" :
-                    tech.assignable ? "border-gray-200 hover:border-blue-300 hover:shadow" :
-                    tech.status === 'conflict' ? "border-rose-200 bg-rose-50/20" : "border-gray-200 opacity-60 bg-gray-50"
+                    tech.assignable ? "border-slate-200 hover:border-blue-300 hover:shadow" :
+                    tech.status === 'conflict' ? "border-rose-200 bg-rose-50/20" : "border-slate-200 opacity-60 bg-slate-50"
                   )}
                 >
                   {/* Badge Pilihan Terbaik */}
                   {tech.direkomendasikan && (
-                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
+                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-xs font-black px-2.5 py-1 rounded-bl-xl uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       <span>Pilihan Terbaik</span>
                     </div>
@@ -338,33 +334,33 @@ export default function AdminSchedule() {
                     {/* Header Card Teknisi */}
                     <div className="flex justify-between items-start mb-3 pt-1">
                       <div>
-                        <h4 className="font-bold text-gray-900 text-base">{tech.nama}</h4>
-                        <span className="text-[11px] text-gray-500 font-medium">Teknisi Servis AC</span>
+                        <h4 className="font-bold text-slate-900 text-base">{tech.nama}</h4>
+                        <span className="text-xs text-slate-500 font-medium">Teknisi Servis AC</span>
                       </div>
 
                       <Badge className={cn(
-                        "text-[10px] font-black uppercase px-2 py-0.5",
+                        "text-xs font-black uppercase px-2 py-0.5",
                         tech.assignable ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
                         tech.status === 'conflict' ? "bg-rose-100 text-rose-800 border-rose-200" :
-                        "bg-gray-100 text-gray-700 border-gray-200"
+                        "bg-slate-100 text-slate-700 border-slate-200"
                       )}>
                         {tech.assignable ? 'Available' : tech.status === 'conflict' ? 'Conflict' : 'Unavailable'}
                       </Badge>
                     </div>
 
                     {/* Status Info */}
-                    <div className="space-y-2 text-xs text-gray-600 my-4 bg-gray-50/80 p-3 rounded-xl border border-gray-100">
+                    <div className="space-y-2 text-xs text-slate-600 my-4 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Status Hari Ini:</span>
-                        <span className="font-bold text-gray-900 capitalize">{tech.status_harian || 'Aktif'}</span>
+                        <span className="text-slate-500">Status Hari Ini:</span>
+                        <span className="font-bold text-slate-900 capitalize">{tech.status_harian || 'Aktif'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-500">Pekerjaan Hari Ini:</span>
-                        <span className="font-bold text-gray-900">{tech.pekerjaan_hari_ini || 0} Tiket</span>
+                        <span className="text-slate-500">Pekerjaan Hari Ini:</span>
+                        <span className="font-bold text-slate-900">{tech.pekerjaan_hari_ini || 0} Tiket</span>
                       </div>
 
                       {tech.bentrok?.length > 0 && (
-                        <div className="flex items-start gap-1.5 text-rose-700 text-[11px] font-bold mt-2 bg-rose-50 p-2 rounded-lg border border-rose-100">
+                        <div className="flex items-start gap-1.5 text-rose-700 text-xs font-bold mt-2 bg-rose-50 p-2 rounded-lg border border-rose-100">
                           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                           <span>Ada bentrok jadwal servis lain di jam yang berdekatan.</span>
                         </div>
@@ -390,12 +386,12 @@ export default function AdminSchedule() {
                         >
                           Paksa Tugaskan (Force)
                         </Button>
-                        <p className="text-[10px] text-center text-rose-500 font-medium">Beban jadwal akan ditumpuk</p>
+                        <p className="text-xs text-center text-rose-500 font-medium">Beban jadwal akan ditumpuk</p>
                       </div>
                     ) : (
                       <Button
                         disabled
-                        className="w-full bg-gray-100 text-gray-400 font-bold text-xs rounded-xl h-10 cursor-not-allowed"
+                        className="w-full bg-slate-100 text-slate-500 font-bold text-xs rounded-xl h-10 cursor-not-allowed"
                       >
                         Tidak Tersedia
                       </Button>
@@ -423,13 +419,13 @@ export default function AdminSchedule() {
     ];
 
     return (
-      <div className="grid grid-cols-7 bg-gray-50/90 border border-b-0 border-gray-200 rounded-t-2xl overflow-hidden">
+      <div className="grid grid-cols-7 bg-slate-50/90 border border-b-0 border-slate-200 rounded-t-2xl overflow-hidden">
         {days.map((day, i) => (
           <div 
             key={i} 
             className={cn(
-              "py-3 text-center text-[11px] font-black uppercase tracking-wider border-r border-gray-200 last:border-r-0",
-              day.isSunday ? "bg-rose-50/30 text-rose-600" : "text-gray-600"
+              "py-3 text-center text-xs font-black uppercase tracking-wider border-r border-slate-200 last:border-r-0",
+              day.isSunday ? "bg-rose-50/30 text-rose-600" : "text-slate-600"
             )}
             title={day.full}
           >
@@ -471,12 +467,12 @@ export default function AdminSchedule() {
               setIsModalOpen(true); 
             }}
             className={cn(
-              "p-1.5 sm:p-2.5 border-b border-r border-gray-200 min-h-[95px] sm:min-h-[120px] cursor-pointer transition-all flex flex-col justify-between relative group select-none",
+              "p-1.5 sm:p-2.5 border-b border-r border-slate-200 min-h-[95px] sm:min-h-[120px] cursor-pointer transition-all flex flex-col justify-between relative group select-none",
               !isSameMonth(day, monthStart) 
-                ? "bg-gray-50/60 text-gray-400" 
+                ? "bg-slate-50/60 text-slate-500" 
                 : dayIsSunday 
-                  ? "bg-rose-50/20 text-gray-800" 
-                  : "bg-white text-gray-800",
+                  ? "bg-rose-50/20 text-slate-800" 
+                  : "bg-white text-slate-800",
               dayIsSelected 
                 ? "ring-2 ring-blue-500 ring-inset bg-blue-50/30 z-10" 
                 : "hover:bg-blue-50/20"
@@ -490,7 +486,7 @@ export default function AdminSchedule() {
                   ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 font-black scale-105" 
                   : dayIsSunday
                     ? "text-rose-600 font-black group-hover:text-rose-700"
-                    : "text-gray-700 group-hover:text-blue-600"
+                    : "text-slate-700 group-hover:text-blue-600"
               )}>
                 {formattedDate}
               </span>
@@ -504,7 +500,7 @@ export default function AdminSchedule() {
                   />
                 )}
                 {dayBookings.length > 0 && (
-                  <span className="text-[10px] font-black bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-md">
+                  <span className="text-xs font-black bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded-md">
                     {dayBookings.length}
                   </span>
                 )}
@@ -521,7 +517,7 @@ export default function AdminSchedule() {
                   <div 
                     key={b.id} 
                     className={cn(
-                      "text-[10px] px-1.5 py-0.8 rounded-md truncate font-semibold border transition-all",
+                      "text-xs px-1.5 py-0.8 rounded-md truncate font-semibold border transition-all",
                       isNeedsTech 
                         ? "bg-amber-50 text-amber-900 border-amber-300 font-bold" 
                         : b.status === 'scheduled' 
@@ -530,7 +526,7 @@ export default function AdminSchedule() {
                             ? "bg-sky-50 text-sky-800 border-sky-200" 
                             : b.status === 'done' 
                               ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                              : "bg-gray-50 text-gray-700 border-gray-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
                     )}
                   >
                     <span className="font-bold opacity-80 mr-1">
@@ -544,7 +540,7 @@ export default function AdminSchedule() {
               })}
 
               {dayBookings.length > 3 && (
-                <div className="text-[10px] text-gray-500 font-bold pl-1">
+                <div className="text-xs text-slate-500 font-bold pl-1">
                   +{dayBookings.length - 3} lainnya
                 </div>
               )}
@@ -555,7 +551,7 @@ export default function AdminSchedule() {
       }
 
       rows.push(
-        <div className="grid grid-cols-7 border-l border-gray-200" key={day.toISOString()}>
+        <div className="grid grid-cols-7 border-l border-slate-200" key={day.toISOString()}>
           {days}
         </div>
       );
@@ -563,14 +559,14 @@ export default function AdminSchedule() {
     }
 
     return (
-      <div className="border-t-0 rounded-b-2xl overflow-hidden bg-white shadow-sm border border-gray-200">
+      <div className="border-t-0 rounded-b-2xl overflow-hidden bg-white shadow-sm border border-slate-200">
         {rows}
       </div>
     );
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -628,53 +624,53 @@ export default function AdminSchedule() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Servis Bulan Ini</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Servis Bulan Ini</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <CalendarIcon className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-slate-900">{monthStats.total}</p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">Seluruh agenda servis terdaftar</p>
+            <p className="text-xs font-medium text-slate-500 mt-1">Seluruh agenda servis terdaftar</p>
           </div>
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Perlu Teknisi</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Perlu Teknisi</span>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
               <UserPlus className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-amber-700">{monthStats.unassigned}</p>
-            <p className="text-[11px] font-medium text-amber-600/80 mt-1">Belum dialokasikan ke teknisi</p>
+            <p className="text-xs font-medium text-amber-600/80 mt-1">Belum dialokasikan ke teknisi</p>
           </div>
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">Sedang Dikerjakan</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">Sedang Dikerjakan</span>
             <div className="p-2 bg-sky-50 text-sky-600 rounded-xl">
               <Wrench className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-sky-700">{monthStats.onProcess}</p>
-            <p className="text-[11px] font-medium text-sky-600/80 mt-1">Teknisi aktif di lokasi konsumen</p>
+            <p className="text-xs font-medium text-sky-600/80 mt-1">Teknisi aktif di lokasi konsumen</p>
           </div>
         </div>
 
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Selesai Bergaransi</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Selesai Bergaransi</span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-emerald-700">{monthStats.done}</p>
-            <p className="text-[11px] font-medium text-emerald-600/80 mt-1">Pekerjaan tuntas & bergaransi</p>
+            <p className="text-xs font-medium text-emerald-600/80 mt-1">Pekerjaan tuntas & bergaransi</p>
           </div>
         </div>
       </div>
@@ -683,7 +679,7 @@ export default function AdminSchedule() {
       <div className="relative">
         {loading && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-20 flex items-center justify-center rounded-2xl">
-            <div className="bg-white px-5 py-3 rounded-2xl shadow-xl border border-gray-100 font-bold text-gray-700 flex items-center gap-3 text-sm">
+            <div className="bg-white px-5 py-3 rounded-2xl shadow-xl border border-slate-100 font-bold text-slate-700 flex items-center gap-3 text-sm">
               <RefreshCw className="w-5 h-5 animate-spin text-blue-600" /> 
               <span>Memperbarui kalender...</span>
             </div>
@@ -696,15 +692,15 @@ export default function AdminSchedule() {
       {/* MODAL AGENDA HARIAN (SAAT TANGGAL DIKLIK) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col w-full max-w-4xl max-h-[90vh]">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col w-full max-w-4xl max-h-[90vh]">
             {/* Header Modal */}
-            <div className="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/60">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/60">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 bg-blue-100 text-blue-700 rounded-lg">
                     <CalendarIcon className="w-4 h-4" />
                   </span>
-                  <h3 className="font-black text-gray-900 text-lg">
+                  <h3 className="font-black text-slate-900 text-lg">
                     Agenda: {format(selectedDate, 'EEEE, d MMMM yyyy', { locale: id })}
                   </h3>
                 </div>
@@ -716,7 +712,7 @@ export default function AdminSchedule() {
                 </Badge>
                 <button 
                   onClick={() => setIsModalOpen(false)} 
-                  className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -726,12 +722,12 @@ export default function AdminSchedule() {
             {/* Content Table Agenda Harian */}
             <div className="overflow-y-auto flex-1 p-0">
               {selectedDayBookings.length === 0 ? (
-                <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center">
-                  <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
+                <div className="p-16 text-center text-slate-500 flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 mb-3">
                     <CalendarIcon className="w-7 h-7" />
                   </div>
-                  <p className="text-base font-bold text-gray-900">Tidak ada jadwal pada tanggal ini</p>
-                  <p className="text-xs text-gray-400 mt-1 max-w-sm">
+                  <p className="text-base font-bold text-slate-900">Tidak ada jadwal pada tanggal ini</p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm">
                     Belum ada tiket servis yang dijadwalkan pada tanggal ini.
                   </p>
                 </div>
@@ -739,7 +735,7 @@ export default function AdminSchedule() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                      <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-400 text-[11px] uppercase tracking-wider font-bold">
+                      <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
                         <th className="py-3.5 px-6">Waktu</th>
                         <th className="py-3.5 px-6">Kode & Layanan</th>
                         <th className="py-3.5 px-6">Pelanggan & Kontak</th>
@@ -762,7 +758,7 @@ export default function AdminSchedule() {
                             )}
                           >
                             {/* Waktu */}
-                            <td className="py-3.5 px-6 font-bold text-gray-900">
+                            <td className="py-3.5 px-6 font-bold text-slate-900">
                               <div className="flex items-center gap-1.5">
                                 <Clock className="w-4 h-4 text-blue-600" />
                                 <span>
@@ -774,12 +770,12 @@ export default function AdminSchedule() {
                             {/* Kode & Layanan */}
                             <td className="py-3.5 px-6">
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-xs font-bold bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200">
+                                <span className="font-mono text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-slate-200">
                                   {b.kode_booking}
                                 </span>
                                 <button
                                   onClick={(e) => handleCopyCode(b.kode_booking, e)}
-                                  className="text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                                  className="text-slate-500 hover:text-slate-600 p-0.5 cursor-pointer"
                                   title="Salin Kode"
                                 >
                                   {copiedCode === b.kode_booking ? (
@@ -789,7 +785,7 @@ export default function AdminSchedule() {
                                   )}
                                 </button>
                               </div>
-                              <div className="font-bold text-gray-900 text-xs mt-1">
+                              <div className="font-bold text-slate-900 text-xs mt-1">
                                 {b.layanan?.nama_layanan || b.layanan?.nama || b.nama_layanan || 'Service AC'}
                                 {b.jumlah_unit > 1 && ` (${b.jumlah_unit} Unit)`}
                               </div>
@@ -797,19 +793,19 @@ export default function AdminSchedule() {
 
                             {/* Pelanggan */}
                             <td className="py-3.5 px-6">
-                              <div className="font-bold text-gray-900">{b.customer?.nama || b.nama || '-'}</div>
-                              <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                                <Phone className="w-3 h-3 text-gray-400" />
+                              <div className="font-bold text-slate-900">{b.customer?.nama || b.nama || '-'}</div>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
+                                <Phone className="w-3 h-3 text-slate-500" />
                                 <span>{b.customer?.kontak || b.kontak || '-'}</span>
                                 {waLink && (
                                   <a
                                     href={waLink}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                    target="_blank" rel="noopener noreferrer"
                                     className="text-emerald-600 hover:text-emerald-700 font-bold hover:underline ml-1"
                                     title="WhatsApp"
                                   >
                                     WA
+<span className="sr-only"> (buka di tab baru)</span>
                                   </a>
                                 )}
                               </div>
@@ -833,11 +829,11 @@ export default function AdminSchedule() {
                             {/* Status */}
                             <td className="py-3.5 px-6">
                               <Badge className={cn(
-                                "text-[10px] font-black uppercase px-2.5 py-0.5",
+                                "text-xs font-black uppercase px-2.5 py-0.5",
                                 b.status === 'scheduled' ? "bg-amber-100 text-amber-800 border-amber-200" :
                                 b.status === 'on process' ? "bg-sky-100 text-sky-800 border-sky-200" :
                                 b.status === 'done' ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
-                                "bg-gray-100 text-gray-700"
+                                "bg-slate-100 text-slate-700"
                               )}>
                                 {b.status}
                               </Badge>
@@ -851,7 +847,7 @@ export default function AdminSchedule() {
                                     size="sm"
                                     variant="outline"
                                     onClick={() => openRescheduleModal(b)}
-                                    className="border-gray-200 text-gray-700 hover:bg-gray-100 text-xs font-bold rounded-xl h-8 px-2.5 cursor-pointer shadow-sm flex items-center gap-1"
+                                    className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold rounded-xl h-8 px-2.5 cursor-pointer shadow-sm flex items-center gap-1"
                                     title="Ubah Tanggal / Reschedule"
                                   >
                                     <CalendarClock className="w-3.5 h-3.5 text-blue-600" />
@@ -882,10 +878,10 @@ export default function AdminSchedule() {
             </div>
 
             {/* Footer Modal */}
-            <div className="p-4 bg-gray-50/70 border-t border-gray-100 flex justify-end">
+            <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex justify-end">
               <Button
                 onClick={() => setIsModalOpen(false)}
-                className="bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl px-5 h-9 cursor-pointer"
+                className="bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl px-5 h-9 cursor-pointer"
               >
                 Tutup
               </Button>
@@ -897,20 +893,20 @@ export default function AdminSchedule() {
       {/* MODAL UBAH TANGGAL (RESCHEDULE JADWAL) */}
       {rescheduleBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-md w-full overflow-hidden">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
                   <CalendarClock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-gray-900 text-base">Ubah Tanggal Servis</h3>
-                  <span className="font-mono text-xs text-gray-500 font-bold">{rescheduleBooking.kode_booking}</span>
+                  <h3 className="font-black text-slate-900 text-base">Ubah Tanggal Servis</h3>
+                  <span className="font-mono text-xs text-slate-500 font-bold">{rescheduleBooking.kode_booking}</span>
                 </div>
               </div>
               <button
                 onClick={() => setRescheduleBooking(null)}
-                className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -924,30 +920,32 @@ export default function AdminSchedule() {
 
               {/* Tanggal Baru */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-schedule-f1" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Tanggal Baru:
                 </label>
                 <input
+                  id="admin-schedule-f1"
                   type="date"
                   required
                   value={newRescheduleDate}
                   onChange={(e) => setNewRescheduleDate(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
-                <span className="text-[11px] text-gray-400 mt-1 block">
+                <span className="text-xs text-slate-500 mt-1 block">
                   *Operasional: Senin - Sabtu (Minggu Libur)
                 </span>
               </div>
 
               {/* Jam Baru */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-schedule-f2" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Jam Kunjungan:
                 </label>
                 <select
+                  id="admin-schedule-f2"
                   value={newRescheduleTime}
                   onChange={(e) => setNewRescheduleTime(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                 >
                   <option value="08:00">08:00 WIB</option>
                   <option value="09:00">09:00 WIB</option>
@@ -962,16 +960,17 @@ export default function AdminSchedule() {
 
               {/* Alasan Perubahan */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                <label htmlFor="admin-schedule-f3" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Alasan Perubahan Jadwal:
                 </label>
                 <textarea
+                  id="admin-schedule-f3"
                   rows={2}
                   required
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
                   placeholder="Contoh: Permintaan pelanggan atau teknisi berhalangan"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -980,7 +979,7 @@ export default function AdminSchedule() {
                   type="button"
                   variant="outline"
                   onClick={() => setRescheduleBooking(null)}
-                  className="rounded-xl border-gray-200 font-bold text-xs h-9 cursor-pointer"
+                  className="rounded-xl border-slate-200 font-bold text-xs h-9 cursor-pointer"
                 >
                   Batal
                 </Button>

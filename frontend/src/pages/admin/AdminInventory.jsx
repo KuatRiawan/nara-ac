@@ -287,7 +287,7 @@ export default function AdminInventory() {
   }, [selectedItem, adjustForm]);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -329,16 +329,16 @@ export default function AdminInventory() {
         {/* Total Item Barang */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Item Terdaftar</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Item Terdaftar</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <Package className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl font-black text-slate-900">
-              {kpis.totalCount} <span className="text-xs font-semibold text-slate-400">Jenis</span>
+              {kpis.totalCount} <span className="text-xs font-semibold text-slate-500">Jenis</span>
             </p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               Suku cadang & bahan operasional
             </p>
           </div>
@@ -347,7 +347,7 @@ export default function AdminInventory() {
         {/* Stok Aman */}
         <div className="p-5 rounded-3xl bg-white border border-emerald-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Stok Normal & Aman</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Stok Normal & Aman</span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -356,7 +356,7 @@ export default function AdminInventory() {
             <p className="text-2xl font-black text-emerald-700">
               {kpis.okCount} <span className="text-xs font-semibold text-emerald-600/70">Item</span>
             </p>
-            <p className="text-[11px] font-medium text-emerald-600/80 mt-1">
+            <p className="text-xs font-medium text-emerald-600/80 mt-1">
               Di atas batas minimum restock
             </p>
           </div>
@@ -365,7 +365,7 @@ export default function AdminInventory() {
         {/* Stok Menipis / Perlu Restock */}
         <div className="p-5 rounded-3xl bg-white border border-amber-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Perlu Restock</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Perlu Restock</span>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
               <AlertTriangle className="w-4 h-4" />
             </div>
@@ -374,7 +374,7 @@ export default function AdminInventory() {
             <p className="text-2xl font-black text-amber-700">
               {kpis.warningCount} <span className="text-xs font-semibold text-amber-600/70">Item</span>
             </p>
-            <p className="text-[11px] font-medium text-amber-600/80 mt-1">
+            <p className="text-xs font-medium text-amber-600/80 mt-1">
               {kpis.outCount > 0 ? `${kpis.outCount} item habis total` : 'Mendekati batas minimum'}
             </p>
           </div>
@@ -383,16 +383,16 @@ export default function AdminInventory() {
         {/* Ragam Kategori */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Kategori Logistik</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Kategori Logistik</span>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
               <Layers className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl font-black text-slate-900">
-              {kpis.categoryCount} <span className="text-xs font-semibold text-slate-400">Kategori</span>
+              {kpis.categoryCount} <span className="text-xs font-semibold text-slate-500">Kategori</span>
             </p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               Freon, Pipa, Kabel & Komponen
             </p>
           </div>
@@ -403,9 +403,10 @@ export default function AdminInventory() {
       {/* Filter & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
         <div className="relative w-full lg:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <Input 
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Input
             placeholder="Cari nama barang atau kategori..."
+            aria-label="Cari inventaris"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-10 text-xs font-semibold rounded-xl border-slate-200 bg-slate-50/50"
@@ -473,14 +474,14 @@ export default function AdminInventory() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                     Memuat data inventori...
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     Tidak ada barang inventori yang sesuai kriteria pencarian.
                   </td>
                 </tr>
@@ -501,7 +502,7 @@ export default function AdminInventory() {
                           </div>
                           <div>
                             <p className="font-bold text-slate-900 text-xs sm:text-sm">{item.nama}</p>
-                            <span className="font-mono text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60 inline-block mt-0.5">
+                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/60 inline-block mt-0.5">
                               {code}
                             </span>
                           </div>
@@ -509,7 +510,7 @@ export default function AdminInventory() {
                       </td>
 
                       <td className="py-3.5 px-5">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize ${getCategoryBadgeClass(item.kategori)}`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${getCategoryBadgeClass(item.kategori)}`}>
                           {item.kategori}
                         </span>
                       </td>
@@ -520,19 +521,19 @@ export default function AdminInventory() {
                             <span className={`text-base font-black font-mono ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-slate-900'}`}>
                               {Number(item.stok).toLocaleString('id-ID')}
                             </span>
-                            <span className="text-[11px] font-bold text-slate-400">{item.satuan}</span>
+                            <span className="text-xs font-bold text-slate-500">{item.satuan}</span>
                           </div>
 
                           {isOut ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
                               <AlertTriangle className="w-2.5 h-2.5" /> Stok Habis
                             </span>
                           ) : isLow ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <AlertTriangle className="w-2.5 h-2.5" /> Perlu Restock
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <CheckCircle2 className="w-2.5 h-2.5" /> Normal
                             </span>
                           )}
@@ -541,9 +542,9 @@ export default function AdminInventory() {
 
                       <td className="py-3.5 px-5">
                         <p className="font-mono font-bold text-slate-700">
-                          {Number(item.min_stok).toLocaleString('id-ID')} <span className="text-[10px] text-slate-400 font-sans">{item.satuan}</span>
+                          {Number(item.min_stok).toLocaleString('id-ID')} <span className="text-xs text-slate-500 font-sans">{item.satuan}</span>
                         </p>
-                        <p className="text-[10px] text-slate-400">Batas restock</p>
+                        <p className="text-xs text-slate-500">Batas restock</p>
                       </td>
 
                       <td className="py-3.5 px-5">
@@ -551,9 +552,9 @@ export default function AdminInventory() {
                           <span className="font-mono font-bold">
                             {Number(item.pemakaian_30_hari || 0).toLocaleString('id-ID')}
                           </span>
-                          <span className="text-[11px] text-slate-400">{item.satuan}</span>
+                          <span className="text-xs text-slate-500">{item.satuan}</span>
                         </div>
-                        <p className="text-[10px] text-slate-400">Dipakai teknisi</p>
+                        <p className="text-xs text-slate-500">Dipakai teknisi</p>
                       </td>
 
                       <td className="py-3.5 px-5 text-right">
@@ -562,7 +563,7 @@ export default function AdminInventory() {
                             size="sm"
                             variant="outline"
                             onClick={() => openHistory(item)}
-                            className="rounded-xl text-[11px] font-bold h-8 px-2.5 border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            className="rounded-xl text-xs font-bold h-8 px-2.5 border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
                             title="Lihat riwayat mutasi barang ini"
                           >
                             <History className="w-3.5 h-3.5" />
@@ -570,7 +571,7 @@ export default function AdminInventory() {
                           <Button
                             size="sm"
                             onClick={() => openAdjust(item)}
-                            className="rounded-xl text-[11px] font-bold h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-1 shadow-2xs"
+                            className="rounded-xl text-xs font-bold h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-1 shadow-2xs"
                           >
                             <ArrowRightLeft className="w-3.5 h-3.5" />
                             <span>Sesuaikan</span>
@@ -614,7 +615,7 @@ export default function AdminInventory() {
               <button
                 type="button"
                 onClick={() => setShowAdjustModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup"
               >
                 <X className="w-5 h-5" />
@@ -627,12 +628,12 @@ export default function AdminInventory() {
               {/* Item Info Box */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Barang Dipilih</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">Barang Dipilih</span>
                   <p className="font-black text-sm text-slate-900">{selectedItem.nama}</p>
-                  <span className="text-[11px] text-slate-500 capitalize">Kategori: {selectedItem.kategori}</span>
+                  <span className="text-xs text-slate-500 capitalize">Kategori: {selectedItem.kategori}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stok Saat Ini</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">Stok Saat Ini</span>
                   <p className="font-mono font-black text-lg text-blue-600">
                     {Number(selectedItem.stok).toLocaleString('id-ID')} <span className="text-xs text-slate-500 font-sans">{selectedItem.satuan}</span>
                   </p>
@@ -641,7 +642,7 @@ export default function AdminInventory() {
 
               {/* Jenis Penyesuaian */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label id="inventory-adjust-type-label" className="block text-xs font-bold text-slate-700 mb-1.5">
                   Jenis Penyesuaian *
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -688,11 +689,12 @@ export default function AdminInventory() {
 
               {/* Jumlah Penyesuaian */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-inventory-f1" className="block text-xs font-bold text-slate-700 mb-1">
                   Jumlah {adjustForm.jenis === 'adjustment' ? 'Stok Fisik Baru' : 'Unit'} ({selectedItem.satuan}) *
                 </label>
                 <div className="relative">
                   <Input
+                    id="admin-inventory-f1"
                     type="number"
                     step="0.01"
                     min="0"
@@ -702,7 +704,7 @@ export default function AdminInventory() {
                     className="h-10 text-xs font-mono font-bold rounded-xl pr-14 bg-white border-slate-200"
                     required
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
                     {selectedItem.satuan}
                   </span>
                 </div>
@@ -724,10 +726,11 @@ export default function AdminInventory() {
 
               {/* Alasan / Catatan Mutasi */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-inventory-f2" className="block text-xs font-bold text-slate-700 mb-1">
                   Catatan / Alasan Mutasi *
                 </label>
                 <textarea
+                  id="admin-inventory-f2"
                   rows={2}
                   placeholder="Contoh: Pembelian supplier baru, barang retur, selisih stock opname bulanan..."
                   value={adjustForm.catatan}
@@ -800,7 +803,7 @@ export default function AdminInventory() {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup"
               >
                 <X className="w-5 h-5" />
@@ -811,10 +814,11 @@ export default function AdminInventory() {
             <form onSubmit={handleAdd} className="p-5 sm:p-6 space-y-4">
               
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-inventory-f3" className="block text-xs font-bold text-slate-700 mb-1">
                   Nama Barang *
                 </label>
                 <Input
+                  id="admin-inventory-f3"
                   placeholder="Contoh: Freon R410A Murni, Pipa AC 1/4 + 3/8..."
                   value={addForm.nama}
                   onChange={(e) => setAddForm({ ...addForm, nama: e.target.value })}
@@ -825,10 +829,11 @@ export default function AdminInventory() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-inventory-f4" className="block text-xs font-bold text-slate-700 mb-1">
                     Kategori Logistik *
                   </label>
                   <select
+                    id="admin-inventory-f4"
                     value={addForm.kategori}
                     onChange={(e) => setAddForm({ ...addForm, kategori: e.target.value })}
                     className="w-full h-10 px-3 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -842,10 +847,11 @@ export default function AdminInventory() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-inventory-f5" className="block text-xs font-bold text-slate-700 mb-1">
                     Satuan *
                   </label>
                   <Input
+                    id="admin-inventory-f5"
                     placeholder="Contoh: kg, meter, roll, pcs, set"
                     value={addForm.satuan}
                     onChange={(e) => setAddForm({ ...addForm, satuan: e.target.value })}
@@ -857,10 +863,11 @@ export default function AdminInventory() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-inventory-f6" className="block text-xs font-bold text-slate-700 mb-1">
                     Stok Awal Masuk *
                   </label>
                   <Input
+                    id="admin-inventory-f6"
                     type="number"
                     step="0.01"
                     min="0"
@@ -873,10 +880,11 @@ export default function AdminInventory() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-inventory-f7" className="block text-xs font-bold text-slate-700 mb-1">
                     Batas Minimal Restock *
                   </label>
                   <Input
+                    id="admin-inventory-f7"
                     type="number"
                     step="0.01"
                     min="0"
@@ -952,7 +960,7 @@ export default function AdminInventory() {
               <button
                 type="button"
                 onClick={() => setShowHistoryModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup"
               >
                 <X className="w-5 h-5" />
@@ -992,14 +1000,14 @@ export default function AdminInventory() {
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {loadingMovements ? (
                       <tr>
-                        <td colSpan="5" className="py-8 text-center text-slate-400">
+                        <td colSpan="5" className="py-8 text-center text-slate-500">
                           <Loader2 className="w-5 h-5 animate-spin mx-auto mb-1.5 text-blue-600" />
                           Memuat mutasi...
                         </td>
                       </tr>
                     ) : movements.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="py-8 text-center text-slate-400">
+                        <td colSpan="5" className="py-8 text-center text-slate-500">
                           Belum ada catatan mutasi stok.
                         </td>
                       </tr>
@@ -1015,7 +1023,7 @@ export default function AdminInventory() {
 
                         return (
                           <tr key={mov.id} className="hover:bg-slate-50/70">
-                            <td className="py-2.5 px-3.5 text-slate-500 whitespace-nowrap text-[11px]">
+                            <td className="py-2.5 px-3.5 text-slate-500 whitespace-nowrap text-xs">
                               {dateFormatted}
                             </td>
                             <td className="py-2.5 px-3.5 font-bold text-slate-900">
@@ -1023,27 +1031,27 @@ export default function AdminInventory() {
                             </td>
                             <td className="py-2.5 px-3.5">
                               {mov.jenis === 'in' ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                   <TrendingUp className="w-2.5 h-2.5" /> Masuk (+{mov.jumlah})
                                 </span>
                               ) : mov.jenis === 'out' ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
                                   <TrendingDown className="w-2.5 h-2.5" /> Keluar (-{mov.jumlah})
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                   <SlidersHorizontal className="w-2.5 h-2.5" /> Opname ({mov.jumlah})
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3.5 font-mono text-[11px]">
-                              <span className="text-slate-400">{mov.stok_sebelum}</span>
+                            <td className="py-2.5 px-3.5 font-mono text-xs">
+                              <span className="text-slate-500">{mov.stok_sebelum}</span>
                               <span className="mx-1 text-slate-300">→</span>
                               <span className="font-bold text-slate-900">{mov.stok_sesudah} {mov.satuan}</span>
                             </td>
                             <td className="py-2.5 px-3.5">
-                              <p className="font-bold text-slate-900 text-[11px]">{mov.oleh || 'Sistem'}</p>
-                              <p className="text-[10px] text-slate-500 italic truncate max-w-xs">{mov.catatan}</p>
+                              <p className="font-bold text-slate-900 text-xs">{mov.oleh || 'Sistem'}</p>
+                              <p className="text-xs text-slate-500 italic truncate max-w-xs">{mov.catatan}</p>
                             </td>
                           </tr>
                         );

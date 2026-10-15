@@ -1,27 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useToast } from '../../components/ui/toast';
 import { cn } from '../../lib/utils';
-import { 
-  Tag, 
-  Clock, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Sparkles, 
-  Plus, 
-  Wrench, 
-  Wind, 
-  Edit3, 
-  Check, 
-  AlertCircle,
-  HelpCircle,
-  Layers,
-  X,
-  Loader2,
-  DollarSign
-} from 'lucide-react';
+import { Tag, Clock, ShieldCheck, Sparkles, Plus, Edit3, Check, Layers, X, Loader2 } from 'lucide-react';
 
 export default function AdminServices() {
   const { error: showError, success: showSuccess } = useToast();
@@ -175,23 +158,23 @@ export default function AdminServices() {
     };
   };
 
-  const fetchCatalog = async () => {
+  const fetchCatalog = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/service-catalog');
       const raw = res?.data?.data || res?.data || res;
       const list = Array.isArray(raw) && raw.length > 0 ? raw : defaultServicesMeta;
       setServices(list.map(enrichService));
-    } catch (err) {
+    } catch {
       setServices(defaultServicesMeta.map(enrichService));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCatalog();
-  }, []);
+  }, [fetchCatalog]);
 
   // Open Edit Modal
   const handleOpenEdit = (svc) => {
@@ -299,7 +282,7 @@ export default function AdminServices() {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -334,9 +317,9 @@ export default function AdminServices() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total Paket Servis</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Total Paket Servis</p>
             <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{services.length} Layanan</h3>
-            <p className="text-xs text-slate-400 mt-1 font-medium">Aktif di sistem booking</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Aktif di sistem booking</p>
           </div>
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-bold">
             <Tag className="w-6 h-6" />
@@ -345,7 +328,7 @@ export default function AdminServices() {
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-emerald-600 font-bold">Kategori Spesialis</p>
+            <p className="text-xs uppercase tracking-wider text-emerald-600 font-bold">Kategori Spesialis</p>
             <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
               {new Set(services.map(s => s.kategori)).size} Kategori
             </h3>
@@ -358,7 +341,7 @@ export default function AdminServices() {
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-indigo-600 font-bold">Sinkronisasi Tarif</p>
+            <p className="text-xs uppercase tracking-wider text-indigo-600 font-bold">Sinkronisasi Tarif</p>
             <h3 className="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">Real-Time</h3>
             <p className="text-xs text-indigo-700/80 mt-1 font-medium">Otomatis ke form order & web</p>
           </div>
@@ -395,14 +378,14 @@ export default function AdminServices() {
               {/* Header Badge */}
               <div className="flex items-center justify-between mb-3">
                 <span className={cn(
-                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  "px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
                   svc.isPopular 
                     ? "bg-blue-50 text-blue-700 border border-blue-200" 
                     : "bg-slate-100 text-slate-700 border border-slate-200"
                 )}>
                   {svc.badge || svc.kategori || 'Paket Servis'}
                 </span>
-                <span className="text-[11px] font-mono font-bold text-slate-400">
+                <span className="text-xs font-mono font-bold text-slate-500">
                   {svc.kode || `ID: #${svc.id}`}
                 </span>
               </div>
@@ -418,11 +401,11 @@ export default function AdminServices() {
               {/* Price Banner */}
               <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-baseline justify-between">
                 <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Tarif Satuan:</span>
+                  <span className="text-xs font-bold uppercase text-slate-500 block">Tarif Satuan:</span>
                   <span className="text-2xl font-black text-blue-700">
                     Rp {(svc.harga || 75000).toLocaleString('id-ID')}
                   </span>
-                  <span className="text-xs text-slate-400 font-medium"> / unit</span>
+                  <span className="text-xs text-slate-500 font-medium"> / unit</span>
                 </div>
                 <div className="text-right text-xs">
                   <div className="flex items-center gap-1 text-slate-600 font-bold justify-end">
@@ -439,7 +422,7 @@ export default function AdminServices() {
               {/* Scope Checklist */}
               {svc.scope && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
                     Cakupan Pengerjaan SOP:
                   </p>
                   <ul className="space-y-1.5">
@@ -456,7 +439,7 @@ export default function AdminServices() {
 
             {/* Card Footer Actions */}
             <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-400">
+              <span className="text-xs font-semibold text-slate-500">
                 Garansi Resmi Sah
               </span>
               <Button
@@ -489,13 +472,13 @@ export default function AdminServices() {
                 </div>
                 <div>
                   <h2 className="font-black text-sm text-white">Ubah Tarif & Durasi Layanan</h2>
-                  <p className="text-[11px] text-slate-400">ID: #{editingService.id} • {editingService.kode}</p>
+                  <p className="text-xs text-slate-500">ID: #{editingService.id} • {editingService.kode}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup modal"
               >
                 <X className="w-5 h-5" />
@@ -506,10 +489,11 @@ export default function AdminServices() {
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4 text-xs font-sans">
               
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-services-f1" className="block font-bold text-slate-700 mb-1">
                   Nama Layanan:
                 </label>
                 <Input
+                  id="admin-services-f1"
                   type="text"
                   value={editingService.nama_layanan}
                   onChange={(e) => setEditingService({ ...editingService, nama_layanan: e.target.value })}
@@ -521,12 +505,13 @@ export default function AdminServices() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f2" className="block font-bold text-slate-700 mb-1">
                     Tarif Baru (Rp):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rp</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">Rp</span>
                     <Input
+                      id="admin-services-f2"
                       type="number"
                       step="1000"
                       min="0"
@@ -536,17 +521,18 @@ export default function AdminServices() {
                       required
                     />
                   </div>
-                  <p className="text-[10px] text-blue-600 mt-1 font-mono font-semibold">
+                  <p className="text-xs text-blue-600 mt-1 font-mono font-semibold">
                     Preview: Rp {Number(editingService.harga || 0).toLocaleString('id-ID')}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f3" className="block font-bold text-slate-700 mb-1">
                     Durasi Pengerjaan:
                   </label>
                   <div className="relative">
                     <Input
+                      id="admin-services-f3"
                       type="number"
                       min="15"
                       max="480"
@@ -556,9 +542,9 @@ export default function AdminServices() {
                       className="rounded-xl border-slate-200 pr-14 h-10 font-bold text-slate-900"
                       required
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-xs">Menit</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium text-xs">Menit</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     SOP waktu kerja teknisi
                   </p>
                 </div>
@@ -566,10 +552,11 @@ export default function AdminServices() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f4" className="block font-bold text-slate-700 mb-1">
                     Kategori:
                   </label>
                   <select
+                    id="admin-services-f4"
                     value={editingService.kategori}
                     onChange={(e) => setEditingService({ ...editingService, kategori: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white h-10 px-3 text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
@@ -585,10 +572,11 @@ export default function AdminServices() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f5" className="block font-bold text-slate-700 mb-1">
                     Status Layanan:
                   </label>
                   <select
+                    id="admin-services-f5"
                     value={editingService.aktif ? 'aktif' : 'nonaktif'}
                     onChange={(e) => setEditingService({ ...editingService, aktif: e.target.value === 'aktif' })}
                     className="w-full rounded-xl border border-slate-200 bg-white h-10 px-3 text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
@@ -600,10 +588,11 @@ export default function AdminServices() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-services-f6" className="block font-bold text-slate-700 mb-1">
                   Deskripsi / Keterangan Layanan:
                 </label>
                 <textarea
+                  id="admin-services-f6"
                   rows="3"
                   value={editingService.deskripsi}
                   onChange={(e) => setEditingService({ ...editingService, deskripsi: e.target.value })}
@@ -654,13 +643,13 @@ export default function AdminServices() {
                 </div>
                 <div>
                   <h2 className="font-black text-sm text-white">Tambah Paket Servis Baru</h2>
-                  <p className="text-[11px] text-slate-400">Daftarkan paket servis ke katalog resmi perusahaan</p>
+                  <p className="text-xs text-slate-500">Daftarkan paket servis ke katalog resmi perusahaan</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup modal"
               >
                 <X className="w-5 h-5" />
@@ -672,10 +661,11 @@ export default function AdminServices() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f7" className="block font-bold text-slate-700 mb-1">
                     Kode Layanan:
                   </label>
                   <Input
+                    id="admin-services-f7"
                     type="text"
                     value={createForm.kode}
                     onChange={(e) => setCreateForm({ ...createForm, kode: e.target.value.toUpperCase() })}
@@ -686,10 +676,11 @@ export default function AdminServices() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f8" className="block font-bold text-slate-700 mb-1">
                     Kategori:
                   </label>
                   <select
+                    id="admin-services-f8"
                     value={createForm.kategori}
                     onChange={(e) => setCreateForm({ ...createForm, kategori: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-white h-10 px-3 text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
@@ -706,10 +697,11 @@ export default function AdminServices() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-services-f9" className="block font-bold text-slate-700 mb-1">
                   Nama Layanan:
                 </label>
                 <Input
+                  id="admin-services-f9"
                   type="text"
                   value={createForm.nama_layanan}
                   onChange={(e) => setCreateForm({ ...createForm, nama_layanan: e.target.value })}
@@ -721,12 +713,13 @@ export default function AdminServices() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f10" className="block font-bold text-slate-700 mb-1">
                     Tarif Satuan (Rp):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Rp</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">Rp</span>
                     <Input
+                      id="admin-services-f10"
                       type="number"
                       step="1000"
                       min="0"
@@ -739,10 +732,11 @@ export default function AdminServices() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-services-f11" className="block font-bold text-slate-700 mb-1">
                     Durasi (Menit):
                   </label>
                   <Input
+                    id="admin-services-f11"
                     type="number"
                     min="15"
                     max="480"
@@ -756,10 +750,11 @@ export default function AdminServices() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
+                <label htmlFor="admin-services-f12" className="block font-bold text-slate-700 mb-1">
                   Deskripsi / Keterangan SOP:
                 </label>
                 <textarea
+                  id="admin-services-f12"
                   rows="3"
                   value={createForm.deskripsi}
                   onChange={(e) => setCreateForm({ ...createForm, deskripsi: e.target.value })}

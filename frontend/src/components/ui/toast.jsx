@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-// Toast types
+// Toast types with static Tailwind classes for Tailwind CSS v4 compatibility
 const TOAST_TYPES = {
-  success: { icon: CheckCircle, color: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50' },
-  error: { icon: XCircle, color: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50' },
-  warning: { icon: AlertTriangle, color: 'bg-yellow-500', text: 'text-yellow-600', bg: 'bg-yellow-50' },
-  info: { icon: Info, color: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50' },
+  success: { icon: CheckCircle, color: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', hoverBg: 'hover:bg-green-100' },
+  error: { icon: XCircle, color: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', hoverBg: 'hover:bg-red-100' },
+  warning: { icon: AlertTriangle, color: 'bg-yellow-500', text: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', hoverBg: 'hover:bg-yellow-100' },
+  info: { icon: Info, color: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', hoverBg: 'hover:bg-blue-100' },
 };
 
 // Toast context
@@ -44,8 +44,12 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ addToast, success, error, warning, info, dismissToast }}>
       {children}
-      {/* Toast container */}
-      <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 sm:w-96">
+      {/* Toast container dengan aria-live untuk aksesibilitas */}
+      <div 
+        className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 sm:w-96"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {toasts.map(toast => (
           <Toast key={toast.id} toast={toast} onDismiss={() => dismissToast(toast.id)} />
         ))}
@@ -65,7 +69,7 @@ export function useToast() {
 // Individual Toast component
 function Toast({ toast, onDismiss }) {
   const Icon = TOAST_TYPES[toast.type]?.icon || Info;
-  const { color, text, bg } = TOAST_TYPES[toast.type] || TOAST_TYPES.info;
+  const { color, text, bg, border, hoverBg } = TOAST_TYPES[toast.type] || TOAST_TYPES.info;
 
   useEffect(() => {
     // Start exit animation before removing
@@ -75,16 +79,17 @@ function Toast({ toast, onDismiss }) {
         element.classList.add('animate-out', 'fade-out', 'slide-out-to-right');
       }
     }, toast.duration - 500);
-    
+
     return () => clearTimeout(timer);
   }, [toast.id, toast.duration]);
 
   return (
-    <div 
+    <div
       id={`toast-${toast.id}`}
       className={cn(
         "animate-in slide-in-from-right fade-in p-4 rounded-xl shadow-lg border flex items-start gap-3",
-        bg, "border-" + color.replace('bg-', '').replace('-500', '-200'),
+        bg,
+        border,
         "w-full"
       )}
       role="alert"
@@ -95,9 +100,9 @@ function Toast({ toast, onDismiss }) {
       <div className="flex-1">
         <p className={cn("text-sm font-medium", text)}>{toast.message}</p>
       </div>
-      <button 
+      <button
         onClick={onDismiss}
-        className={cn("p-1 rounded-lg hover:" + bg.replace('bg-', 'hover:bg-'), "transition-colors")}
+        className={cn("p-1 rounded-lg transition-colors", hoverBg)}
         aria-label="Tutup"
       >
         <X className={cn("w-4 h-4", text)} />

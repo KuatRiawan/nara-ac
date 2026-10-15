@@ -4,26 +4,7 @@
  * Used by both BottomNavigation (mobile) and Sidebar (desktop)
  */
 
-import {
-  LayoutDashboard,
-  Calendar as CalendarIcon,
-  CalendarCheck,
-  User,
-  Users,
-  Wrench,
-  Settings,
-  Bell,
-  MoreHorizontal,
-  ClipboardList,
-  History,
-  Package,
-  BarChart3,
-  Bot,
-  AirVent,
-  Receipt,
-  Star,
-  Tag
-} from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, CalendarCheck, User, Users, Wrench, Settings, MoreHorizontal, ClipboardList, History, Package, Bot, AirVent, Receipt, Star, Tag } from 'lucide-react';
 
 // Admin Navigation Items
 export const adminNavItems = [
@@ -210,4 +191,175 @@ export const isActivePath = (currentPath, targetPath) => {
     return currentPath === '/technician/dashboard' || currentPath === '/technician/dashboard/';
   }
   return currentPath.startsWith(targetPath);
+};
+
+// Breadcrumb configuration - maps paths to breadcrumb items
+export const getBreadcrumbItems = (pathname, role) => {
+  const items = [];
+  
+  // Helper to find nav item by path
+  const findNavItem = (path) => {
+    const navItems = role === 'admin' ? adminNavItems : technicianNavItems;
+    return navItems.find(item => {
+      if (item.path === path) return true;
+      if (path.startsWith(item.path + '/')) return true;
+      return false;
+    });
+  };
+  
+  // Helper to check if path is a direct child
+  const isChildPath = (parentPath, childPath) => {
+    if (!childPath.startsWith(parentPath)) return false;
+    const remaining = childPath.slice(parentPath.length);
+    return remaining === '' || remaining.startsWith('/');
+  };
+  
+  // Build breadcrumb trail
+  const parts = pathname.split('/').filter(p => p && p !== 'admin' && p !== 'technician');
+  
+  // Always start with dashboard/beranda
+  const basePath = role === 'admin' ? '/admin' : '/technician';
+  const baseItem = role === 'admin' ? adminNavItems[0] : technicianNavItems[0];
+  
+  if (pathname === basePath || pathname === `${basePath}/`) {
+    return [{ label: baseItem.name, to: basePath }];
+  }
+  
+  // Start with home
+  items.push({ label: 'Beranda', to: basePath });
+  
+  // Add path segments
+  let currentPath = basePath;
+  for (let i = 0; i < parts.length; i++) {
+    currentPath += '/' + parts[i];
+    const navItem = findNavItem(currentPath);
+    if (navItem) {
+      items.push({ label: navItem.name, to: currentPath });
+    } else {
+      // Try to find a matching nav item
+      const matchingItem = role === 'admin' ? adminNavItems : technicianNavItems;
+      const exactMatch = matchingItem.find(item => item.path === currentPath);
+      if (exactMatch) {
+        items.push({ label: exactMatch.name, to: currentPath });
+      } else {
+        // Use the path segment as label
+        items.push({ label: parts[i].replace(/-/g, ' '), to: currentPath });
+      }
+    }
+  }
+  
+  // Special cases for admin paths
+  if (role === 'admin') {
+    if (pathname.startsWith('/admin/bookings')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Booking', to: '/admin/bookings' }
+      ];
+    }
+    if (pathname.startsWith('/admin/schedule')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Jadwal Servis', to: '/admin/schedule' }
+      ];
+    }
+    if (pathname.startsWith('/admin/customers')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Pelanggan', to: '/admin/customers' }
+      ];
+    }
+    if (pathname.startsWith('/admin/ac-units')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Unit AC Pelanggan', to: '/admin/ac-units' }
+      ];
+    }
+    if (pathname.startsWith('/admin/technicians')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Teknisi Lapangan', to: '/admin/technicians' }
+      ];
+    }
+    if (pathname.startsWith('/admin/invoices')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'E-Invoice & Bayar', to: '/admin/invoices' }
+      ];
+    }
+    if (pathname.startsWith('/admin/services')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Katalog Layanan', to: '/admin/services' }
+      ];
+    }
+    if (pathname.startsWith('/admin/feedback')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Feedback & Ulasan', to: '/admin/feedback' }
+      ];
+    }
+    if (pathname.startsWith('/admin/inventory')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Inventory Sparepart', to: '/admin/inventory' }
+      ];
+    }
+    if (pathname.startsWith('/admin/reports')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Log Aktivitas', to: '/admin/reports' }
+      ];
+    }
+    if (pathname.startsWith('/admin/analytics')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'AI Analitik', to: '/admin/analytics' }
+      ];
+    }
+    if (pathname.startsWith('/admin/settings') || pathname.startsWith('/admin/profile')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Pengaturan & Profil', to: '/admin/settings' }
+      ];
+    }
+    if (pathname.startsWith('/admin/notifications')) {
+      return [
+        { label: 'Beranda', to: '/admin' },
+        { label: 'Pusat Notifikasi', to: '/admin/notifications' }
+      ];
+    }
+  }
+  
+  // Special cases for technician paths
+  if (role === 'technician') {
+    if (pathname.startsWith('/technician/dashboard')) {
+      return [{ label: 'Beranda', to: '/technician' }];
+    }
+    if (pathname.startsWith('/technician/jobs')) {
+      return [
+        { label: 'Beranda', to: '/technician/dashboard' },
+        { label: 'Tugas', to: '/technician/jobs' }
+      ];
+    }
+    if (pathname.startsWith('/technician/schedule')) {
+      return [
+        { label: 'Beranda', to: '/technician/dashboard' },
+        { label: 'Jadwal', to: '/technician/schedule' }
+      ];
+    }
+    if (pathname.startsWith('/technician/history')) {
+      return [
+        { label: 'Beranda', to: '/technician/dashboard' },
+        { label: 'Riwayat', to: '/technician/history' }
+      ];
+    }
+    if (pathname.startsWith('/technician/profile')) {
+      return [
+        { label: 'Beranda', to: '/technician/dashboard' },
+        { label: 'Profil', to: '/technician/profile' }
+      ];
+    }
+  }
+  
+  return items.length > 0 ? items : [{ label: 'Beranda', to: basePath }];
 };

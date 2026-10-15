@@ -5,11 +5,13 @@ import { CalendarCheck, Phone, ArrowRight, X, Bot } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import ChatbotWidget from '../ChatbotWidget';
+import { useBusinessProfile, buildWhatsAppUrl } from '../../hooks/useBusinessProfile';
 
 export default function StickyBottomBooking() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { whatsappNumber } = useBusinessProfile();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,7 +62,7 @@ export default function StickyBottomBooking() {
                   <p className="text-xs font-bold text-white truncate">
                     AC Kurang Dingin?
                   </p>
-                  <p className="text-[10px] sm:text-[11px] text-slate-300 truncate">
+                  <p className="text-xs sm:text-xs text-slate-300 truncate">
                     Slot teknisi tersedia hari ini
                   </p>
                 </div>
@@ -86,13 +88,13 @@ export default function StickyBottomBooking() {
 
                 {/* Direct WhatsApp Call */}
                 <a
-                  href="https://wa.me/6281234567890?text=Halo%20NARA%20AC,%20saya%20ingin%20konsultasi%20jadwal%20servis%20AC"
-                  target="_blank"
-                  rel="noreferrer"
+                  href={buildWhatsAppUrl(whatsappNumber, 'Halo NARA AC, saya ingin konsultasi jadwal servis AC')}
+                  target="_blank" rel="noopener noreferrer"
                   className="w-9 h-9 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 flex items-center justify-center transition-colors cursor-pointer"
                   title="Chat WhatsApp"
                 >
                   <Phone className="w-4 h-4" />
+<span className="sr-only"> (buka di tab baru)</span>
                 </a>
 
                 {/* Booking Service Direct Link */}
@@ -111,7 +113,7 @@ export default function StickyBottomBooking() {
                 <button
                   type="button"
                   onClick={() => setIsMinimized(true)}
-                  className="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer ml-0.5"
+                  className="w-7 h-7 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer ml-0.5"
                   aria-label="Kecilkan bar"
                   title="Kecilkan bar"
                 >

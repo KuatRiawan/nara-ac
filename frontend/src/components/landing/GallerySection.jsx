@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, X, CheckCircle2, Sparkles, Camera } from 'lucide-react';
+import { Eye, X, CheckCircle2, Sparkles, Camera, ChevronLeft, ChevronRight } from 'lucide-react';
+
 
 const easeOutCubic = [0.16, 1, 0.3, 1];
 
 export default function GallerySection() {
   const [activePhoto, setActivePhoto] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const galleryItems = useMemo(() => [
     {
@@ -52,8 +54,32 @@ export default function GallerySection() {
     }
   ], []);
 
+  const handleOpenPhoto = (item, index) => {
+    setActiveIndex(index);
+    setActivePhoto(item);
+  };
+
+  const handleClosePhoto = () => {
+    setActivePhoto(null);
+  };
+
+  const handlePrevPhoto = (e) => {
+    e.stopPropagation();
+    setActiveIndex(prev => (prev - 1 + galleryItems.length) % galleryItems.length);
+    setActivePhoto(galleryItems[activeIndex === 0 ? galleryItems.length - 1 : activeIndex - 1]);
+  };
+
+  const handleNextPhoto = (e) => {
+    e.stopPropagation();
+    setActiveIndex(prev => (prev + 1) % galleryItems.length);
+    setActivePhoto(galleryItems[(activeIndex + 1) % galleryItems.length]);
+  };
+
   return (
-    <section id="galeri" className="py-24 bg-sky-50/40 text-slate-900 relative overflow-hidden border-t border-sky-100/60">
+    <section 
+      id="galeri" 
+      className="py-24 bg-white text-slate-900 relative overflow-hidden border-t border-slate-200/60"
+    >
       {/* Subtle background glow */}
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-10 w-80 h-80 bg-sky-200/30 rounded-full blur-[100px] pointer-events-none" />
@@ -86,8 +112,8 @@ export default function GallerySection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.08, duration: 0.6, ease: easeOutCubic }}
               viewport={{ once: true, margin: '-50px' }}
-              onClick={() => setActivePhoto(item)}
-              className="group relative bg-white rounded-3xl overflow-hidden border border-sky-100 hover:border-blue-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col hover:-translate-y-1"
+              onClick={() => handleOpenPhoto(item, index)}
+              className="group relative bg-white rounded-3xl overflow-hidden border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-xl shadow-blue-500/5 transition-all duration-300 cursor-pointer flex flex-col hover:-translate-y-1"
             >
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
                 <img
@@ -98,11 +124,11 @@ export default function GallerySection() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition-opacity" />
                 
-                <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-sky-100 shadow-md">
+                <span className="absolute top-4 left-4 inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-md text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-sky-100 shadow-md">
                   <Sparkles className="w-3 h-3 text-blue-500" /> {item.tag}
                 </span>
 
-                <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md">
+                <div className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-white/95 backdrop-blur-md flex items-center justify-center text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-md">
                   <Eye className="w-4 h-4" />
                 </div>
               </div>
@@ -116,7 +142,7 @@ export default function GallerySection() {
                     {item.desc}
                   </p>
                 </div>
-                <div className="mt-4 pt-4 border-t border-sky-100 flex items-center gap-2 text-xs text-blue-600 font-semibold">
+                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-blue-600 font-semibold">
                   <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /> Standar Dokumentasi Foto NARA AC
                 </div>
               </div>
@@ -124,43 +150,81 @@ export default function GallerySection() {
           ))}
         </div>
 
-        {/* Modal Lightbox */}
+        {/* Modal Lightbox - Light Blue Fresh Theme */}
         <AnimatePresence>
           {activePhoto && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setActivePhoto(null)}
-              className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+              onClick={handleClosePhoto}
+              className="fixed inset-0 z-50 bg-sky-50/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Pratinjau foto galeri"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="max-w-3xl w-full bg-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl relative"
+                className="max-w-3xl w-full bg-white rounded-3xl overflow-hidden border border-sky-200 shadow-2xl shadow-sky-500/10 relative"
               >
+                {/* Navigation - Previous */}
+                {galleryItems.length > 1 && (
+                  <button
+                    onClick={handlePrevPhoto}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/95 backdrop-blur-md text-sky-700 hover:bg-sky-100 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer shadow-lg ring-2 ring-white/50"
+                    aria-label="Foto sebelumnya"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                )}
+
+                {/* Navigation - Next */}
+                {galleryItems.length > 1 && (
+                  <button
+                    onClick={handleNextPhoto}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-white/95 backdrop-blur-md text-sky-700 hover:bg-sky-100 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer shadow-lg ring-2 ring-white/50"
+                    aria-label="Foto selanjutnya"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                )}
+
+                {/* Close Button */}
                 <button
-                  onClick={() => setActivePhoto(null)}
-                  className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-950/80 text-white hover:bg-white hover:text-slate-900 transition-colors flex items-center justify-center cursor-pointer shadow-lg"
-                  aria-label="Tutup preview"
+                  onClick={handleClosePhoto}
+                  className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/95 backdrop-blur-md text-sky-700 hover:bg-sky-100 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer shadow-lg ring-2 ring-white/50"
+                  aria-label="Tutup pratinjau"
                 >
                   <X className="w-5 h-5" />
                 </button>
-                <div className="relative aspect-[16/10] bg-black">
+
+                {/* Image */}
+                <div className="relative aspect-[16/10] bg-sky-50">
                   <img
                     src={activePhoto.src}
                     alt={activePhoto.title}
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain p-4 sm:p-6"
                   />
                 </div>
-                <div className="p-6 bg-slate-900">
-                  <span className="inline-block text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
+
+                {/* Caption */}
+                <div className="p-6 bg-white border-t border-sky-100">
+                  <span className="inline-block text-sky-600 text-xs font-bold uppercase tracking-wider mb-2">
                     {activePhoto.tag}
                   </span>
-                  <h3 className="text-xl font-bold text-white mb-2">{activePhoto.title}</h3>
-                  <p className="text-slate-300 text-sm leading-relaxed">{activePhoto.desc}</p>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">{activePhoto.title}</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">{activePhoto.desc}</p>
+                  
+                  {/* Counter */}
+                  {galleryItems.length > 1 && (
+                    <div className="mt-4 pt-4 border-t border-sky-100 flex items-center justify-between text-xs text-slate-500">
+                      <span>{activeIndex + 1} dari {galleryItems.length}</span>
+                      <span className="font-semibold text-sky-600">Tekan panah kiri/kanan untuk navigasi</span>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>

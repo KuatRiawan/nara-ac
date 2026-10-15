@@ -1,10 +1,10 @@
-import { useState, useEffect, useContext, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api';
 import { AuthContext } from '../AuthContext';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
+
+
 import { Bell, X } from 'lucide-react';
 import { useToast } from '../components/ui/toast';
 import { getErrorMessage } from '../utils/errors';
@@ -28,7 +28,7 @@ import AdminSettings from './admin/AdminSettings';
 
 
 export default function AdminDashboard() {
-  const { error: showError } = useToast();
+  const { error: showError, success: showSuccess } = useToast();
   const { user, loading: authLoading } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,23 +38,6 @@ export default function AdminDashboard() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
 
-  // Fetch unread notifications count for header badge
-  const fetchUnreadNotifs = useCallback(async () => {
-    try {
-      const res = await api.get('/admin/notifications?unread=true&limit=1');
-      const total = res.data?.meta?.total ?? 0;
-      setUnreadNotifs(total);
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUnreadNotifs();
-    const interval = setInterval(fetchUnreadNotifs, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUnreadNotifs]);
-  
   // Ref to track if component is mounted and current request
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef(null);
@@ -70,6 +53,60 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  // Fetch unread notifications count for header badge
+  const fetchUnreadNotifs = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/notifications?unread=true&limit=1');
+      const total = res?.meta?.total ?? res?.data?.meta?.total ?? (Array.isArray(res?.data) ? res.data.length : (Array.isArray(res) ? res.length : 0));
+      setUnreadNotifs(total);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Fetch bookings for auto-refresh polling
+  const fetchBookings = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    try {
+      // Fetch with larger limit to get all bookings for client-side pagination
+      const res = await api.get('/bookings', { params: { limit: 200 } });
+      const rawBookings = res?.data?.data || res?.data || res;
+      const finalBookings = Array.isArray(rawBookings) ? rawBookings : (rawBookings?.data && Array.isArray(rawBookings.data) ? rawBookings.data : []);
+      if (isMountedRef.current) {
+        setBookings(finalBookings);
+      }
+    } catch (err) {
+      // Silently ignore polling errors
+      console.debug('Polling bookings failed:', err);
+    }
+  }, []);
+
+  const refreshBookings = fetchBookings;
+
+  useEffect(() => {
+    fetchUnreadNotifs();
+    const notifInterval = setInterval(fetchUnreadNotifs, 15000);
+    return () => clearInterval(notifInterval);
+  }, [fetchUnreadNotifs]);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchBookings();
+    // Poll for new bookings every 15 seconds
+    const bookingInterval = setInterval(fetchBookings, 15000);
+    return () => clearInterval(bookingInterval);
+  }, [fetchBookings]);
+
+  // Global event listener for instant synchronization across all components
+  useEffect(() => {
+    const handleGlobalUpdate = () => {
+      fetchBookings();
+      fetchUnreadNotifs();
+    };
+    window.addEventListener('nara-booking-updated', handleGlobalUpdate);
+    return () => window.removeEventListener('nara-booking-updated', handleGlobalUpdate);
+  }, [fetchBookings, fetchUnreadNotifs]);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -80,7 +117,7 @@ export default function AdminDashboard() {
       if (user.role === 'technician') {
         navigate('/technician/dashboard');
       } else if (user.role === 'customer') {
-        navigate('/customer');
+        navigate('/customer/dashboard');
       } else {
         navigate('/login');
       }
@@ -97,19 +134,13 @@ export default function AdminDashboard() {
       abortControllerRef.current = controller;
       
       try {
-        const [resBookings, resTechs] = await Promise.all([
-          api.get('/bookings', { signal: controller.signal }),
-          api.get('/technicians', { signal: controller.signal })
-        ]);
-        
-        const rawBookings = resBookings?.data?.data || resBookings?.data || resBookings;
-        const finalBookings = Array.isArray(rawBookings) ? rawBookings : (rawBookings?.data && Array.isArray(rawBookings.data) ? rawBookings.data : []);
+        // Only fetch technicians here; bookings are fetched via polling
+        const resTechs = await api.get('/technicians', { signal: controller.signal });
         
         const rawTechs = resTechs?.data?.data || resTechs?.data || resTechs;
         const finalTechs = Array.isArray(rawTechs) ? rawTechs : (rawTechs?.data && Array.isArray(rawTechs.data) ? rawTechs.data : []);
 
         if (isMountedRef.current) {
-          setBookings(finalBookings);
           setTechnicians(finalTechs);
         }
       } catch (err) {
@@ -131,16 +162,27 @@ export default function AdminDashboard() {
 
   const handleAssign = useCallback(async (id, teknisi_id) => {
     try {
-      await api.patch(`/admin/bookings/${id}/assign`, { teknisi_id }); 
+      const res = await api.patch(`/admin/bookings/${id}/assign`, { teknisi_id }); 
       const tech = technicians.find(t => t.id === teknisi_id);
+      const updatedBooking = res?.data || res;
       if (isMountedRef.current) {
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, teknisi_id: teknisi_id, teknisi: tech ? { id: tech.id, nama: tech.nama } : null } : b));
+        setBookings(prev => prev.map(b => b.id === id ? { 
+          ...b, 
+          ...(updatedBooking && updatedBooking.id ? updatedBooking : {}),
+          teknisi_id: teknisi_id, 
+          teknisi: tech ? { id: tech.id, nama: tech.nama } : (updatedBooking?.teknisi || null) 
+        } : b));
       }
+      showSuccess(`Teknisi ${tech?.nama || 'terpilih'} berhasil ditugaskan.`);
+      // Refresh background data secara sinkron
+      refreshBookings();
+      fetchUnreadNotifs();
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
       showError(msg);
     }
-  }, [technicians, showError]);
+  }, [technicians, showError, showSuccess, refreshBookings, fetchUnreadNotifs]);
 
   const handleStatus = useCallback(async (id, status) => {
     try {
@@ -154,20 +196,7 @@ export default function AdminDashboard() {
     }
   }, [showError]);
 
-  const refreshBookings = useCallback(async () => {
-    try {
-      const res = await api.get('/bookings');
-      const raw = res?.data?.data || res?.data || res;
-      const finalBookings = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
-      if (isMountedRef.current) {
-        setBookings(finalBookings);
-      }
-    } catch (err) {
-      console.error('Failed to refresh bookings', err);
-    }
-  }, []);
-
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center text-gray-500 font-bold">Memuat sesi...</div>;
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-bold">Memuat sesi...</div>;
   if (!user || user.role !== 'admin') return null;
 
   const isAdmin = user.role === 'admin';
@@ -185,7 +214,7 @@ export default function AdminDashboard() {
           <Route path="/services" element={<AdminServices />} />
           <Route path="/feedback" element={<AdminFeedback />} />
           <Route path="/inventory" element={<AdminInventory />} />
-          <Route path="/schedule" element={<AdminSchedule />} />
+          <Route path="/schedule" element={<AdminSchedule onBookingAssigned={refreshBookings} />} />
           <Route path="/reports" element={<AdminReports />} />
           <Route path="/analytics" element={<AdminAnalytics />} />
           <Route path="/settings" element={<AdminSettings />} />
@@ -218,17 +247,17 @@ export default function AdminDashboard() {
                   <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
                     <span>Pusat Notifikasi</span>
                     {unreadNotifs > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200">
                         {unreadNotifs} Baru
                       </span>
                     )}
                   </h3>
-                  <p className="text-xs text-slate-400">Pemberitahuan aktivitas & operasional</p>
+                  <p className="text-xs text-slate-500">Pemberitahuan aktivitas & operasional</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsNotifOpen(false)} 
-                className="p-2 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer text-slate-400 hover:text-slate-700"
+                className="p-2 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer text-slate-500 hover:text-slate-700"
                 aria-label="Tutup Pusat Notifikasi"
               >
                 <X className="w-5 h-5" />

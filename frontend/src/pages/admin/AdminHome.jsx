@@ -1,27 +1,17 @@
-import { useState, useMemo, useContext } from 'react';
+import { useState, useMemo, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../AuthContext';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { cn } from '../../lib/utils';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell, 
-  BarChart, Bar, Legend 
-} from 'recharts';
-import { 
-  LayoutDashboard, Wrench, Calendar as CalendarIcon, User, 
-  Bell, AlertTriangle, CheckCircle, CheckCircle2, Clock, ArrowRight, X,
-  Receipt, Tag, Star, CreditCard, TrendingUp, Users, Sparkles,
-  ShieldCheck, ArrowUpRight, Search, Filter, Check, Phone, MapPin,
-  ExternalLink, ChevronRight, Activity, CalendarDays, Plus
-} from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Wrench, Calendar as CalendarIcon, AlertTriangle, CheckCircle, CheckCircle2, Clock, ArrowRight, X, Receipt, CreditCard, ShieldCheck, Search, Plus } from 'lucide-react';
 import AdminCreateBookingModal from '../../components/admin/AdminCreateBookingModal';
 
-export default function AdminHome({ bookings = [], technicians = [], loading = false, handleStatus, handleAssign, isAdmin, onBookingCreated }) {
+export default function AdminHome({ bookings = [], technicians = [], loading = false, handleStatus: _handleStatus, handleAssign, isAdmin: _isAdmin, onBookingCreated }) {
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user: _user } = useContext(AuthContext);
 
   // Search & Filter state for Today's Operations
   const [searchToday, setSearchToday] = useState('');
@@ -37,7 +27,15 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
     return `${year}-${month}-${day}`;
   };
 
-  const todayStr = useMemo(() => getLocalDateStr(), []);
+  const isDateToday = (dInput) => {
+    if (!dInput) return false;
+    const d = new Date(dInput);
+    if (isNaN(d.getTime())) return false;
+    const now = new Date();
+    return d.getDate() === now.getDate() &&
+           d.getMonth() === now.getMonth() &&
+           d.getFullYear() === now.getFullYear();
+  };
   
   const todayFormatted = useMemo(() => {
     return new Date().toLocaleDateString('id-ID', {
@@ -49,7 +47,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
   }, []);
 
   // Helper fleksibel untuk mengecek & mendapatkan data teknisi yang ditugaskan
-  const getAssignedTechnician = (b) => {
+  const getAssignedTechnician = useCallback((b) => {
     if (!b) return null;
     if (b.teknisi && typeof b.teknisi === 'object' && b.teknisi.nama) {
       return { id: b.teknisi.id || b.teknisi_id, nama: b.teknisi.nama };
@@ -58,7 +56,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
     if (techId) {
       const found = technicians.find(t => t.id === Number(techId));
       if (found) return { id: found.id, nama: found.nama };
-      return { id: techId, nama: b.teknisi_nama || `Teknisi #${techId}` };
+      return { id: Number(techId), nama: b.teknisi_nama || `Teknisi #${techId}` };
     }
     if (typeof b.teknisi === 'string' && b.teknisi.trim() !== '') {
       return { id: null, nama: b.teknisi };
@@ -67,17 +65,17 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
       return { id: null, nama: b.teknisi_nama };
     }
     return null;
-  };
+  }, [technicians]);
 
   const todayBookings = useMemo(() => {
-    return bookings.filter(b => b.jadwal_mulai && b.jadwal_mulai.startsWith(todayStr));
-  }, [bookings, todayStr]);
+    return bookings.filter(b => b.jadwal_mulai && isDateToday(b.jadwal_mulai));
+  }, [bookings]);
 
   const actionRequired = useMemo(() => {
     return bookings.filter(b => 
       (!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed'
     ).slice(0, 6);
-  }, [bookings, technicians]);
+  }, [bookings, getAssignedTechnician]);
 
   // Derived KPI and status stats
   const bookingStats = useMemo(() => {
@@ -91,7 +89,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
       if (counts[b.status] !== undefined) counts[b.status]++;
       
       // Count for today
-      if (b.jadwal_mulai && b.jadwal_mulai.startsWith(todayStr)) {
+      if (b.jadwal_mulai && isDateToday(b.jadwal_mulai)) {
         todayBookingsCount++;
         if (b.status === 'done') doneTodayCount++;
         if ((!getAssignedTechnician(b) && b.status === 'scheduled') || b.status === 'delayed') {
@@ -117,7 +115,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
       todayOmzet,
       counts
     };
-  }, [bookings, todayStr, technicians]);
+  }, [bookings, getAssignedTechnician]);
 
   // Filtered Today Bookings
   const filteredTodayBookings = useMemo(() => {
@@ -141,7 +139,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
       }
       return true;
     });
-  }, [todayBookings, searchToday, filterTodayStatus, technicians]);
+  }, [todayBookings, searchToday, filterTodayStatus, getAssignedTechnician]);
 
   // Derived charts data
   const statusData = useMemo(() => {
@@ -179,25 +177,44 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
         name: t.nama || 'Teknisi',
         shortName: (t.nama || '').split(' ')[0] || 'Teknisi',
         jobs: 0,
+        activeTotal: 0,
         maxJobs: 4 // Kapasitas optimal harian per teknisi
       };
     });
 
-    todayBookings.forEach(b => {
+    // Hitung seluruh beban penugasan aktif (b.status scheduled, on process, delayed)
+    bookings.forEach(b => {
       const assigned = getAssignedTechnician(b);
       if (assigned && assigned.id && workload[assigned.id]) {
-        workload[assigned.id].jobs++;
+        if (b.status !== 'cancelled' && b.status !== 'done') {
+          workload[assigned.id].activeTotal++;
+        }
       }
     });
 
-    return Object.values(workload).sort((a, b) => b.jobs - a.jobs);
-  }, [todayBookings, technicians]);
+    // Hitung beban hari ini
+    todayBookings.forEach(b => {
+      const assigned = getAssignedTechnician(b);
+      if (assigned && assigned.id && workload[assigned.id]) {
+        if (b.status !== 'cancelled') {
+          workload[assigned.id].jobs++;
+        }
+      }
+    });
+
+    return Object.values(workload).sort((a, b) => b.jobs - a.jobs || b.activeTotal - a.activeTotal);
+  }, [todayBookings, bookings, technicians, getAssignedTechnician]);
 
   const handleQuickAssignSubmit = async (bookingId) => {
     if (!selectedTechForAssign) return;
-    await handleAssign(bookingId, Number(selectedTechForAssign));
+    const techId = Number(selectedTechForAssign);
     setAssigningId(null);
     setSelectedTechForAssign('');
+    await handleAssign(bookingId, techId);
+    if (onBookingCreated) {
+      onBookingCreated();
+    }
+    window.dispatchEvent(new CustomEvent('nara-booking-updated'));
   };
 
   return (
@@ -247,16 +264,16 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex justify-between items-start mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Booking Hari Ini</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Booking Hari Ini</span>
             <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold group-hover:bg-blue-600 group-hover:text-white transition-colors">
               <CalendarIcon className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {bookingStats.todayBookings} <span className="text-xs font-semibold text-slate-400">Tiket</span>
+              {bookingStats.todayBookings} <span className="text-xs font-semibold text-slate-500">Tiket</span>
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-medium mt-1">
               Jadwal servis terdaftar
             </p>
           </div>
@@ -268,16 +285,16 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex justify-between items-start mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">On Process</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-sky-600">On Process</span>
             <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold group-hover:bg-sky-600 group-hover:text-white transition-colors">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-sky-600 tracking-tight">
-              {bookingStats.onProcess} <span className="text-xs font-semibold text-slate-400">Tiket</span>
+              {bookingStats.onProcess} <span className="text-xs font-semibold text-slate-500">Tiket</span>
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-medium mt-1">
               Sedang dikerjakan teknisi
             </p>
           </div>
@@ -289,16 +306,16 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex justify-between items-start mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Selesai Hari Ini</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Selesai Hari Ini</span>
             <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold group-hover:bg-emerald-600 group-hover:text-white transition-colors">
               <CheckCircle className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
-              {bookingStats.doneToday} <span className="text-xs font-semibold text-slate-400">Tiket</span>
+              {bookingStats.doneToday} <span className="text-xs font-semibold text-slate-500">Tiket</span>
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-medium mt-1">
               Pengerjaan tuntas & beres
             </p>
           </div>
@@ -316,8 +333,8 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
         >
           <div className="flex justify-between items-start mb-3">
             <span className={cn(
-              "text-[11px] font-bold uppercase tracking-wider",
-              bookingStats.pendingAssign > 0 ? "text-rose-600" : "text-slate-400"
+              "text-xs font-bold uppercase tracking-wider",
+              bookingStats.pendingAssign > 0 ? "text-rose-600" : "text-slate-500"
             )}>
               Belum Ditugaskan
             </span>
@@ -333,9 +350,9 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
               "text-2xl sm:text-3xl font-black tracking-tight",
               bookingStats.pendingAssign > 0 ? "text-rose-600" : "text-slate-900"
             )}>
-              {bookingStats.pendingAssign} <span className="text-xs font-semibold text-slate-400">Tiket</span>
+              {bookingStats.pendingAssign} <span className="text-xs font-semibold text-slate-500">Tiket</span>
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-medium mt-1">
               {bookingStats.pendingAssign > 0 ? "Memerlukan alokasi!" : "Semua tiket bertugas"}
             </p>
           </div>
@@ -347,7 +364,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           className="col-span-2 md:col-span-1 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex justify-between items-start mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Estimasi Nilai Servis</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Estimasi Nilai Servis</span>
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold group-hover:bg-indigo-600 group-hover:text-white transition-colors">
               <CreditCard className="w-4 h-4" />
             </div>
@@ -356,7 +373,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
             <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-mono">
               Rp {bookingStats.todayOmzet.toLocaleString('id-ID')}
             </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
+            <p className="text-xs text-slate-500 font-medium mt-1">
               Akumulasi tiket hari ini
             </p>
           </div>
@@ -486,7 +503,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
             {/* Progress Bars for Technicians */}
             <div className="space-y-3 overflow-y-auto max-h-[210px] pr-1">
               {techWorkload.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400 font-semibold">
+                <div className="text-center py-8 text-xs text-slate-500 font-semibold">
                   Belum ada data teknisi terdaftar.
                 </div>
               ) : (
@@ -496,14 +513,21 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                     <div key={tech.id} className="space-y-1.5 p-2 rounded-2xl hover:bg-slate-50 transition-colors">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-700 font-black text-[11px] flex items-center justify-center shrink-0 border border-blue-100">
+                          <div className="w-7 h-7 rounded-xl bg-blue-50 text-blue-700 font-black text-xs flex items-center justify-center shrink-0 border border-blue-100">
                             {tech.name.charAt(0)}
                           </div>
                           <span className="font-bold text-slate-800">{tech.name}</span>
                         </div>
-                        <span className="text-[11px] font-mono font-bold text-slate-600">
-                          {tech.jobs} / {tech.maxJobs} Job
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-mono font-bold text-slate-600">
+                            {tech.jobs} / {tech.maxJobs} Hari Ini
+                          </span>
+                          {tech.activeTotal > 0 && (
+                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200/60" title={`${tech.activeTotal} total booking aktif yang ditangani ${tech.name}`}>
+                              {tech.activeTotal} Aktif
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
                         <div 
@@ -523,7 +547,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between mt-3">
+          <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between mt-3">
             <span>Standar kuota: Maks. 4 job/hari</span>
             <span className="text-blue-600 font-bold">SOP NARA</span>
           </div>
@@ -581,7 +605,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
               <span className="text-2xl font-black text-slate-900 leading-none block">
                 {bookings.length}
               </span>
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+              <span className="text-xs uppercase font-bold text-slate-500 tracking-wider">
                 Total
               </span>
             </div>
@@ -589,10 +613,10 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
 
           <div className="flex flex-wrap gap-2 justify-center pt-3 border-t border-slate-100">
             {statusData.map(d => (
-              <div key={d.name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] font-bold text-slate-700">
+              <div key={d.name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200/70 text-xs font-bold text-slate-700">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
                 <span>{d.name}</span>
-                <span className="text-slate-400 font-mono">({d.value})</span>
+                <span className="text-slate-500 font-mono">({d.value})</span>
               </div>
             ))}
           </div>
@@ -611,11 +635,11 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 text-base">Pusat Tindakan & Perhatian</h3>
-                  <p className="text-[11px] text-slate-400">Status alokasi penugasan dan antrian prioritas</p>
+                  <p className="text-xs text-slate-500">Status alokasi penugasan dan antrian prioritas</p>
                 </div>
               </div>
               <Badge className={cn(
-                "text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border",
+                "text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border",
                 actionRequired.length > 0 
                   ? "bg-rose-50 text-rose-700 border-rose-200" 
                   : "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -634,10 +658,10 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                   Tidak ada tiket tertunda atau tanpa teknisi. Seluruh jadwal servis hari ini telah dialokasikan dengan optimal sesuai standar SOP CV. Nara.
                 </p>
                 <div className="flex items-center gap-2 mt-4">
-                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-700">
+                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700">
                     ✓ 100% Terdistribusi
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-700">
+                  <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700">
                     ✓ 0 Tertunda
                   </span>
                 </div>
@@ -651,7 +675,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                         {b.kode_booking}
                       </span>
                       <span className={cn(
-                        "text-[10px] px-2 py-0.5 rounded-full font-bold",
+                        "text-xs px-2 py-0.5 rounded-full font-bold",
                         b.status === 'delayed' ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"
                       )}>
                         {b.status === 'delayed' ? 'Tertunda' : 'Belum Ditugaskan'}
@@ -662,7 +686,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                       <p className="text-xs font-bold text-slate-900 truncate">
                         {b.customer?.nama || b.nama || 'Pelanggan'}
                       </p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-xs text-slate-500">
                         {b.layanan?.nama_layanan || b.nama_layanan || 'Servis AC'} • {b.jumlah_unit || 1} Unit
                       </p>
                     </div>
@@ -673,7 +697,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                         <select
                           value={selectedTechForAssign}
                           onChange={(e) => setSelectedTechForAssign(e.target.value)}
-                          className="flex-1 rounded-xl border border-blue-200 bg-white h-8 text-[11px] px-2 font-medium"
+                          className="flex-1 rounded-xl border border-blue-200 bg-white h-8 text-xs px-2 font-medium"
                         >
                           <option value="">Pilih Teknisi...</option>
                           {technicians.map(t => (
@@ -684,7 +708,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                           size="sm"
                           onClick={() => handleQuickAssignSubmit(b.id)}
                           disabled={!selectedTechForAssign}
-                          className="h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-bold cursor-pointer"
+                          className="h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer"
                         >
                           OK
                         </Button>
@@ -692,7 +716,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                           size="sm"
                           variant="ghost"
                           onClick={() => setAssigningId(null)}
-                          className="h-8 px-2 text-slate-400 hover:text-slate-700 rounded-xl"
+                          className="h-8 px-2 text-slate-500 hover:text-slate-700 rounded-xl"
                         >
                           <X className="w-3.5 h-3.5" />
                         </Button>
@@ -702,7 +726,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                         <button
                           type="button"
                           onClick={() => setAssigningId(b.id)}
-                          className="text-[11px] text-blue-600 font-bold hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                          className="text-xs text-blue-600 font-bold hover:text-blue-800 flex items-center gap-1 cursor-pointer"
                         >
                           <Wrench className="w-3 h-3" />
                           <span>Tugaskan Sekarang</span>
@@ -710,7 +734,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                         <button
                           type="button"
                           onClick={() => navigate('/admin/schedule')}
-                          className="text-[11px] text-slate-400 hover:text-slate-700 flex items-center gap-0.5"
+                          className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-0.5"
                         >
                           <span>Jadwal</span>
                           <ArrowRight className="w-3 h-3" />
@@ -723,13 +747,13 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
             )}
           </div>
 
-          <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between mt-3">
+          <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between mt-3">
             <span>Prioritas pengerjaan otomatis</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/admin/schedule')}
-              className="h-6 px-2 text-[11px] font-bold text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+              className="h-6 px-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
             >
               Buka Kalender Jadwal →
             </Button>
@@ -750,7 +774,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
               <h2 className="text-lg font-black text-slate-900 tracking-tight">
                 Operasi Hari Ini ({todayBookings.length} Tiket)
               </h2>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
                 {todayFormatted}
               </span>
             </div>
@@ -762,18 +786,19 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           {/* Filter and Search Bar */}
           <div className="flex flex-wrap items-center gap-2.5">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
                 value={searchToday}
                 onChange={(e) => setSearchToday(e.target.value)}
                 placeholder="Cari tiket, pelanggan, layanan..."
+                aria-label="Cari booking hari ini"
                 className="h-9 pl-8 text-xs rounded-xl border-slate-200 bg-white w-48 sm:w-60 font-medium"
               />
             </div>
 
             {/* Filter Pills */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-[11px] font-bold">
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setFilterTodayStatus('all')}
@@ -830,7 +855,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
 
         {/* Table Content */}
         {loading ? (
-          <div className="p-12 text-center text-slate-400 font-bold flex flex-col items-center gap-2">
+          <div className="p-12 text-center text-slate-500 font-bold flex flex-col items-center gap-2">
             <Clock className="w-7 h-7 animate-spin text-blue-600" />
             <span>Memperbarui data operasi...</span>
           </div>
@@ -838,13 +863,13 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
           <div className="py-12 px-4 text-center">
             <CheckCircle2 className="w-10 h-10 text-slate-300 mx-auto mb-2" />
             <p className="text-sm font-bold text-slate-700">Tidak ada operasi yang sesuai filter.</p>
-            <p className="text-xs text-slate-400 mt-0.5">Semua data hari ini telah ditampilkan atau filter belum menemukan hasil.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Semua data hari ini telah ditampilkan atau filter belum menemukan hasil.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 bg-white text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <tr className="border-b border-slate-100 bg-white text-slate-500 font-bold uppercase tracking-wider text-xs">
                   <th className="py-3 px-6">Waktu Kunjungan</th>
                   <th className="py-3 px-6">Kode Tiket</th>
                   <th className="py-3 px-6">Pelanggan & Lokasi</th>
@@ -878,12 +903,12 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                     {/* Pelanggan */}
                     <td className="py-3.5 px-6">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
                           {(b.customer?.nama || b.nama || 'P').charAt(0)}
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">{b.customer?.nama || b.nama || 'Pelanggan'}</p>
-                          <p className="text-[11px] text-slate-400 truncate max-w-xs">{b.alamat || '-'}</p>
+                          <p className="text-xs text-slate-500 truncate max-w-xs">{b.alamat || '-'}</p>
                         </div>
                       </div>
                     </td>
@@ -893,7 +918,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                       <p className="font-bold text-slate-900 text-xs">
                         {b.layanan?.nama || b.layanan?.nama_layanan || b.nama_layanan || 'Cuci AC Standard'}
                       </p>
-                      <span className="text-[10px] font-semibold text-slate-400">
+                      <span className="text-xs font-semibold text-slate-500">
                         {b.jumlah_unit || 1} Unit
                       </span>
                     </td>
@@ -901,7 +926,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                     {/* Status */}
                     <td className="py-3.5 px-6 whitespace-nowrap">
                       <span className={cn(
-                        "px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-full border",
+                        "px-2.5 py-1 text-xs font-black uppercase tracking-wider rounded-full border",
                         b.status === 'scheduled' ? "bg-amber-50 text-amber-700 border-amber-200" :
                         b.status === 'on process' ? "bg-blue-50 text-blue-700 border-blue-200" :
                         b.status === 'done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
@@ -925,7 +950,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                           );
                         }
                         return (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
                             <AlertTriangle className="w-3 h-3" /> Belum Ditugaskan
                           </span>
                         );
@@ -939,7 +964,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                           size="sm"
                           variant="ghost"
                           onClick={() => navigate(`/admin/invoices`)}
-                          className="rounded-xl text-[11px] font-bold h-8 px-2 text-slate-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="rounded-xl text-xs font-bold h-8 px-2 text-slate-600 hover:text-blue-700 hover:bg-blue-50"
                         >
                           <Receipt className="w-3.5 h-3.5" />
                         </Button>
@@ -947,7 +972,7 @@ export default function AdminHome({ bookings = [], technicians = [], loading = f
                           size="sm"
                           variant="outline"
                           onClick={() => navigate('/admin/bookings')}
-                          className="rounded-xl text-[11px] font-bold h-8 px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+                          className="rounded-xl text-xs font-bold h-8 px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
                         >
                           Detail
                         </Button>

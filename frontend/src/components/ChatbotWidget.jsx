@@ -139,7 +139,7 @@ export default function ChatbotWidget({
           onClick={handleToggle}
           className={cn(
             "fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:bottom-6 right-4 sm:right-6 w-13 h-13 sm:w-14 sm:h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 z-40 cursor-pointer",
-            isOpen ? "bg-gray-800 hover:bg-gray-900 scale-90" : "bg-primary-600 hover:bg-primary-700 hover:scale-105 shadow-blue-500/25"
+            isOpen ? "bg-slate-800 hover:bg-slate-900 scale-90" : "bg-primary-600 hover:bg-primary-700 hover:scale-105 shadow-blue-500/25"
           )}
           aria-label={isOpen ? "Tutup chat asisten" : "Buka chat asisten"}
         >
@@ -159,7 +159,7 @@ export default function ChatbotWidget({
               </div>
               <div>
                 <h3 className="font-bold text-sm leading-tight">Asisten Nara AC</h3>
-                <p className="text-[11px] text-sky-100 flex items-center gap-1.5 font-medium">
+                <p className="text-xs text-sky-100 flex items-center gap-1.5 font-medium">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online & Siap Membantu
                 </p>
               </div>
@@ -173,8 +173,11 @@ export default function ChatbotWidget({
             </button>
           </div>
           
-          {/* Chat Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/70">
+          {/* Chat Area dengan aria-live untuk aksesibilitas */}
+          <div 
+            className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/70"
+            aria-live="polite"
+          >
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {m.role === 'bot' && (
@@ -209,10 +212,10 @@ export default function ChatbotWidget({
                 <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center mr-2 shrink-0 self-end mb-1">
                   <Bot className="w-4 h-4 text-primary-700" />
                 </div>
-                <div className="bg-white border border-gray-100 p-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                <div className="bg-white border border-slate-100 p-3 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
                 </div>
               </div>
             )}
@@ -236,20 +239,22 @@ export default function ChatbotWidget({
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSend} className="p-3 border-t border-gray-100 bg-white">
+          <form onSubmit={handleSend} className="p-3 border-t border-slate-100 bg-white">
             <div className="relative flex items-center">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Tanya tentang service AC..." 
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                placeholder="Tanya tentang service AC..."
+                aria-label="Ketik pesan untuk asisten"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-full pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 disabled={isLoading}
               />
-              <button 
-                type="submit" 
-                disabled={isLoading || !input.trim()} 
-                className="absolute right-1.5 w-9 h-9 bg-primary-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:bg-gray-300 hover:bg-primary-700 transition-colors"
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                aria-label="Kirim pesan"
+                className="absolute right-1.5 w-9 h-9 bg-primary-600 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:bg-slate-300 hover:bg-primary-700 transition-colors"
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>

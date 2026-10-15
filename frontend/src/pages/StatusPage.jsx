@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,39 +8,16 @@ import { Input } from '../components/ui/input';
 import CompanyLogo from '../components/CompanyLogo';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/toast';
+import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
 import OfficialInvoicePaper from '../components/OfficialInvoicePaper';
-import { 
-  Search, 
-  Clock, 
-  Calendar, 
-  Wrench, 
-  CheckCircle2, 
-  User, 
-  ArrowLeft, 
-  Loader2, 
-  ArrowRight, 
-  Printer, 
-  Phone, 
-  MapPin, 
-  ShieldCheck, 
-  FileText, 
-  Check, 
-  Copy, 
-  X, 
-  AlertTriangle, 
-  MessageSquare,
-  Sparkles,
-  Percent,
-  Download,
-  Share2,
-  CalendarDays
-} from 'lucide-react';
+import { Search, Clock, Wrench, CheckCircle2, ArrowLeft, Loader2, Printer, ShieldCheck, FileText, Check, CalendarCheck, XCircle, AlertCircle, Copy, X, AlertTriangle, MessageSquare, Sparkles, CalendarDays } from 'lucide-react';
 
 export default function StatusPage({ initialInvoiceOpen = false }) {
   const { kode } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { error: showError, success: showSuccess } = useToast();
+  const { whatsappNumber } = useBusinessProfile();
 
   const isInvoiceRoute = location.pathname.startsWith('/invoice');
   const [kodeInput, setKodeInput] = useState(kode || '');
@@ -121,27 +98,42 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
   // Status index mapping: 0 = scheduled, 1 = scheduled assigned, 2 = on process, 3 = done
   const statusInfo = useMemo(() => {
     const s = (booking?.status || '').toLowerCase();
+    const hasTech = Boolean(booking?.teknisi || booking?.teknisi_lengkap);
     if (s === 'done') {
-      return { label: 'Selesai & Bergaransi', color: 'bg-emerald-500 text-white', step: 3, border: 'border-emerald-500' };
+      return { label: 'Selesai & Bergaransi', color: 'bg-emerald-600 text-white', step: 3, border: 'border-emerald-500', icon: CheckCircle2 };
     }
     if (s === 'on process') {
-      return { label: 'Sedang Dikerjakan di Lokasi', color: 'bg-blue-600 text-white', step: 2, border: 'border-blue-500' };
+      return { label: 'Sedang Dikerjakan di Lokasi', color: 'bg-blue-600 text-white', step: 2, border: 'border-blue-500', icon: Wrench };
     }
     if (s === 'rescheduled') {
-      return { label: 'Jadwal Diubah', color: 'bg-amber-500 text-white', step: 1, border: 'border-amber-500' };
+      return { label: 'Jadwal Diubah', color: 'bg-amber-500 text-white', step: 1, border: 'border-amber-500', icon: CalendarCheck };
     }
     if (s === 'delayed') {
-      return { label: 'Kedatangan Tertunda', color: 'bg-orange-500 text-white', step: 1, border: 'border-orange-500' };
+      return { label: 'Kedatangan Tertunda', color: 'bg-orange-500 text-white', step: 1, border: 'border-orange-500', icon: AlertCircle };
     }
     if (s === 'cancelled') {
-      return { label: 'Dibatalkan', color: 'bg-rose-500 text-white', step: 0, border: 'border-rose-500' };
+      return { label: 'Dibatalkan', color: 'bg-rose-500 text-white', step: 0, border: 'border-rose-500', icon: XCircle };
     }
-    return { label: 'Terjadwal (Scheduled)', color: 'bg-sky-600 text-white', step: booking?.teknisi ? 1 : 0, border: 'border-sky-500' };
+    if (hasTech) {
+      return { 
+        label: 'Teknisi Dikonfirmasi', 
+        color: 'bg-emerald-600 text-white', 
+        step: 1, 
+        border: 'border-emerald-500', 
+        icon: Wrench 
+      };
+    }
+    return { 
+      label: 'Menunggu Alokasi Teknisi', 
+      color: 'bg-sky-600 text-white', 
+      step: 0, 
+      border: 'border-sky-500', 
+      icon: CalendarCheck 
+    };
   }, [booking]);
 
-  // Pricing calculation for invoice - prefer backend data, fallback to client-side
+  // Pricing data sourced exclusively from backend invoice API (single source of truth)
   const invoiceCalc = useMemo(() => {
-    // If we have invoice data from backend, use it
     if (invoiceData) {
       return {
         basePrice: invoiceData.basePrice || 0,
@@ -152,30 +144,8 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
         warrantyText: invoiceData.warrantyText || '14 Hari Kalender'
       };
     }
-    
-    // Fallback to client-side calculation if backend invoice is not available
-    if (!booking) return { basePrice: 0, units: 1, subtotal: 0, discount: 0, total: 0, warrantyText: '14 Hari' };
-    
-    // Base unit price
-    let basePrice = booking.harga || 75000;
-    const units = booking.jumlah_unit || 1;
-    const subtotal = basePrice * units;
-
-    let discount = 0;
-    if (units === 2) discount = Math.round(subtotal * 0.05);
-    else if (units >= 3) discount = Math.round(subtotal * 0.1);
-
-    const total = subtotal - discount;
-
-    let warrantyText = '14 Hari Kalender';
-    const sName = (booking.layanan || '').toLowerCase();
-    if (sName.includes('freon') && sName.includes('core')) {
-      warrantyText = '45 Hari Penuh Garansi Dingin';
-    } else if (sName.includes('core')) {
-      warrantyText = '30 Hari Penuh Garansi Pengerjaan';
-    }
-
-    return { basePrice, units, subtotal, discount, total, warrantyText };
+    // No client-side fallback — invoice data must come from backend
+    return { basePrice: 0, units: booking?.jumlah_unit || 1, subtotal: 0, discount: 0, total: 0, warrantyText: '14 Hari' };
   }, [booking, invoiceData]);
 
   // Handle Cancel Action
@@ -366,7 +336,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
         
         {/* Search Header */}
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold uppercase tracking-wider border border-blue-200 mb-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider border border-blue-200 mb-3">
             <FileText className="w-3.5 h-3.5" /> Pelacakan Tiket Digital
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
@@ -379,14 +349,17 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
           {/* Quick Search Input */}
           <form onSubmit={handleSearch} className="mt-6 flex items-center gap-2 max-w-md mx-auto">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <label htmlFor="status-search" className="sr-only">Masukkan kode booking untuk melacak status servis</label>
               <Input
+                id="status-search"
                 type="text"
                 value={kodeInput}
                 onChange={(e) => setKodeInput(e.target.value.toUpperCase())}
                 placeholder="Contoh: AC-XXXX"
                 className="h-12 pl-10 uppercase font-mono font-bold tracking-wider rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 text-sm"
                 required
+                aria-label="Kode booking"
               />
             </div>
             <Button
@@ -437,7 +410,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
               
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">
                     KODE TIKET SERVIS
                   </span>
                   <div className="flex items-center gap-3">
@@ -462,11 +435,12 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                     "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5 w-fit",
                     statusInfo.color
                   )}>
+                    {statusInfo.icon && React.createElement(statusInfo.icon, { className: "w-3.5 h-3.5" })}
                     <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                     {statusInfo.label}
                   </span>
 
-                  <span className="text-xs text-slate-400 font-semibold">
+                  <span className="text-xs text-slate-500 font-semibold">
                     Dibuat pada: {booking.created_at ? new Date(booking.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                   </span>
                 </div>
@@ -480,13 +454,13 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xs transition-all",
-                      statusInfo.step >= 0 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-slate-100 text-slate-400"
+                      statusInfo.step >= 0 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-slate-100 text-slate-500"
                     )}>
                       1
                     </div>
                     <div>
                       <h4 className="text-xs font-extrabold text-slate-900 leading-tight">Booking Diterima</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Tiket terdaftar di sistem</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Tiket terdaftar di sistem</p>
                     </div>
                   </div>
 
@@ -494,14 +468,18 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xs transition-all",
-                      statusInfo.step >= 1 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-slate-100 text-slate-400"
+                      booking?.teknisi || booking?.teknisi_lengkap || statusInfo.step >= 1 
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" 
+                        : "bg-slate-100 text-slate-500"
                     )}>
-                      2
+                      {booking?.teknisi || booking?.teknisi_lengkap ? '✓' : '2'}
                     </div>
                     <div>
-                      <h4 className="text-xs font-extrabold text-slate-900 leading-tight">Teknisi Ditugaskan</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {booking.teknisi ? `Teknisi: ${booking.teknisi}` : 'Menunggu jadwal'}
+                      <h4 className="text-xs font-extrabold text-slate-900 leading-tight">
+                        {booking?.teknisi || booking?.teknisi_lengkap ? 'Teknisi Dikonfirmasi' : 'Penugasan Teknisi'}
+                      </h4>
+                      <p className="text-xs font-semibold text-slate-600 mt-0.5">
+                        {booking?.teknisi_lengkap ? `Teknisi: ${booking.teknisi_lengkap}` : (booking?.teknisi ? `Teknisi: ${booking.teknisi}` : 'Menunggu alokasi tim operasional')}
                       </p>
                     </div>
                   </div>
@@ -510,13 +488,13 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xs transition-all",
-                      statusInfo.step >= 2 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-slate-100 text-slate-400"
+                      statusInfo.step >= 2 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "bg-slate-100 text-slate-500"
                     )}>
                       3
                     </div>
                     <div>
                       <h4 className="text-xs font-extrabold text-slate-900 leading-tight">SOP Pengerjaan</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Proses cuci & cek keluhan</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Proses cuci & cek keluhan</p>
                     </div>
                   </div>
 
@@ -524,25 +502,59 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-xs transition-all",
-                      statusInfo.step >= 3 ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" : "bg-slate-100 text-slate-400"
+                      statusInfo.step >= 3 ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20" : "bg-slate-100 text-slate-500"
                     )}>
                       4
                     </div>
                     <div>
                       <h4 className="text-xs font-extrabold text-slate-900 leading-tight">Selesai & Garansi</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Garansi resmi aktif</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Garansi resmi aktif</p>
                     </div>
                   </div>
 
                 </div>
               </div>
 
+              {/* Technician Assignment Highlight Banner */}
+              {booking?.teknisi || booking?.teknisi_lengkap ? (
+                <div className="mt-6 p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex items-center justify-between gap-4 animate-in fade-in duration-300">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/20">
+                      <Wrench className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-emerald-950">Teknisi Resmi Telah Ditugaskan</h4>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Siap Meluncur
+                        </span>
+                      </div>
+                      <p className="text-xs text-emerald-800 mt-0.5">
+                        Teknisi Resmi <strong>{booking.teknisi_lengkap || booking.teknisi}</strong> telah dialokasikan dan siap melayani servis AC Anda sesuai jadwal.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-6 p-4 rounded-2xl bg-sky-50 border border-sky-200/80 flex items-center gap-3.5 animate-in fade-in duration-300">
+                  <div className="w-11 h-11 rounded-2xl bg-sky-600 text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md shadow-sky-600/20">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-sky-950">Jadwal Terdaftar — Menunggu Alokasi Teknisi</h4>
+                    <p className="text-xs text-sky-800 mt-0.5">
+                      Tiket servis Anda sudah terdaftar di sistem. Tim operasional sedang menetapkan teknisi yang paling cocok untuk rute lokasi Anda.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Service & Customer Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-6">
                 
                 {/* Info 1: Layanan */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     Paket Layanan:
                   </span>
                   <p className="font-extrabold text-slate-900 text-sm">
@@ -555,7 +567,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
 
                 {/* Info 2: Waktu Kunjungan */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     Jadwal Kedatangan:
                   </span>
                   <p className="font-extrabold text-slate-900 text-sm">
@@ -569,27 +581,33 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
 
                 {/* Info 3: Teknisi Bertugas */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     Teknisi Bertugas:
                   </span>
                   <p className="font-extrabold text-slate-900 text-sm">
-                    {booking.teknisi_lengkap || booking.teknisi || 'Teknisi NARA AC'}
+                    {booking.teknisi_lengkap || booking.teknisi || 'Sedang Dialokasikan'}
                   </p>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1">
-                    <ShieldCheck className="w-3 h-3" /> Teknisi Terverifikasi SOP
-                  </span>
+                  {booking.teknisi_lengkap || booking.teknisi ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md mt-1 border border-emerald-200/60">
+                      <ShieldCheck className="w-3 h-3" /> Teknisi Terverifikasi SOP
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md mt-1 border border-slate-200/60">
+                      <Clock className="w-3 h-3 text-slate-400" /> Menunggu Penugasan Admin
+                    </span>
+                  )}
                 </div>
 
                 {/* Info 4: Lokasi / Alamat */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 sm:col-span-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     Alamat Pengerjaan:
                   </span>
                   <p className="font-semibold text-slate-800 text-xs leading-relaxed">
                     {booking.alamat || '-'}
                   </p>
                   {booking.customer_nama && (
-                    <p className="text-[11px] text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       Pemesan: <strong>{booking.customer_nama}</strong> {booking.kontak ? `(${booking.kontak})` : ''}
                     </p>
                   )}
@@ -598,14 +616,14 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 {/* Info 5: Total Biaya */}
                 <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-100 flex flex-col justify-between">
                   <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
                       Total Estimasi Biaya:
                     </span>
                     <p className="text-2xl font-black text-blue-700 font-mono tracking-tight">
                       Rp {(invoiceCalc.total || 0).toLocaleString('id-ID')}
                     </p>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-medium mt-1">
+                  <span className="text-xs text-slate-500 font-medium mt-1">
                     {booking.status === 'done' ? 'Pembayaran Selesai' : 'Bayar setelah selesai pengerjaan'}
                   </span>
                 </div>
@@ -657,9 +675,8 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 {/* Primary Actions: Print Invoice & WA Share */}
                 <div className="flex items-center gap-2">
                   <a
-                    href={`https://wa.me/6281385293137?text=Halo%20Admin%20NARA%20AC,%20saya%20ingin%20konfirmasi%20tiket%20servis%20${encodeURIComponent(booking.kode_booking)}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={buildWhatsAppUrl(whatsappNumber, `Halo Admin NARA AC, saya ingin konfirmasi tiket servis ${booking.kode_booking}`)}
+                    target="_blank" rel="noopener noreferrer"
                   >
                     <Button
                       variant="outline"
@@ -669,6 +686,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                       <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Chat CS WhatsApp</span>
                     </Button>
+<span className="sr-only"> (buka di tab baru)</span>
                   </a>
 
                   {/* Tombol Buka & Cetak Invoice Resmi */}
@@ -694,7 +712,8 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
       {/* ============================================================== */}
       {/* 3. MODAL E-INVOICE RESMI DENGAN KOP SURAT CV. NARA TEKNINDOTAMA */}
       {/* ============================================================== */}
-      <AnimatePresence>
+      {/* Portal harus dirender langsung (AnimatePresence tidak mendukung createPortal sebagai child) */}
+      <>
         {isInvoiceOpen && booking && typeof document !== 'undefined' && createPortal(
           <div 
             id="invoice-print-portal"
@@ -726,7 +745,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   <button
                     type="button"
                     onClick={() => setIsInvoiceOpen(false)}
-                    className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                     aria-label="Tutup modal"
                   >
                     <X className="w-4 h-4" />
@@ -740,7 +759,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
           </div>,
           document.body
         )}
-      </AnimatePresence>
+      </>
 
       {/* ============================================================== */}
       {/* 4. MODAL VERIFIKASI RESCHEDULE JADWAL                          */}
@@ -762,7 +781,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 <button
                   type="button"
                   onClick={() => setIsRescheduleModalOpen(false)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 flex items-center justify-center cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -770,8 +789,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
 
               <form onSubmit={handleConfirmReschedule} className="space-y-4 text-xs">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Tanggal Kunjungan Baru *</label>
+                  <label htmlFor="reschedule-date" className="font-bold text-slate-700 block mb-1">Tanggal Kunjungan Baru *</label>
                   <Input
+                    id="reschedule-date"
                     type="date"
                     min={new Date().toISOString().split('T')[0]}
                     value={newDate}
@@ -782,8 +802,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Jam Kedatangan Baru *</label>
+                  <label htmlFor="reschedule-time" className="font-bold text-slate-700 block mb-1">Jam Kedatangan Baru *</label>
                   <select
+                    id="reschedule-time"
                     value={newTime}
                     onChange={(e) => setNewTime(e.target.value)}
                     className="w-full h-11 rounded-xl border border-slate-200 px-3 text-xs font-semibold bg-white"
@@ -800,8 +821,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Verifikasi No. WhatsApp Pemesan *</label>
+                  <label htmlFor="reschedule-verify-kontak" className="font-bold text-slate-700 block mb-1">Verifikasi No. WhatsApp Pemesan *</label>
                   <Input
+                    id="reschedule-verify-kontak"
                     type="tel"
                     value={verifyKontak}
                     onChange={(e) => setVerifyKontak(e.target.value)}
@@ -809,7 +831,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                     className="h-11 rounded-xl text-xs font-mono"
                     required
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Verifikasi keamanan kepemilikan tiket booking.
                   </p>
                 </div>
@@ -857,7 +879,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 <button
                   type="button"
                   onClick={() => setIsCancelModalOpen(false)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center cursor-pointer"
+                  className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 flex items-center justify-center cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -865,8 +887,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
 
               <form onSubmit={handleConfirmCancel} className="space-y-4 text-xs">
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Verifikasi No. WhatsApp Pemesan *</label>
+                  <label htmlFor="cancel-verify-kontak" className="font-bold text-slate-700 block mb-1">Verifikasi No. WhatsApp Pemesan *</label>
                   <Input
+                    id="cancel-verify-kontak"
                     type="tel"
                     value={verifyKontak}
                     onChange={(e) => setVerifyKontak(e.target.value)}
@@ -877,8 +900,9 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Alasan Pembatalan (Opsional)</label>
+                  <label htmlFor="cancel-reason" className="font-bold text-slate-700 block mb-1">Alasan Pembatalan (Opsional)</label>
                   <textarea
+                    id="cancel-reason"
                     rows={2}
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
@@ -913,10 +937,10 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
       {/* ============================================================== */}
       {/* 6. FOOTER COPYRIGHT                                            */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-400 mt-auto print:hidden">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto print:hidden">
         <div className="max-w-7xl mx-auto px-4">
           <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             Sistem Informasi Pelacakan Tiket Digital & Garansi Servis AC
           </p>
         </div>

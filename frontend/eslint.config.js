@@ -6,8 +6,28 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default [
   { ignores: ["dist"] },
+  // Config files (vite.config.js, tailwind.config.js, etc.) - Node.js environment
   {
-    files: ["**/*.{js,jsx}"],
+    files: ["*.config.js", "*.config.ts", "vite.config.*", "tailwind.config.*", "vitest.config.*"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: { ...globals.node, ...globals.es2020 },
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+    },
+    plugins: {
+      "react-hooks": reactHooks,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+    },
+  },
+  // Main source files - Browser environment with React
+  {
+    files: ["src/**/*.{js,jsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -33,7 +53,7 @@ export default [
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "react/no-unescaped-entities": "warn",
 
-      "react/jsx-no-target-blank": "off",
+      "react/jsx-no-target-blank": ["error", { "allowReferrer": false }],
       "react/prop-types": "off",
       "react-refresh/only-export-components": [
         "warn",

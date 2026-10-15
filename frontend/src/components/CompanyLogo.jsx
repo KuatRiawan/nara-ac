@@ -15,7 +15,7 @@ export default function CompanyLogo({ className = '', dark = false, iconSize = '
             NARA
           </span>
           <span 
-            className={`font-bold leading-none tracking-[0.25em] ${dark ? 'text-gray-400' : 'text-blue-600'} text-[10px] mt-1`} 
+            className={`font-bold leading-none tracking-[0.25em] ${dark ? 'text-slate-500' : 'text-blue-600'} text-xs mt-1`} 
             style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}
           >
             TEKNINDOTAMA

@@ -110,15 +110,15 @@ const formatFieldLabel = (key) => {
 
 const formatFieldValue = (key, val) => {
   if (val === null || val === undefined) {
-    return <span className="text-slate-400 italic">Tidak ada data</span>;
+    return <span className="text-slate-500 italic">Tidak ada data</span>;
   }
   if (typeof val === 'boolean') {
     return val ? (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
         Ya
       </span>
     ) : (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
         Tidak
       </span>
     );
@@ -159,7 +159,7 @@ const formatFieldValue = (key, val) => {
         badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
       }
       return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border capitalize ${badgeClass}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold border capitalize ${badgeClass}`}>
           {val.replace(/_/g, ' ')}
         </span>
       );
@@ -167,11 +167,11 @@ const formatFieldValue = (key, val) => {
     return <span className="font-bold text-slate-900">{val}</span>;
   }
   if (Array.isArray(val)) {
-    if (val.length === 0) return <span className="text-slate-400 italic">Daftar kosong</span>;
+    if (val.length === 0) return <span className="text-slate-500 italic">Daftar kosong</span>;
     return (
       <div className="flex flex-wrap gap-1 mt-0.5">
         {val.map((item, idx) => (
-          <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[11px] font-medium border border-slate-200">
+          <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium border border-slate-200">
             {typeof item === 'object' ? JSON.stringify(item) : String(item)}
           </span>
         ))}
@@ -200,7 +200,7 @@ const FormattedSnapshotViewer = ({ data, type = 'after' }) => {
   if (isEmpty) {
     return (
       <div className="h-full min-h-[110px] flex flex-col items-center justify-center p-4 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-        <span className="text-xs font-semibold text-slate-400">
+        <span className="text-xs font-semibold text-slate-500">
           {isAfter ? '(Data Dihapus / Tidak Ada Nilai)' : '(Kosong / Data Baru Ditambahkan)'}
         </span>
       </div>
@@ -225,7 +225,7 @@ const FormattedSnapshotViewer = ({ data, type = 'after' }) => {
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs divide-y divide-slate-100 overflow-hidden">
       {entries.map(([key, val]) => (
         <div key={key} className="p-3 sm:px-3.5 sm:py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4 hover:bg-slate-50/50 transition-colors">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
             {formatFieldLabel(key)}
           </span>
           <div className="text-xs sm:text-right">
@@ -409,13 +409,13 @@ export default function AdminReports() {
   const getRoleBadge = (role) => {
     switch (role) {
       case 'admin':
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">Admin</span>;
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">Admin</span>;
       case 'technician':
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">Teknisi</span>;
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200">Teknisi</span>;
       case 'customer':
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pelanggan</span>;
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pelanggan</span>;
       default:
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 capitalize">{role || 'System'}</span>;
+        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 capitalize">{role || 'System'}</span>;
     }
   };
 
@@ -519,7 +519,7 @@ export default function AdminReports() {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -560,16 +560,16 @@ export default function AdminReports() {
         {/* Total Aktivitas Audit */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Log Aktivitas</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Log Aktivitas</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl font-black text-slate-900">
-              {kpis.total} <span className="text-xs font-semibold text-slate-400">Tindakan</span>
+              {kpis.total} <span className="text-xs font-semibold text-slate-500">Tindakan</span>
             </p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               Tercatat permanen di database
             </p>
           </div>
@@ -578,7 +578,7 @@ export default function AdminReports() {
         {/* Tindakan Admin */}
         <div className="p-5 rounded-3xl bg-white border border-indigo-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">Aktivitas Admin</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600">Aktivitas Admin</span>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
               <Sliders className="w-4 h-4" />
             </div>
@@ -587,7 +587,7 @@ export default function AdminReports() {
             <p className="text-2xl font-black text-indigo-700">
               {kpis.adminCount} <span className="text-xs font-semibold text-indigo-600/70">Aksi</span>
             </p>
-            <p className="text-[11px] font-medium text-indigo-600/80 mt-1">
+            <p className="text-xs font-medium text-indigo-600/80 mt-1">
               Penugasan, inventori & jadwal
             </p>
           </div>
@@ -596,7 +596,7 @@ export default function AdminReports() {
         {/* Tindakan Teknisi */}
         <div className="p-5 rounded-3xl bg-white border border-teal-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Aktivitas Teknisi</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-600">Aktivitas Teknisi</span>
             <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
               <Wrench className="w-4 h-4" />
             </div>
@@ -605,7 +605,7 @@ export default function AdminReports() {
             <p className="text-2xl font-black text-teal-700">
               {kpis.techCount} <span className="text-xs font-semibold text-teal-600/70">Aksi</span>
             </p>
-            <p className="text-[11px] font-medium text-teal-600/80 mt-1">
+            <p className="text-xs font-medium text-teal-600/80 mt-1">
               Update progres servis & foto SOP
             </p>
           </div>
@@ -614,7 +614,7 @@ export default function AdminReports() {
         {/* Aktivitas Pelanggan */}
         <div className="p-5 rounded-3xl bg-white border border-emerald-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Aktivitas Pelanggan</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Aktivitas Pelanggan</span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <Users className="w-4 h-4" />
             </div>
@@ -623,7 +623,7 @@ export default function AdminReports() {
             <p className="text-2xl font-black text-emerald-700">
               {kpis.custCount} <span className="text-xs font-semibold text-emerald-600/70">Aksi</span>
             </p>
-            <p className="text-[11px] font-medium text-emerald-600/80 mt-1">
+            <p className="text-xs font-medium text-emerald-600/80 mt-1">
               Pemesanan servis & pembatalan
             </p>
           </div>
@@ -634,9 +634,10 @@ export default function AdminReports() {
       {/* Filter & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
         <div className="relative w-full lg:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <Input 
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Input
             placeholder="Cari aktor, aksi, tiket, entitas..."
+            aria-label="Cari laporan audit"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-10 text-xs font-semibold rounded-xl border-slate-200 bg-slate-50/50"
@@ -712,14 +713,14 @@ export default function AdminReports() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-600" />
                     Memuat catatan log audit...
                   </td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     Tidak ada catatan audit yang cocok dengan kriteria pencarian.
                   </td>
                 </tr>
@@ -742,10 +743,10 @@ export default function AdminReports() {
                     <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           <div>
                             <p className="font-bold text-slate-900">{formatDate(log.created_at)}</p>
-                            <p className="text-[10px] text-slate-400">ID Log #{log.id}</p>
+                            <p className="text-xs text-slate-500">ID Log #{log.id}</p>
                           </div>
                         </div>
                       </td>
@@ -759,10 +760,10 @@ export default function AdminReports() {
 
                       <td className="py-3.5 px-5">
                         <div className="space-y-1">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${act.badge}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${act.badge}`}>
                             {act.label}
                           </span>
-                          <p className="font-mono text-[10px] text-slate-400 block">{log.action}</p>
+                          <p className="font-mono text-xs text-slate-500 block">{log.action}</p>
                         </div>
                       </td>
 
@@ -770,13 +771,13 @@ export default function AdminReports() {
                         <span className="font-semibold text-slate-800 capitalize block">
                           {getEntityLabel(log.entity)}
                         </span>
-                        <span className="font-mono text-[11px] text-blue-600">
+                        <span className="font-mono text-xs text-blue-600">
                           #{log.entity_id}
                         </span>
                       </td>
 
                       <td className="py-3.5 px-5 max-w-xs">
-                        <p className="text-[11px] text-slate-600 truncate bg-slate-50 p-1.5 rounded-lg border border-slate-100" title={summary}>
+                        <p className="text-xs text-slate-600 truncate bg-slate-50 p-1.5 rounded-lg border border-slate-100" title={summary}>
                           {summary}
                         </p>
                       </td>
@@ -786,7 +787,7 @@ export default function AdminReports() {
                           size="sm"
                           variant="outline"
                           onClick={() => openLogDetail(log)}
-                          className="rounded-xl text-[11px] font-bold h-8 px-2.5 border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer"
+                          className="rounded-xl text-xs font-bold h-8 px-2.5 border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 cursor-pointer"
                           title="Lihat Snapshot Lengkap"
                         >
                           <Eye className="w-3.5 h-3.5 mr-1" />
@@ -830,7 +831,7 @@ export default function AdminReports() {
               <button
                 type="button"
                 onClick={() => setIsDetailOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup"
               >
                 <X className="w-5 h-5" />
@@ -843,29 +844,29 @@ export default function AdminReports() {
               {/* Event Summary Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Waktu Kejadian</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Waktu Kejadian</span>
                   <p className="font-bold text-slate-900 mt-0.5">{formatDate(selectedLog.created_at)}</p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pelaku (Aktor)</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Pelaku (Aktor)</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="font-bold text-slate-900">{selectedLog.actor}</span>
                     {getRoleBadge(selectedLog.role)}
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-200/60">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Aksi Sistem</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Aksi Sistem</span>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getActionInfo(selectedLog.action).badge}`}>
                       {getActionInfo(selectedLog.action).label}
                     </span>
-                    <span className="font-mono text-[10px] text-slate-400">
+                    <span className="font-mono text-xs text-slate-500">
                       ({selectedLog.action})
                     </span>
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-200/60">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Entitas Terkait</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Entitas Terkait</span>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="font-bold text-slate-800">{getEntityLabel(selectedLog.entity)}</span>
                     <span className="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
@@ -882,7 +883,7 @@ export default function AdminReports() {
                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                       Perubahan Data (Snapshot)
                     </span>
-                    <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[11px] font-bold">
+                    <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-bold">
                       <button
                         type="button"
                         onClick={() => setViewMode('formatted')}
@@ -915,15 +916,15 @@ export default function AdminReports() {
                       {/* Before */}
                       <div className="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200/80 flex flex-col">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
+                          <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">
                             Sebelum Perubahan
                           </span>
                           {selectedLog.sebelum ? (
-                            <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
                               Nilai Lama
                             </span>
                           ) : (
-                            <span className="text-[10px] bg-rose-100/70 text-rose-700 font-medium px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-rose-100/70 text-rose-700 font-medium px-2 py-0.5 rounded-full">
                               Belum Ada
                             </span>
                           )}
@@ -934,10 +935,10 @@ export default function AdminReports() {
                       {/* After */}
                       <div className="p-3.5 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 flex flex-col">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+                          <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
                             Sesudah Perubahan
                           </span>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                          <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                             Nilai Terbaru
                           </span>
                         </div>
@@ -948,20 +949,20 @@ export default function AdminReports() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       {/* Before Raw */}
                       <div className="p-3.5 rounded-2xl bg-rose-50/60 border border-rose-200">
-                        <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider block mb-1.5">
+                        <span className="text-xs font-bold text-rose-700 uppercase tracking-wider block mb-1.5">
                           Sebelum Perubahan (Raw JSON)
                         </span>
-                        <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-rose-100 overflow-x-auto">
+                        <pre className="font-mono text-xs text-slate-700 whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-rose-100 overflow-x-auto">
                           {selectedLog.sebelum ? JSON.stringify(selectedLog.sebelum, null, 2) : '(Kosong / Data Baru)'}
                         </pre>
                       </div>
 
                       {/* After Raw */}
                       <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200">
-                        <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block mb-1.5">
+                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1.5">
                           Sesudah Perubahan (Raw JSON)
                         </span>
-                        <pre className="font-mono text-[11px] text-slate-700 whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-emerald-100 overflow-x-auto">
+                        <pre className="font-mono text-xs text-slate-700 whitespace-pre-wrap bg-white p-2.5 rounded-xl border border-emerald-100 overflow-x-auto">
                           {selectedLog.sesudah ? JSON.stringify(selectedLog.sesudah, null, 2) : '(Kosong / Dihapus)'}
                         </pre>
                       </div>

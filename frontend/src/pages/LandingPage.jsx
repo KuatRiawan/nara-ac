@@ -2,12 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import api from '../api';
-import {
-  CalendarCheck, Search, ArrowRight, CheckCircle2, ShieldCheck,
-  Clock, Wrench, Sparkles, MapPin, Phone, Mail,
-  Wind, ChevronRight, FileText,
-  ChevronDown, Check, X, HelpCircle
-} from 'lucide-react';
+import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
+import { CalendarCheck, Search, ArrowRight, CheckCircle2, ShieldCheck, Clock, Sparkles, MapPin, Phone, Mail, Wind, ChevronRight, FileText, ChevronDown, Check, X, HelpCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import CompanyLogo from '../components/CompanyLogo';
@@ -16,8 +12,11 @@ import TrustBar from '../components/landing/TrustBar';
 import GallerySection from '../components/landing/GallerySection';
 import MobileNav from '../components/landing/MobileNav';
 import AirflowBreeze from '../components/landing/AirflowBreeze';
+import EstimatorCard from '../components/landing/EstimatorCard';
+import TrackerCard from '../components/landing/TrackerCard';
 import HeroInteractiveCard from '../components/landing/HeroInteractiveCard';
 import StickyBottomBooking from '../components/landing/StickyBottomBooking';
+import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 
 const easeOutCubic = [0.16, 1, 0.3, 1];
 
@@ -44,6 +43,7 @@ const fadeInUpVariant = {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { whatsappNumber, profile } = useBusinessProfile();
 
   // State
   const [isScrolled, setIsScrolled] = useState(false);
@@ -283,6 +283,12 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans selection:bg-blue-600 selection:text-white overflow-x-hidden text-slate-800">
+      {/* ============================================================== */}
+      {/* SKIP TO MAIN CONTENT - Aksesibilitas                             */}
+      {/* ============================================================== */}
+      <a href="#main-content" className="sr-only focus:not-sr-only absolute top-0 left-0 z-50 p-4 bg-blue-600 text-white font-bold rounded-br-xl text-sm hover:bg-blue-700 transition-colors">
+        Lewati ke Konten Utama
+      </a>
 
       {/* ============================================================== */}
       {/* 1. NAVBAR                                                      */}
@@ -374,10 +380,11 @@ export default function LandingPage() {
       {/* ============================================================== */}
       {/* 2. HERO SECTION (CLEAN LIGHT BLUE & WHITE THEME)               */}
       {/* ============================================================== */}
-      <section
-        id="home"
-        className="relative pt-32 pb-20 md:pt-40 md:pb-28 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-sky-50/90 via-blue-50/40 to-white text-slate-900 overflow-hidden min-h-[92vh] flex items-center"
-      >
+      <main id="main-content">
+        <section
+          id="home"
+          className="relative pt-32 pb-20 md:pt-40 md:pb-28 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-sky-50/90 via-blue-50/40 to-white text-slate-900 overflow-hidden min-h-[92vh] flex items-center"
+        >
         {/* Parallax Atmospheric Glowing Ambient Spheres */}
         <motion.div
           style={{ y: yHeroGlow1 }}
@@ -492,7 +499,7 @@ export default function LandingPage() {
             </motion.div>
           </motion.div>
 
-          {/* Right Hero: Upgraded Interactive Dual Card (Calculator + Live Tracker) with Parallax */}
+          {/* Right Hero: Single Card with Tabs - Kalkulator & Lacak Status */}
           <motion.div
             style={{ y: yHeroRight }}
             className="lg:col-span-5 relative"
@@ -549,7 +556,7 @@ export default function LandingPage() {
                 >
                   {/* Popular Highlight Badge */}
                   {isCore && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-sky-600 text-white text-[11px] font-black uppercase tracking-wider px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-sky-600 text-white text-xs font-black uppercase tracking-wider px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
                       ⭐ Paling Direkomendasikan (Best Value)
                     </div>
                   )}
@@ -557,7 +564,7 @@ export default function LandingPage() {
                   <div>
                     {/* Top Tier Info */}
                     <div className="flex items-center justify-between mb-3 pt-1">
-                      <Badge className={`font-bold uppercase text-[10px] tracking-wider border-0 ${isCore
+                      <Badge className={`font-bold uppercase text-xs tracking-wider border-0 ${isCore
                           ? 'bg-blue-100 text-blue-800'
                           : 'bg-sky-100 text-sky-800'
                         }`}>
@@ -584,14 +591,14 @@ export default function LandingPage() {
 
                     {/* Price Block */}
                     <div className="mb-6 pb-6 border-b border-sky-100">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Estimasi Biaya Jasa</span>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Estimasi Biaya Jasa</span>
                       <div className="mt-1 flex items-baseline gap-1.5">
                         <span className="text-3xl sm:text-4xl font-black text-slate-900">
                           Rp {pkg.harga.toLocaleString('id-ID')}
                         </span>
                         <span className="text-xs text-slate-500 font-semibold">/ unit</span>
                       </div>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-2">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-2">
                         <ShieldCheck className="w-3.5 h-3.5" /> Garansi Servis {pkg.garansi}
                       </span>
                     </div>
@@ -618,13 +625,13 @@ export default function LandingPage() {
                     {/* Scope Checklist: Excluded (if any, showing clear contrast) */}
                     {pkg.scopeExcluded && pkg.scopeExcluded.length > 0 && (
                       <div className="space-y-2 mb-6 pt-3 border-t border-dashed border-slate-200">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <X className="w-3.5 h-3.5 text-slate-400" />
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <X className="w-3.5 h-3.5 text-slate-500" />
                           <span>Belum Termasuk di Standar:</span>
                         </p>
                         <div className="space-y-1.5">
                           {pkg.scopeExcluded.map((ex, exIdx) => (
-                            <div key={exIdx} className="flex items-start gap-2 text-xs text-slate-400 line-through">
+                            <div key={exIdx} className="flex items-start gap-2 text-xs text-slate-500 line-through">
                               <X className="w-3.5 h-3.5 text-slate-300 shrink-0 mt-0.5" />
                               <span>{ex}</span>
                             </div>
@@ -697,7 +704,7 @@ export default function LandingPage() {
                         <tr key={rIdx} className="hover:bg-sky-50/30 transition-colors">
                           <td className="p-4 sm:p-5">
                             <span className="font-bold text-slate-900 block">{row.feature}</span>
-                            <span className="text-[11px] text-slate-500">{row.detail}</span>
+                            <span className="text-xs text-slate-500">{row.detail}</span>
                           </td>
 
                           {/* Standard Column */}
@@ -758,7 +765,7 @@ export default function LandingPage() {
           {/* Bottom helper: Kantor / B2B */}
           <div className="p-6 sm:p-8 rounded-3xl bg-sky-50/70 border border-sky-200/80 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
             <div>
-              <span className="text-[11px] font-bold tracking-wider uppercase text-blue-600 bg-white px-3 py-1 rounded-full border border-sky-200 inline-block mb-1.5">
+              <span className="text-xs font-bold tracking-wider uppercase text-blue-600 bg-white px-3 py-1 rounded-full border border-sky-200 inline-block mb-1.5">
                 Layanan Korporat & Residensial
               </span>
               <h4 className="font-black text-slate-900 text-base sm:text-lg">Butuh Servis AC dalam Jumlah Banyak untuk Kantor / Ruko?</h4>
@@ -767,13 +774,13 @@ export default function LandingPage() {
               </p>
             </div>
             <a
-              href="https://wa.me/6281385293137?text=Halo%20NARA%20AC,%20saya%20ingin%20konsultasi%20servis%20AC%20kantor/ruko"
-              target="_blank"
-              rel="noreferrer"
+              href={buildWhatsAppUrl(whatsappNumber, 'Halo NARA AC, saya ingin konsultasi servis AC kantor/ruko')}
+              target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white border border-sky-200 text-slate-900 hover:text-blue-600 font-bold text-xs sm:text-sm shrink-0 shadow-xs hover:shadow-md transition-all"
             >
               <Phone className="w-4 h-4 text-emerald-500" />
               <span>Konsultasi WhatsApp</span>
+<span className="sr-only"> (buka di tab baru)</span>
             </a>
           </div>
         </div>
@@ -963,15 +970,26 @@ export default function LandingPage() {
             </p>
           </div>
 
-          {/* Animated Connecting Pathway on Desktop */}
           <div className="relative">
-            <div className="hidden lg:block absolute top-1/2 left-10 right-10 -translate-y-8 h-1 pointer-events-none z-0">
+            {/* Desktop Connecting Line - connects step circles */}
+            <div className="hidden lg:block absolute top-[110px] left-[70px] right-[70px] h-0.5 pointer-events-none z-0">
               <motion.div
                 initial={{ scaleX: 0 }}
                 whileInView={{ scaleX: 1 }}
                 viewport={{ once: true }}
                 transition={{ duration: 1.2, ease: easeOutCubic }}
-                className="h-full bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 origin-left opacity-40 rounded-full"
+                className="h-full bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 origin-left rounded-full"
+              />
+            </div>
+
+            {/* Mobile Vertical Connecting Line */}
+            <div className="lg:hidden absolute top-0 bottom-0 left-[38px] w-0.5 pointer-events-none z-0">
+              <motion.div
+                initial={{ scaleY: 0 }}
+                whileInView={{ scaleY: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, ease: easeOutCubic, delay: 0.3 }}
+                className="h-full bg-gradient-to-b from-blue-400 via-sky-300 to-emerald-400 origin-top rounded-full"
               />
             </div>
 
@@ -986,7 +1004,7 @@ export default function LandingPage() {
                 {
                   step: '01',
                   title: 'Pilih Layanan & Waktu',
-                  desc: 'Pilih paket AC (Standar / Core / Core + Freon), lalu tentukan tanggal dan jam pengerjaan yang sesuai.'
+                  desc: 'Pilih paket AC (Standar / Core / Core + Freon), lalu tentukan tanggal dan jam pengerjaan yang sesuai.',
                 },
                 {
                   step: '02',
@@ -1008,19 +1026,34 @@ export default function LandingPage() {
                   key={st.step}
                   variants={fadeInUpVariant}
                   whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.25, ease: easeOutCubic } }}
-                  className="bg-sky-50/60 border border-sky-100 rounded-3xl p-6 sm:p-7 relative flex flex-col justify-between hover:bg-white hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300 group"
+                  className="relative group"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-5">
-                      <span className="font-mono text-3xl font-black text-blue-600 group-hover:scale-110 transition-transform">
+                  {/* Step Circle + Connector Line (Desktop) */}
+                  <div className="absolute lg:left-1/2 lg:-translate-x-1/2 -translate-y-1/2 w-24 h-24 flex flex-col items-center z-10">
+                    {/* Step Number Circle */}
+                    <div className="relative w-16 h-16 rounded-full bg-white border-3 border-sky-200 flex items-center justify-center shadow-lg shadow-sky-500/10 transition-all duration-300 group-hover:border-blue-400 group-hover:shadow-xl group-hover:shadow-blue-500/20">
+                      <span className="font-mono text-2xl font-black text-blue-600 group-hover:text-blue-700 transition-colors">
                         {st.step}
                       </span>
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-blue-700 bg-white px-2.5 py-1 rounded-full border border-sky-200 shadow-2xs">
-                        Tahap {sIndex + 1}
-                      </span>
+                      {/* Pulse ring on hover */}
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="absolute inset-0 rounded-full border-2 border-blue-400/30 pointer-events-none"
+                      />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{st.title}</h3>
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{st.desc}</p>
+                    {/* "Tahap X" Label */}
+                    <span className="mt-2 text-xs font-bold tracking-wider uppercase text-blue-700 bg-white px-2.5 py-1 rounded-full border border-sky-200 shadow-2xs whitespace-nowrap">
+                      Tahap {sIndex + 1}
+                    </span>
+                  </div>
+
+                  {/* Content Card */}
+                  <div className="lg:pt-28 bg-sky-50/60 border border-sky-100 rounded-3xl p-6 sm:p-7 flex flex-col justify-between hover:bg-white hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{st.title}</h3>
+                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{st.desc}</p>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -1090,7 +1123,7 @@ export default function LandingPage() {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-sky-100">
                     <div>
-                      <span className="text-xs font-mono font-bold text-slate-400 uppercase">Kode Tiket Order</span>
+                      <span className="text-xs font-mono font-bold text-slate-500 uppercase">Kode Tiket Order</span>
                       <h4 className="text-xl sm:text-2xl font-black text-slate-900 font-mono mt-0.5">BK-2026-0814</h4>
                     </div>
                     <Badge className="bg-blue-100 text-blue-800 font-bold border-blue-200 px-3 py-1 rounded-full text-xs w-fit">
@@ -1114,7 +1147,7 @@ export default function LandingPage() {
                     </div>
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 opacity-60">
                       <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mb-1">
-                        <Check className="w-4 h-4 text-slate-400" /> Selesai
+                        <Check className="w-4 h-4 text-slate-500" /> Selesai
                       </span>
                       <p className="text-xs text-slate-600">Running test lulus dan laporan tersimpan.</p>
                     </div>
@@ -1155,7 +1188,7 @@ export default function LandingPage() {
                       'Uji running test suhu dingin & kelancaran air'
                     ].map((item, idx) => (
                       <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-sky-50/50 border border-sky-100 text-xs sm:text-sm text-slate-700">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
                           ✓
                         </div>
                         <span className="font-medium">{item}</span>
@@ -1470,8 +1503,9 @@ export default function LandingPage() {
             <ul className="space-y-2.5 text-xs sm:text-sm text-slate-600">
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                <a href="https://wa.me/6281385293137" target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors">
-                  0813-8529-3137 (WhatsApp)
+                <a href={buildWhatsAppUrl(whatsappNumber)} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors">
+                  {profile?.phone || 'WhatsApp'} (WhatsApp)
+<span className="sr-only"> (buka di tab baru)</span>
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
@@ -1506,6 +1540,10 @@ export default function LandingPage() {
 
       {/* Floating Bottom Booking Action Pill */}
       <StickyBottomBooking />
+      
+      {/* Tombol Kembali ke Atas */}
+      <ScrollToTopButton />
+    </main>
 
     </div>
   );

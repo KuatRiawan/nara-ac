@@ -1,37 +1,60 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
-import api from './api';
+import api, { setCsrfToken } from './api';
 
 export const AuthContext = createContext();
 
 /**
- * AuthProvider with logout confirmation
- * - Menambahkan state untuk logout confirmation dialog
- * - Logout memerlukan konfirmasi sebelum benar-benar mengakhiri sesi
+ * AuthProvider with logout confirmation.
+ * Tidak menyimpan data user di sessionStorage/localStorage (AUD-005).
+ * Setiap page load, user data diambil fresh dari /auth/me via HttpOnly cookie.
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
-  const [csrfToken, setCsrfToken] = useState(null);
+  const [csrfToken, setCsrfTokenState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    // With HttpOnly cookies, we cannot read the token from JS
-    // We rely on the backend setting HttpOnly cookies and axios sending them
-    // Check if we have user data in sessionStorage (for session persistence)
-    const storedUser = sessionStorage.getItem('nara_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    // Ambil user fresh dari server via HttpOnly cookie (AUD-005)
+    // Tidak lagi membaca dari sessionStorage untuk menghindari kebocoran data via XSS
+    let isMounted = true;
+
+    api.get('/auth/me')
+      .then((res) => {
+        if (!isMounted) return;
+        const userData = res?.user || res?.data?.user || res;
+        if (userData && userData.id) {
+          setUser(userData);
+          // Fetch CSRF token setelah berhasil validasi sesi
+          api.get('/auth/csrf-token')
+            .then((csrfRes) => {
+              if (!isMounted) return;
+              setCsrfToken(csrfRes.csrfToken);
+              setCsrfTokenState(csrfRes.csrfToken);
+            })
+            .catch(() => { /* CSRF token akan di-fetch ulang saat dibutuhkan */ });
+        }
+      })
+      .catch(() => {
+        // 401 atau network error — user memang belum login, tidak perlu apa-apa
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
     const handleExpired = () => {
       setToken(null);
       setUser(null);
+      setCsrfToken(null);
+      setCsrfTokenState(null);
     };
     window.addEventListener('auth-expired', handleExpired);
-    return () => window.removeEventListener('auth-expired', handleExpired);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('auth-expired', handleExpired);
+    };
   }, []);
 
   /**
@@ -41,6 +64,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get('/auth/csrf-token');
       setCsrfToken(res.csrfToken);
+      setCsrfTokenState(res.csrfToken);
       return res.csrfToken;
     } catch (err) {
       console.warn('Failed to fetch CSRF token:', err);
@@ -50,8 +74,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    // Token is stored in HttpOnly cookie by backend, not in localStorage
-    sessionStorage.setItem('nara_user', JSON.stringify(res.user));
+    // Token is stored in HttpOnly cookie by backend, not in localStorage/sessionStorage
     setUser(res.user);
     // Fetch CSRF token after login
     await fetchCsrfToken();
@@ -85,11 +108,10 @@ export function AuthProvider({ children }) {
         // Jika logout endpoint gagal, tetap lanjut dengan logout lokal
         console.warn('Logout endpoint gagal, melanjutkan logout lokal:', err);
       }
-      // Hapus user dari sessionStorage
-      sessionStorage.removeItem('nara_user');
       setToken(null);
       setUser(null);
-      setCsrfToken(null);
+      setCsrfToken(null);       // clear module-level token di api.js
+      setCsrfTokenState(null);  // clear state lokal
       // Kirim event untuk memberitahu komponen lain
       window.dispatchEvent(new Event('auth-logout'));
     } finally {
@@ -103,9 +125,10 @@ export function AuthProvider({ children }) {
    * Biasanya digunakan setelah token expired
    */
   const forceLogout = useCallback(() => {
-    sessionStorage.removeItem('nara_user');
     setToken(null);
     setUser(null);
+    setCsrfToken(null);
+    setCsrfTokenState(null);
     setShowLogoutConfirm(false);
     window.dispatchEvent(new Event('auth-logout'));
   }, []);
@@ -116,11 +139,7 @@ export function AuthProvider({ children }) {
   }, [confirmLogout]);
 
   const updateUser = useCallback((updatedData) => {
-    setUser(prev => {
-      const next = { ...prev, ...updatedData };
-      sessionStorage.setItem('nara_user', JSON.stringify(next));
-      return next;
-    });
+    setUser(prev => ({ ...prev, ...updatedData }));
   }, []);
 
   const value = {

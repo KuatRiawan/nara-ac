@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { 
-  Search, Plus, AirVent, User, History, ChevronRight, Settings, 
-  ArrowUpRight, Phone, MessageSquare, MapPin, Calendar, CheckCircle2, 
-  AlertCircle, Sparkles, X, Wrench, RefreshCw, Filter, Layers, Copy, Check
-} from 'lucide-react';
+import { Search, Plus, AirVent, User, History, ArrowUpRight, MessageSquare, MapPin, CheckCircle2, X, Wrench, RefreshCw } from 'lucide-react';
 import { useToast } from '../../components/ui/toast';
 import { getErrorMessage } from '../../utils/errors';
 import { Button } from '../../components/ui/button';
@@ -197,7 +193,7 @@ export default function AdminACUnits() {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0 font-sans">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0 font-sans">
       {/* HEADER: Standard Clean Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -216,7 +212,7 @@ export default function AdminACUnits() {
           >
             <User className="w-3.5 h-3.5 text-slate-500" />
             <span>Kelola di Pelanggan</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-500" />
           </Button>
 
           <Button
@@ -234,9 +230,9 @@ export default function AdminACUnits() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total Unit Terdaftar</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 font-bold">Total Unit Terdaftar</p>
             <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{metrics.total} Unit</h3>
-            <p className="text-xs text-slate-400 mt-1 font-medium">Seluruh unit terpasang</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Seluruh unit terpasang</p>
           </div>
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-bold">
             <AirVent className="w-6 h-6" />
@@ -245,7 +241,7 @@ export default function AdminACUnits() {
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-emerald-600 font-bold">Unit Status Aktif</p>
+            <p className="text-xs uppercase tracking-wider text-emerald-600 font-bold">Unit Status Aktif</p>
             <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">{metrics.active} Unit</h3>
             <p className="text-xs text-emerald-700/80 mt-1 font-medium">Dalam perawatan rutin</p>
           </div>
@@ -256,7 +252,7 @@ export default function AdminACUnits() {
 
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-indigo-600 font-bold">Riwayat Servis Tercatat</p>
+            <p className="text-xs uppercase tracking-wider text-indigo-600 font-bold">Riwayat Servis Tercatat</p>
             <h3 className="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{metrics.withHistory} Unit</h3>
             <p className="text-xs text-indigo-700/80 mt-1 font-medium">Pernah diservis teknisi</p>
           </div>
@@ -271,18 +267,19 @@ export default function AdminACUnits() {
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
           {/* Search Bar */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Cari brand, model, nama pelanggan, no. seri, atau lokasi kamar..." 
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Cari brand, model, nama pelanggan, no. seri, atau lokasi kamar..."
+              aria-label="Cari unit AC"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-medium text-gray-900"
+              className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all font-medium text-slate-900"
             />
             {search && (
               <button 
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-semibold"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 text-xs font-semibold"
               >
                 Hapus
               </button>
@@ -292,11 +289,11 @@ export default function AdminACUnits() {
           {/* Quick Filters */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tipe:</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipe:</span>
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="text-xs font-semibold px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 cursor-pointer"
+                className="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 cursor-pointer"
               >
                 <option value="all">Semua Tipe AC</option>
                 <option value="Split Wall">Split Wall</option>
@@ -307,11 +304,11 @@ export default function AdminACUnits() {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kapasitas:</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kapasitas:</span>
               <select
                 value={selectedPk}
                 onChange={(e) => setSelectedPk(e.target.value)}
-                className="text-xs font-semibold px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 cursor-pointer"
+                className="text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 cursor-pointer"
               >
                 <option value="all">Semua PK</option>
                 <option value="0.5">0.5 PK</option>
@@ -331,15 +328,15 @@ export default function AdminACUnits() {
         {loading ? (
           <div className="p-16 text-center space-y-3">
             <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-            <p className="text-gray-600 font-semibold text-sm">Memuat katalog seluruh unit AC...</p>
+            <p className="text-slate-600 font-semibold text-sm">Memuat katalog seluruh unit AC...</p>
           </div>
         ) : filteredUnits.length === 0 ? (
           <div className="p-16 text-center space-y-4 max-w-md mx-auto">
             <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
               <AirVent className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-black text-gray-900">Unit AC Tidak Ditemukan</h3>
-            <p className="text-gray-500 text-sm">
+            <h3 className="text-lg font-black text-slate-900">Unit AC Tidak Ditemukan</h3>
+            <p className="text-slate-500 text-sm">
               {search || selectedType !== 'all' || selectedPk !== 'all'
                 ? 'Tidak ada unit AC yang cocok dengan kata kunci atau filter pencarian Anda.'
                 : 'Belum ada unit AC yang terdaftar di database.'}
@@ -368,7 +365,7 @@ export default function AdminACUnits() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-500 text-xs uppercase tracking-wider font-bold">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
                   <th className="py-4 px-6">Unit AC (Spesifikasi)</th>
                   <th className="py-4 px-6">Pelanggan & Kontak</th>
                   <th className="py-4 px-6">Lokasi Pemasangan</th>
@@ -393,13 +390,13 @@ export default function AdminACUnits() {
                               {u.model && <span className="text-slate-500 font-medium text-xs">({u.model})</span>}
                             </div>
                             <div className="flex items-center gap-1.5 mt-1">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/80 whitespace-nowrap">
                                 {u.kapasitas_pk != null ? `${u.kapasitas_pk} PK` : '1 PK'}
                               </span>
                               <span className="text-xs text-slate-500 font-medium whitespace-nowrap">• {u.tipe || 'Split Wall'}</span>
                             </div>
                             {u.nomor_seri && (
-                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                              <div className="text-xs text-slate-500 font-mono mt-0.5">
                                 SN: {u.nomor_seri}
                               </div>
                             )}
@@ -411,7 +408,7 @@ export default function AdminACUnits() {
                       <td className="py-4 px-6">
                         <div className="space-y-1">
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                            <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <User className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             <span>{u.nama_customer}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -419,13 +416,13 @@ export default function AdminACUnits() {
                             {waLink && (
                               <a
                                 href={waLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md hover:bg-emerald-100 transition-colors border border-emerald-200/50"
+                                target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md hover:bg-emerald-100 transition-colors border border-emerald-200/50"
                                 title="Chat WhatsApp Pelanggan"
                               >
                                 <MessageSquare className="w-3 h-3" />
                                 <span>WA</span>
+<span className="sr-only"> (buka di tab baru)</span>
                               </a>
                             )}
                           </div>
@@ -439,7 +436,7 @@ export default function AdminACUnits() {
                           <span className="max-w-xs">{u.lokasi || '-'}</span>
                         </div>
                         {u.tanggal_pasang && (
-                          <div className="text-[11px] text-slate-400 mt-0.5 pl-5">
+                          <div className="text-xs text-slate-500 mt-0.5 pl-5">
                             Pasang: {new Date(u.tanggal_pasang).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </div>
                         )}
@@ -452,12 +449,12 @@ export default function AdminACUnits() {
                             <div className="text-xs font-semibold text-slate-800">
                               {new Date(u.servis_terakhir).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
                             </div>
-                            <div className="text-[11px] text-blue-600 font-medium">
+                            <div className="text-xs text-blue-600 font-medium">
                               {u.layanan_terakhir || 'Servis AC'}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Belum ada catatan</span>
+                          <span className="text-xs text-slate-500 italic">Belum ada catatan</span>
                         )}
                       </td>
 
@@ -494,7 +491,7 @@ export default function AdminACUnits() {
 
       {/* MODAL QUICK VIEW RIWAYAT UNIT AC */}
       {quickViewUnit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="p-5 sm:p-6 bg-slate-900 text-white flex justify-between items-start shrink-0">
@@ -522,17 +519,17 @@ export default function AdminACUnits() {
             {/* Content Body */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {/* Info Pelanggan & Lokasi */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="text-gray-500 font-semibold block uppercase tracking-wider text-[10px]">Pemilik Pelanggan:</span>
-                  <span className="font-bold text-gray-900 text-sm mt-0.5 block">{quickViewUnit.nama_customer}</span>
-                  <span className="text-gray-600 font-mono mt-0.5 block">{quickViewUnit.kontak_customer}</span>
+                  <span className="text-slate-500 font-semibold block uppercase tracking-wider text-xs">Pemilik Pelanggan:</span>
+                  <span className="font-bold text-slate-900 text-sm mt-0.5 block">{quickViewUnit.nama_customer}</span>
+                  <span className="text-slate-600 font-mono mt-0.5 block">{quickViewUnit.kontak_customer}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 font-semibold block uppercase tracking-wider text-[10px]">Lokasi Ruangan:</span>
-                  <span className="font-bold text-gray-900 text-sm mt-0.5 block">{quickViewUnit.lokasi}</span>
+                  <span className="text-slate-500 font-semibold block uppercase tracking-wider text-xs">Lokasi Ruangan:</span>
+                  <span className="font-bold text-slate-900 text-sm mt-0.5 block">{quickViewUnit.lokasi}</span>
                   {quickViewUnit.nomor_seri && (
-                    <span className="text-gray-500 font-mono mt-0.5 block">SN: {quickViewUnit.nomor_seri}</span>
+                    <span className="text-slate-500 font-mono mt-0.5 block">SN: {quickViewUnit.nomor_seri}</span>
                   )}
                 </div>
               </div>
@@ -540,24 +537,24 @@ export default function AdminACUnits() {
               {/* Riwayat Servis */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-black text-gray-900 text-sm flex items-center gap-2">
+                  <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
                     <History className="w-4 h-4 text-blue-600" />
                     <span>Catatan Servis Unit Ini ({quickViewUnit.history?.length || 0})</span>
                   </h4>
                 </div>
 
                 {(!quickViewUnit.history || quickViewUnit.history.length === 0) ? (
-                  <div className="p-8 text-center text-gray-500 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 text-xs font-medium">
+                  <div className="p-8 text-center text-slate-500 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-xs font-medium">
                     Belum ada riwayat pengerjaan servis untuk unit AC ini.
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="divide-y divide-gray-100 border border-slate-200 rounded-xl overflow-hidden">
                     {quickViewUnit.history.map((h) => (
-                      <div key={h.id} className="p-4 bg-white hover:bg-gray-50/60 transition-colors text-xs space-y-2">
+                      <div key={h.id} className="p-4 bg-white hover:bg-slate-50/60 transition-colors text-xs space-y-2">
                         <div className="flex justify-between items-start gap-2">
                           <div>
-                            <span className="font-bold text-gray-900 text-sm block">{h.nama_layanan || 'Service AC'}</span>
-                            <span className="text-gray-500 mt-0.5 block">
+                            <span className="font-bold text-slate-900 text-sm block">{h.nama_layanan || 'Service AC'}</span>
+                            <span className="text-slate-500 mt-0.5 block">
                               {new Date(h.jadwal_mulai).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                             </span>
                           </div>
@@ -565,7 +562,7 @@ export default function AdminACUnits() {
                             <Badge 
                               variant="outline" 
                               className={cn(
-                                "text-[10px] font-bold uppercase",
+                                "text-xs font-bold uppercase",
                                 h.status === 'done' ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
                                 h.status === 'cancelled' ? "bg-rose-50 text-rose-700 border-rose-200" :
                                 "bg-blue-50 text-blue-700 border-blue-200"
@@ -573,19 +570,19 @@ export default function AdminACUnits() {
                             >
                               {h.status}
                             </Badge>
-                            <span className="font-mono text-[11px] text-gray-400 block mt-1">{h.kode_booking}</span>
+                            <span className="font-mono text-xs text-slate-500 block mt-1">{h.kode_booking}</span>
                           </div>
                         </div>
 
                         {h.teknisi && (
-                          <div className="text-gray-600 font-medium flex items-center gap-1.5 pt-1 border-t border-gray-100">
-                            <Wrench className="w-3.5 h-3.5 text-gray-400" />
+                          <div className="text-slate-600 font-medium flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                            <Wrench className="w-3.5 h-3.5 text-slate-500" />
                             <span>Teknisi Bertugas: <strong>{h.teknisi}</strong></span>
                           </div>
                         )}
 
                         {h.diagnosis && (
-                          <div className="bg-blue-50/50 p-2.5 rounded-lg text-gray-700 text-[11px]">
+                          <div className="bg-blue-50/50 p-2.5 rounded-lg text-slate-700 text-xs">
                             <strong className="text-blue-900">Diagnosis Teknisi:</strong> {h.diagnosis}
                           </div>
                         )}
@@ -597,7 +594,7 @@ export default function AdminACUnits() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between shrink-0">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
               <Button
                 variant="outline"
                 onClick={() => setQuickViewUnit(null)}
@@ -623,7 +620,7 @@ export default function AdminACUnits() {
 
       {/* MODAL TAMBAH UNIT AC CEPAT */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
             <div className="p-5 bg-slate-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
@@ -632,7 +629,7 @@ export default function AdminACUnits() {
               </div>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+                className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -640,17 +637,18 @@ export default function AdminACUnits() {
 
             <form onSubmit={handleSaveNewAC} className="p-6 overflow-y-auto space-y-4 flex-1">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label htmlFor="admin-a-c-units-f1" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Pilih Pelanggan Pemilik <span className="text-rose-500">*</span>
                 </label>
                 {loadingCustomers ? (
-                  <div className="text-xs text-gray-500 py-2">Memuat daftar pelanggan...</div>
+                  <div className="text-xs text-slate-500 py-2">Memuat daftar pelanggan...</div>
                 ) : (
                   <select
+                    id="admin-a-c-units-f1"
                     required
                     value={addForm.customer_id}
                     onChange={(e) => setAddForm({ ...addForm, customer_id: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   >
                     <option value="">-- Pilih Pelanggan --</option>
                     {customersList.map((c) => (
@@ -664,41 +662,44 @@ export default function AdminACUnits() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f2" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Brand AC <span className="text-rose-500">*</span>
                   </label>
                   <input
+                    id="admin-a-c-units-f2"
                     type="text"
                     required
                     placeholder="Contoh: Daikin, Panasonic"
                     value={addForm.brand}
                     onChange={(e) => setAddForm({ ...addForm, brand: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f3" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Model / Seri
                   </label>
                   <input
+                    id="admin-a-c-units-f3"
                     type="text"
                     placeholder="Contoh: Inverter FTKC"
                     value={addForm.model}
                     onChange={(e) => setAddForm({ ...addForm, model: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f4" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Tipe AC
                   </label>
                   <select
+                    id="admin-a-c-units-f4"
                     value={addForm.tipe}
                     onChange={(e) => setAddForm({ ...addForm, tipe: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   >
                     <option value="Split Wall">Split Wall</option>
                     <option value="Cassette">Cassette</option>
@@ -707,13 +708,14 @@ export default function AdminACUnits() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f5" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Kapasitas (PK)
                   </label>
                   <select
+                    id="admin-a-c-units-f5"
                     value={addForm.kapasitas_pk}
                     onChange={(e) => setAddForm({ ...addForm, kapasitas_pk: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   >
                     <option value="0.5">0.5 PK</option>
                     <option value="0.75">0.75 PK</option>
@@ -728,55 +730,59 @@ export default function AdminACUnits() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label htmlFor="admin-a-c-units-f6" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Lokasi Penempatan Ruangan <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="admin-a-c-units-f6"
                   type="text"
                   required
                   placeholder="Contoh: Kamar Utama Lt. 2, Ruang Tamu, Kantor Depan"
                   value={addForm.lokasi}
                   onChange={(e) => setAddForm({ ...addForm, lokasi: e.target.value })}
-                  className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                  className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f7" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Nomor Seri (Barcode)
                   </label>
                   <input
+                    id="admin-a-c-units-f7"
                     type="text"
                     placeholder="Opsional"
                     value={addForm.nomor_seri}
                     onChange={(e) => setAddForm({ ...addForm, nomor_seri: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 font-mono"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  <label htmlFor="admin-a-c-units-f8" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Tanggal Pasang
                   </label>
                   <input
+                    id="admin-a-c-units-f8"
                     type="date"
                     value={addForm.tanggal_pasang}
                     onChange={(e) => setAddForm({ ...addForm, tanggal_pasang: e.target.value })}
-                    className="w-full text-sm px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                    className="w-full text-sm px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label htmlFor="admin-a-c-units-f9" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Catatan Unit AC
                 </label>
                 <textarea
+                  id="admin-a-c-units-f9"
                   rows={2}
                   placeholder="Keterangan tambahan (misal: pipa tanam, garansi servis hingga 2027)..."
                   value={addForm.catatan}
                   onChange={(e) => setAddForm({ ...addForm, catatan: e.target.value })}
-                  className="w-full text-sm px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900"
+                  className="w-full text-sm px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-900"
                 />
               </div>
 

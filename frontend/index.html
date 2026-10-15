@@ -4,8 +4,41 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/images/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="CV. NARA TEKNINDOTAMA - Layanan Service, Maintenance & Instalasi AC Profesional. Spesialis perawatan AC untuk rumah dan kantor." />
-    <title>CV. NARA TEKNINDOTAMA</title>
+    <meta name="description" content="CV. NARA TEKNINDOTAMA - Layanan Service, Maintenance & Instalasi AC Profesional. Spesialis perawatan AC untuk rumah dan kantor di Jabodetabek. Booking online, garansi resmi hingga 45 hari." />
+    <meta name="keywords" content="service AC, cuci AC, isi freon, perbaikan AC, instalasi AC, Jabodetabek, Nara AC, teknisi AC profesional" />
+    <link rel="canonical" href="https://nara-ac.id/" />
+    <title>CV. NARA TEKNINDOTAMA — Service AC Profesional Jabodetabek</title>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nara-ac.id/" />
+    <meta property="og:title" content="CV. NARA TEKNINDOTAMA — Service AC Profesional Jabodetabek" />
+    <meta property="og:description" content="Layanan Service, Maintenance & Instalasi AC Profesional. Booking online, garansi resmi hingga 45 hari." />
+    <meta property="og:image" content="https://nara-ac.id/images/logo.png" />
+    <meta property="og:site_name" content="NARA AC" />
+    <meta property="og:locale" content="id_ID" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://nara-ac.id/" />
+    <meta name="twitter:title" content="CV. NARA TEKNINDOTAMA — Service AC Profesional" />
+    <meta name="twitter:description" content="Layanan Service, Maintenance & Instalasi AC Profesional. Booking online, garansi resmi hingga 45 hari." />
+    <meta name="twitter:image" content="https://nara-ac.id/images/logo.png" />
+
+    <!-- noindex dinamis untuk halaman privat (SPA) — AUD-022 -->
+    <script>
+      (function() {
+        var path = window.location.pathname;
+        var privatePaths = ['/admin', '/technician', '/customer', '/login'];
+        var isPrivate = privatePaths.some(function(p) { return path.startsWith(p); });
+        if (isPrivate) {
+          var meta = document.createElement('meta');
+          meta.name = 'robots';
+          meta.content = 'noindex, nofollow';
+          document.head.appendChild(meta);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { getMobileNavItems, isActivePath } from './navConfig';
 import { AuthContext } from '../../AuthContext';
-import { X, Layers, ChevronRight, Sparkles } from 'lucide-react';
+import { X, Layers } from 'lucide-react';
 
 /**
  * Bottom Navigation Bar for Mobile (Gold-Standard 5 Tabs)
@@ -86,7 +86,7 @@ export default function BottomNavigation() {
                     <h3 className="text-sm font-black text-slate-900 leading-tight">
                       Semua Menu & Fitur
                     </h3>
-                    <p className="text-[11px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-500 font-medium">
                       Akses cepat modul sistem NARA AC
                     </p>
                   </div>
@@ -136,7 +136,7 @@ export default function BottomNavigation() {
                         </span>
 
                         {child.group && (
-                          <span className="text-[9px] font-semibold text-slate-400 mt-0.5 truncate max-w-full">
+                          <span className="text-[9px] font-semibold text-slate-500 mt-0.5 truncate max-w-full">
                             {child.group}
                           </span>
                         )}
@@ -200,7 +200,7 @@ export default function BottomNavigation() {
                         <span className="absolute 0 top-0.5 right-0.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
                       )}
                     </div>
-                    <span className="text-[10px] leading-tight tracking-tight truncate max-w-full text-center">
+                    <span className="text-xs leading-tight tracking-tight truncate max-w-full text-center">
                       {activeChild ? (activeChild.shortName || activeChild.name) : (item.shortName || item.name)}
                     </span>
                   </button>
@@ -227,7 +227,7 @@ export default function BottomNavigation() {
                   )}>
                     <Icon className="w-5 h-5 shrink-0" />
                   </div>
-                  <span className="text-[10px] leading-tight tracking-tight truncate max-w-full text-center">
+                  <span className="text-xs leading-tight tracking-tight truncate max-w-full text-center">
                     {item.shortName || item.name}
                   </span>
                 </Link>

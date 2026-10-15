@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { useToast } from '../../components/ui/toast';
+import ConfirmationModal from '../../components/ui/ConfirmationModal';
 
 export default function CustomerAcUnits() {
   const { error: showError } = useToast();
@@ -15,6 +16,7 @@ export default function CustomerAcUnits() {
   const [formData, setFormData] = useState({ brand: '', model: '', tipe: '', kapasitas_pk: '', lokasi: '', tanggal_pasang: '', nomor_seri: '', catatan: '' });
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, unitId: null, unitInfo: '' });
   
   // Close form when route changes
   useEffect(() => {
@@ -57,10 +59,20 @@ export default function CustomerAcUnits() {
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Yakin ingin menghapus unit AC ini?')) return;
-    setDeletingId(id);
+    const unit = units.find(u => u.id === id);
+    setDeleteConfirmation({
+      isOpen: true,
+      unitId: id,
+      unitInfo: unit ? `${unit.brand} (${unit.lokasi})` : 'Unit AC ini'
+    });
+  };
+
+  const confirmDelete = async () => {
+    const { unitId } = deleteConfirmation;
+    setDeleteConfirmation(prev => ({ ...prev, isOpen: false }));
+    setDeletingId(unitId);
     try {
-      await api.delete(`/customer/ac-units/${id}`);
+      await api.delete(`/customer/ac-units/${unitId}`);
       fetchUnits();
     } catch (e) {
       showError('Gagal menghapus data: ' + (e.response?.data?.error?.message || e.message));
@@ -81,17 +93,17 @@ export default function CustomerAcUnits() {
       </div>
 
       {showForm && (
-        <Card className="bg-gray-50">
-          <CardHeader><CardTitle>{editingId ? 'Edit Unit AC' : 'Tambah Unit AC Baru'}</CardTitle></CardHeader>
-          <CardContent>
+        <Card className="bg-white border-slate-200">
+          <CardHeader className="bg-slate-50 border-b border-slate-200"><CardTitle>{editingId ? 'Edit Unit AC' : 'Tambah Unit AC Baru'}</CardTitle></CardHeader>
+          <CardContent className="bg-white">
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700">Merek / Brand *</label><input required value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">Lokasi / Ruangan *</label><input required value={formData.lokasi} onChange={e => setFormData({...formData, lokasi: e.target.value})} placeholder="Contoh: Kamar Utama" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">Model</label><input value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">Kapasitas (PK)</label><input type="number" step="0.5" value={formData.kapasitas_pk} onChange={e => setFormData({...formData, kapasitas_pk: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">Nomor Seri</label><input value={formData.nomor_seri} onChange={e => setFormData({...formData, nomor_seri: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div><label className="block text-sm font-medium text-gray-700">Tanggal Pasang</label><input type="date" value={formData.tanggal_pasang} onChange={e => setFormData({...formData, tanggal_pasang: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
-              <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700">Catatan</label><textarea value={formData.catatan} onChange={e => setFormData({...formData, catatan: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" rows="2"></textarea></div>
+              <div><label htmlFor="ac-brand" className="block text-sm font-medium text-slate-700">Merek / Brand *</label><input id="ac-brand" required value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div><label htmlFor="ac-lokasi" className="block text-sm font-medium text-slate-700">Lokasi / Ruangan *</label><input id="ac-lokasi" required value={formData.lokasi} onChange={e => setFormData({...formData, lokasi: e.target.value})} placeholder="Contoh: Kamar Utama" className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div><label htmlFor="ac-model" className="block text-sm font-medium text-slate-700">Model</label><input id="ac-model" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div><label htmlFor="ac-kapasitas" className="block text-sm font-medium text-slate-700">Kapasitas (PK)</label><input id="ac-kapasitas" type="number" step="0.5" value={formData.kapasitas_pk} onChange={e => setFormData({...formData, kapasitas_pk: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div><label htmlFor="ac-nomor-seri" className="block text-sm font-medium text-slate-700">Nomor Seri</label><input id="ac-nomor-seri" value={formData.nomor_seri} onChange={e => setFormData({...formData, nomor_seri: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div><label htmlFor="ac-tanggal-pasang" className="block text-sm font-medium text-slate-700">Tanggal Pasang</label><input id="ac-tanggal-pasang" type="date" value={formData.tanggal_pasang} onChange={e => setFormData({...formData, tanggal_pasang: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" /></div>
+              <div className="md:col-span-2"><label htmlFor="ac-catatan" className="block text-sm font-medium text-slate-700">Catatan</label><textarea id="ac-catatan" value={formData.catatan} onChange={e => setFormData({...formData, catatan: e.target.value})} className="mt-1 block w-full rounded-md border-slate-300 bg-white shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border" rows="2"></textarea></div>
               <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)} disabled={submitting}>Batal</Button>
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={submitting}>
@@ -105,17 +117,17 @@ export default function CustomerAcUnits() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {units.map(u => (
-          <Card key={u.id}>
+          <Card key={u.id} className="rounded-2xl border-slate-200/80 shadow-sm hover:shadow-md transition-all">
             <CardContent className="p-4 relative">
               <div className="absolute top-4 right-4 flex gap-1">
-                <button onClick={() => { setEditingId(u.id); setFormData({ brand: u.brand||'', model: u.model||'', tipe: u.tipe||'', kapasitas_pk: u.kapasitas_pk||'', lokasi: u.lokasi||'', tanggal_pasang: u.tanggal_pasang ? u.tanggal_pasang.split('T')[0] : '', nomor_seri: u.nomor_seri||'', catatan: u.catatan||'' }); setShowForm(true); }} className="p-1 text-gray-400 hover:text-blue-600"><Edit2 className="h-4 w-4" /></button>
-                <button onClick={() => handleDelete(u.id)} disabled={deletingId === u.id} className="p-1 text-gray-400 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={() => { setEditingId(u.id); setFormData({ brand: u.brand||'', model: u.model||'', tipe: u.tipe||'', kapasitas_pk: u.kapasitas_pk||'', lokasi: u.lokasi||'', tanggal_pasang: u.tanggal_pasang ? u.tanggal_pasang.split('T')[0] : '', nomor_seri: u.nomor_seri||'', catatan: u.catatan||'' }); setShowForm(true); }} className="p-1 text-slate-500 hover:text-blue-600" aria-label={`Edit unit AC ${u.brand} di ${u.lokasi}`}><Edit2 className="h-4 w-4" /></button>
+                <button onClick={() => handleDelete(u.id)} disabled={deletingId === u.id} className="p-1 text-slate-500 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed" aria-label={`Hapus unit AC ${u.brand} di ${u.lokasi}`}>
                   {deletingId === u.id ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 </button>
               </div>
-              <h3 className="font-bold text-lg">{u.brand} <span className="text-sm font-normal text-gray-500">({u.kapasitas_pk ? `${u.kapasitas_pk} PK` : 'N/A'})</span></h3>
-              <p className="text-gray-600 text-sm mb-2">{u.lokasi}</p>
-              <div className="text-xs text-gray-500 grid grid-cols-2 gap-1">
+              <h3 className="font-bold text-lg">{u.brand} <span className="text-sm font-normal text-slate-500">({u.kapasitas_pk ? `${u.kapasitas_pk} PK` : 'N/A'})</span></h3>
+              <p className="text-slate-600 text-sm mb-2">{u.lokasi}</p>
+              <div className="text-xs text-slate-500 grid grid-cols-2 gap-1">
                 <div>Model: {u.model || '-'}</div>
                 <div>Seri: {u.nomor_seri || '-'}</div>
                 <div className="col-span-2">Catatan: {u.catatan || '-'}</div>
@@ -124,11 +136,23 @@ export default function CustomerAcUnits() {
           </Card>
         ))}
         {units.length === 0 && !showForm && (
-          <div className="col-span-full p-8 text-center border-2 border-dashed rounded-lg text-gray-500">
+          <div className="col-span-full p-8 text-center border-2 border-dashed rounded-2xl text-slate-500 bg-white border-slate-200/80">
             Anda belum mendaftarkan unit AC.
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal for Delete */}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmation({ isOpen: false, unitId: null, unitInfo: '' })}
+        title="Hapus Unit AC"
+        message={`Apakah Anda yakin ingin menghapus ${deleteConfirmation.unitInfo}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

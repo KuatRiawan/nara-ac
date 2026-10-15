@@ -2,40 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api';
 import { Button } from '../../components/ui/button';
 import { useToast } from '../../components/ui/toast';
-import { 
-  AreaChart, 
-  Area, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Legend 
-} from 'recharts';
-import { 
-  Bot, 
-  BrainCircuit, 
-  Sparkles, 
-  TrendingUp, 
-  Users, 
-  Wrench, 
-  Star, 
-  Package, 
-  Activity, 
-  CheckCircle2, 
-  AlertTriangle, 
-  ExternalLink, 
-  X, 
-  ChevronRight, 
-  Calendar, 
-  Zap, 
-  Clock, 
-  Loader2,
-  Terminal,
-  ShieldCheck
-} from 'lucide-react';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Bot, BrainCircuit, Sparkles, TrendingUp, Users, Wrench, Star, CheckCircle2, AlertTriangle, ExternalLink, X, Calendar, Terminal } from 'lucide-react';
 
 export default function AdminAnalytics() {
   const { error: showError, success: showSuccess } = useToast();
@@ -145,7 +113,7 @@ export default function AdminAnalytics() {
   }, [inferenceLogs]);
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -180,16 +148,16 @@ export default function AdminAnalytics() {
         {/* Total Permintaan Servis */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Permintaan Servis</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Permintaan Servis</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <Calendar className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-2xl font-black text-slate-900">
-              {summaryData?.booking_total || 0} <span className="text-xs font-semibold text-slate-400">Tiket</span>
+              {summaryData?.booking_total || 0} <span className="text-xs font-semibold text-slate-500">Tiket</span>
             </p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               {summaryData?.booking_bulan_ini || 0} tiket servis aktif bulan ini
             </p>
           </div>
@@ -198,7 +166,7 @@ export default function AdminAnalytics() {
         {/* Model AI Status & Confidence */}
         <div className="p-5 rounded-3xl bg-white border border-purple-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-purple-600">Status Engine AI</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Status Engine AI</span>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
               <Bot className="w-4 h-4" />
             </div>
@@ -209,7 +177,7 @@ export default function AdminAnalytics() {
                 {aiStatus?.tersedia ? 'Siap / Online' : 'Standby'}
               </p>
             </div>
-            <p className="text-[11px] font-medium text-purple-600/80 mt-1">
+            <p className="text-xs font-medium text-purple-600/80 mt-1">
               Rata-rata keyakinan: {avgConfidence}% • Latency: {avgLatency}ms
             </p>
           </div>
@@ -218,7 +186,7 @@ export default function AdminAnalytics() {
         {/* Kepuasan Konsumen (CSAT) */}
         <div className="p-5 rounded-3xl bg-white border border-amber-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Kepuasan Pelanggan</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Kepuasan Pelanggan</span>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
               <Star className="w-4 h-4" />
             </div>
@@ -227,7 +195,7 @@ export default function AdminAnalytics() {
             <p className="text-2xl font-black text-amber-700">
               {summaryData?.rating?.rata > 0 ? `${summaryData.rating.rata} / 5.0` : '5.0 / 5.0'}
             </p>
-            <p className="text-[11px] font-medium text-amber-600/80 mt-1">
+            <p className="text-xs font-medium text-amber-600/80 mt-1">
               Dari ulasan & rating bintang konsumen
             </p>
           </div>
@@ -236,7 +204,7 @@ export default function AdminAnalytics() {
         {/* Beban Teknisi Aktif */}
         <div className="p-5 rounded-3xl bg-white border border-teal-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600">Teknisi Bertugas</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-600">Teknisi Bertugas</span>
             <div className="p-2 bg-teal-50 text-teal-600 rounded-xl">
               <Wrench className="w-4 h-4" />
             </div>
@@ -245,7 +213,7 @@ export default function AdminAnalytics() {
             <p className="text-2xl font-black text-teal-700">
               {summaryData?.workload_teknisi?.length || 0} <span className="text-xs font-semibold text-teal-600/70">Personil</span>
             </p>
-            <p className="text-[11px] font-medium text-teal-600/80 mt-1">
+            <p className="text-xs font-medium text-teal-600/80 mt-1">
               Monitoring distribusi beban pekerjaan
             </p>
           </div>
@@ -264,12 +232,12 @@ export default function AdminAnalytics() {
               <h3 className="font-black text-sm text-slate-900">
                 AI Smart Operational Insights
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 Rekomendasi otomatis berbasis analisis data real-time sistem
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">
+          <span className="text-xs font-bold text-slate-500 hidden sm:inline">
             Rentang evaluasi 30 hari terakhir
           </span>
         </div>
@@ -300,7 +268,7 @@ export default function AdminAnalytics() {
                     {isWarning ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                   </div>
                   <div className="text-xs">
-                    <span className="font-bold uppercase tracking-wider text-[10px] block opacity-80 mb-0.5">
+                    <span className="font-bold uppercase tracking-wider text-xs block opacity-80 mb-0.5">
                       {ins.tingkat === 'peringatan' ? 'Peringatan Operasional' : ins.tingkat === 'info' ? 'Insight Sistem' : 'Status Baik'}
                     </span>
                     <p className="font-medium leading-relaxed">{ins.teks}</p>
@@ -322,7 +290,7 @@ export default function AdminAnalytics() {
               <h3 className="font-black text-sm text-slate-900">
                 Tren Permintaan Servis AC
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Frekuensi jumlah pemesanan servis per tanggal
               </p>
             </div>
@@ -333,7 +301,7 @@ export default function AdminAnalytics() {
 
           <div className="h-64 w-full pt-2">
             {chartDailyData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
+              <div className="h-full flex items-center justify-center text-xs text-slate-500">
                 Belum cukup data tren historis pada periode ini.
               </div>
             ) : (
@@ -373,7 +341,7 @@ export default function AdminAnalytics() {
               <h3 className="font-black text-sm text-slate-900">
                 Distribusi Beban Kerja Teknisi
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Perbandingan porsi tiket per personil teknisi
               </p>
             </div>
@@ -384,7 +352,7 @@ export default function AdminAnalytics() {
 
           <div className="h-64 w-full pt-2">
             {chartWorkloadData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-slate-400">
+              <div className="h-full flex items-center justify-center text-xs text-slate-500">
                 Belum ada data beban kerja teknisi.
               </div>
             ) : (
@@ -419,12 +387,12 @@ export default function AdminAnalytics() {
               <h3 className="font-black text-sm text-slate-900">
                 Log Inferensi & Keputusan AI Terbaru
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Riwayat klasifikasi intent, routing otomatis chatbot, dan kecepatan respon inferensi
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-400">
+          <span className="text-xs font-bold text-slate-500">
             {inferenceLogs.length} inferensi terakhir
           </span>
         </div>
@@ -444,7 +412,7 @@ export default function AdminAnalytics() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {inferenceLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-400">
+                  <td colSpan="6" className="py-8 text-center text-slate-500">
                     Belum ada riwayat inferensi AI tercatat.
                   </td>
                 </tr>
@@ -474,7 +442,7 @@ export default function AdminAnalytics() {
                               style={{ width: `${confPct}%` }}
                             />
                           </div>
-                          <span className="font-mono font-bold text-slate-800 text-[11px]">{confPct}%</span>
+                          <span className="font-mono font-bold text-slate-800 text-xs">{confPct}%</span>
                         </div>
                       </td>
 
@@ -483,18 +451,18 @@ export default function AdminAnalytics() {
                       </td>
 
                       <td className="py-3.5 px-5">
-                        <span className="font-mono text-[11px] text-slate-600">
+                        <span className="font-mono text-xs text-slate-600">
                           {log.rute || 'ai_flow'}
                         </span>
                       </td>
 
                       <td className="py-3.5 px-5 text-right">
                         {log.fallback ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                             Fallback
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <CheckCircle2 className="w-2.5 h-2.5" /> Presisi
                           </span>
                         )}
@@ -527,7 +495,7 @@ export default function AdminAnalytics() {
                 <div>
                   <h3 className="font-black text-sm text-white flex items-center gap-2">
                     <span>Streamlit Advanced Data Science Explorer</span>
-                    <span className="text-[10px] font-mono bg-purple-950 px-2 py-0.5 rounded border border-purple-800 text-purple-300">
+                    <span className="text-xs font-mono bg-purple-950 px-2 py-0.5 rounded border border-purple-800 text-purple-300">
                       {streamlitUrl}
                     </span>
                   </h3>
@@ -539,18 +507,18 @@ export default function AdminAnalytics() {
               <div className="flex items-center gap-2">
                 <a
                   href={streamlitUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target="_blank" rel="noopener noreferrer"
                   className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 text-xs font-bold flex items-center gap-1 transition-colors"
                   title="Buka di tab baru"
                 >
                   <ExternalLink className="w-4 h-4" />
                   <span className="hidden sm:inline">Buka Tab Baru</span>
+<span className="sr-only"> (buka di tab baru)</span>
                 </a>
                 <button
                   type="button"
                   onClick={() => setShowStreamlitModal(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                  className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                   aria-label="Tutup"
                 >
                   <X className="w-5 h-5" />
@@ -572,9 +540,10 @@ export default function AdminAnalytics() {
                     Dashboard native utama di atas tetap berjalan 100%. Untuk membuka lab lanjutan Streamlit, aktifkan service di terminal:
                   </p>
                   <div className="bg-slate-900 text-slate-200 p-4 rounded-2xl text-left text-xs w-full max-w-md font-mono shadow-inner space-y-1">
-                    <p className="text-slate-400 text-[11px]"># Perintah menjalankan Streamlit Lab:</p>
-                    <p><span className="text-emerald-400">$</span> cd ai-service</p>
-                    <p><span className="text-emerald-400">$</span> streamlit run app.py --server.port 8501</p>
+                    <p className="text-slate-500 text-xs"># Perintah menjalankan Streamlit Lab:</p>
+                    <p className="text-emerald-400">cd data-science && streamlit run app.py</p>
+                    <p className="text-slate-500 text-xs mt-2"># Atau gunakan script helper:</p>
+                    <p className="text-emerald-400">./data-science/run_app.sh</p>
                   </div>
                   <Button
                     onClick={() => setStreamlitError(false)}
@@ -584,9 +553,9 @@ export default function AdminAnalytics() {
                   </Button>
                 </div>
               ) : (
-                <iframe 
-                  src={streamlitUrl} 
-                  title="Streamlit AI Lab"
+                <iframe
+                  src={streamlitUrl}
+                  title="Dashboard AI Analytics - Streamlit Data Science Lab"
                   className="w-full h-full border-0"
                   sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                   onError={() => setStreamlitError(true)}

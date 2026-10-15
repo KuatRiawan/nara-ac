@@ -8,38 +8,16 @@ import { Input } from '../components/ui/input';
 import CompanyLogo from '../components/CompanyLogo';
 import AddressSelector from '../components/booking/AddressSelector';
 import OfficialInvoicePaper from '../components/OfficialInvoicePaper';
+import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 import { cn } from '../lib/utils';
-import { 
-  Calendar, 
-  Clock, 
-  ArrowLeft, 
-  ArrowRight, 
-  Wrench, 
-  ShieldCheck, 
-  CheckCircle2, 
-  Loader2, 
-  Sparkles, 
-  User, 
-  Phone, 
-  MapPin, 
-  Check, 
-  Copy, 
-  Wind, 
-  FileText, 
-  MessageSquare,
-  AlertCircle,
-  HelpCircle,
-  Percent,
-  CalendarOff,
-  Sun,
-  Sunset,
-  Printer,
-  X
-} from 'lucide-react';
+import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
+import { useFocusTrap } from '../hooks/useFocusTrap';
+import { Clock, ArrowLeft, ArrowRight, Wrench, ShieldCheck, CheckCircle2, Loader2, Sparkles, User, Phone, Check, Copy, Wind, FileText, MessageSquare, AlertCircle, HelpCircle, Percent, CalendarOff, Sun, Sunset, Printer, X, History, Plus, Trash2, Layers } from 'lucide-react';
 
 export default function BookingPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { whatsappNumber } = useBusinessProfile();
 
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +31,10 @@ export default function BookingPage() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [successData, setSuccessData] = useState(null);
   const [copiedTicket, setCopiedTicket] = useState(false);
+  const invoiceModalRef = useRef(null);
+  
+  // Focus trap untuk modal invoice
+  useFocusTrap(invoiceModalRef, isInvoiceModalOpen, () => setIsInvoiceModalOpen(false));
 
   // Real-time availability state from backend
   const [availability, setAvailability] = useState(null);
@@ -69,8 +51,14 @@ export default function BookingPage() {
     keluhan: '',
     tanggal: '',
     jam: '',
-    jumlah_unit: 1
+    jumlah_unit: 1,
+    extra_items: [],
   });
+  
+  // State untuk tracking unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showRestoreDraft, setShowRestoreDraft] = useState(false);
+  const [userHasInteracted, setUserHasInteracted] = useState(false);
 
   // Helper for checking if date string (YYYY-MM-DD) is Sunday (libur)
   const isSunday = (dateStr) => {
@@ -121,6 +109,38 @@ export default function BookingPage() {
     }
     return { label: 'Slot Lengkap', status: 'available' };
   };
+
+  // Load draft from localStorage and check for unsaved changes
+  useEffect(() => {
+    // Cek apakah ada draft tersimpan
+    try {
+      const savedDraft = localStorage.getItem('bookingFormDraft');
+      if (savedDraft && !userHasInteracted) {
+        const draft = JSON.parse(savedDraft);
+        // Draft valid selama 24 jam
+        const ONE_DAY = 24 * 60 * 60 * 1000;
+        if (Date.now() - (draft.timestamp || 0) < ONE_DAY) {
+          setShowRestoreDraft(true);
+        } else {
+          localStorage.removeItem('bookingFormDraft');
+        }
+      }
+    } catch (err) {
+      console.error('Gagal memuat draft booking:', err);
+    }
+    
+    // Setup beforeunload warning
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Anda memiliki data booking yang belum disimpan. Apakah Anda yakin ingin meninggalkan halaman ini?';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, userHasInteracted]);
 
   // Fetch Services from API and parse query params
   useEffect(() => {
@@ -174,7 +194,13 @@ export default function BookingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch real-time availability whenever tanggal or layanan_id changes
+  const totalUnits = useMemo(() => {
+    const primary = Number(form.jumlah_unit) || 1;
+    const extra = (form.extra_items || []).reduce((acc, it) => acc + (Number(it.jumlah_unit) || 1), 0);
+    return primary + extra;
+  }, [form.jumlah_unit, form.extra_items]);
+
+  // Fetch real-time availability whenever tanggal, layanan_id, or totalUnits changes
   useEffect(() => {
     if (!form.tanggal || !form.layanan_id) return;
     let isMounted = true;
@@ -184,7 +210,8 @@ export default function BookingPage() {
     api.get('/availability', {
       params: {
         tanggal: form.tanggal,
-        layanan_id: form.layanan_id
+        layanan_id: form.layanan_id,
+        jumlah_unit: totalUnits
       }
     })
       .then(res => {
@@ -206,12 +233,14 @@ export default function BookingPage() {
           setForm(prev => ({ ...prev, jam: '' }));
         } else {
           // Toko buka: periksa apakah jam yang sedang dipilih masih valid & tersedia
-          const currentSlotValid = Array.isArray(data.slot) && data.slot.some(s => s.jam === form.jam && s.tersedia);
-          if (!currentSlotValid) {
-            // Auto-select slot pertama yang tersedia
-            const firstAvailable = Array.isArray(data.slot) ? data.slot.find(s => s.tersedia) : null;
-            setForm(prev => ({ ...prev, jam: firstAvailable ? firstAvailable.jam : '' }));
-          }
+          setForm(prev => {
+            const currentSlotValid = Array.isArray(data.slot) && data.slot.some(s => s.jam === prev.jam && s.tersedia);
+            if (!currentSlotValid) {
+              const firstAvailable = Array.isArray(data.slot) ? data.slot.find(s => s.tersedia) : null;
+              return { ...prev, jam: firstAvailable ? firstAvailable.jam : '' };
+            }
+            return prev;
+          });
         }
       })
       .catch((err) => {
@@ -227,23 +256,114 @@ export default function BookingPage() {
     return () => {
       isMounted = false;
     };
-  }, [form.tanggal, form.layanan_id, availabilityRetry]);
+  }, [form.tanggal, form.layanan_id, totalUnits, availabilityRetry]);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  // Restore draft dari localStorage
+  const restoreDraft = () => {
+    try {
+      const savedDraft = localStorage.getItem('bookingFormDraft');
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft);
+        delete draft.timestamp;
+        setForm({ ...form, ...draft });
+        setShowRestoreDraft(false);
+        // Hapus draft setelah direstore
+        localStorage.removeItem('bookingFormDraft');
+        setHasUnsavedChanges(false);
+        setUserHasInteracted(true); // User is now interacting with restored data
+      }
+    } catch (err) {
+      console.error('Gagal memulihkan draft booking:', err);
+    }
+  };
+  
+  // Hapus draft
+  const discardDraft = () => {
+    try {
+      localStorage.removeItem('bookingFormDraft');
+      setShowRestoreDraft(false);
+      setHasUnsavedChanges(false);
+      setUserHasInteracted(false); // User chose to start fresh
+    } catch (err) {
+      console.error('Gagal menghapus draft booking:', err);
+    }
+  };
+  
+  // Auto-save saat step berubah
+  useEffect(() => {
+    if (step > 1 && step < 5) {
+      try {
+        localStorage.setItem('bookingFormDraft', JSON.stringify({
+          ...form,
+          timestamp: Date.now(),
+          currentStep: step
+        }));
+      } catch (err) {
+        console.error('Gagal menyimpan draft booking:', err);
+      }
+    }
+  }, [step, form]);
+  
+  const handleChange = (e) => {
+    const newForm = { ...form, [e.target.name]: e.target.value };
+    setForm(newForm);
+    if (!userHasInteracted) setUserHasInteracted(true);
+    // Auto-save ke localStorage
+    try {
+      localStorage.setItem('bookingFormDraft', JSON.stringify({
+        ...newForm,
+        timestamp: Date.now()
+      }));
+      if (userHasInteracted) setHasUnsavedChanges(true);
+    } catch (err) {
+      console.error('Gagal menyimpan draft booking:', err);
+    }
+  };
 
   // Currently selected service object
   const selectedService = useMemo(() => {
     return services.find(s => String(s.id) === String(form.layanan_id)) || null;
   }, [services, form.layanan_id]);
 
-  // Dynamic pricing and discount calculation
+  // Preview estimate only — final pricing is calculated by backend (bookingService.calculateInvoice)
+  // This client-side calculation is for UX preview during the wizard and may differ from the final invoice.
   const calculation = useMemo(() => {
     if (!selectedService) {
-      return { basePrice: 0, subtotal: 0, discount: 0, total: 0, estDuration: 60, warranty: '14 Hari' };
+      return { basePrice: 0, subtotal: 0, discount: 0, total: 0, estDuration: 60, warranty: '14 Hari', totalUnits: 1, items: [] };
     }
-    const basePrice = selectedService.harga || 0;
-    const units = form.jumlah_unit || 1;
-    const subtotal = basePrice * units;
+    const primaryPrice = selectedService.harga || 0;
+    const primaryUnits = Number(form.jumlah_unit) || 1;
+    let subtotal = primaryPrice * primaryUnits;
+    let units = primaryUnits;
+
+    const itemsSummary = [{
+      layanan_id: selectedService.id,
+      nama: selectedService.nama_layanan,
+      units: primaryUnits,
+      hargaSatuan: primaryPrice,
+      subtotal: primaryPrice * primaryUnits,
+    }];
+
+    if (Array.isArray(form.extra_items)) {
+      for (const extra of form.extra_items) {
+        const extraSvc = services.find((s) => s.id === Number(extra.layanan_id));
+        if (extraSvc) {
+          const eUnits = Number(extra.jumlah_unit) || 1;
+          const ePrice = Number(extraSvc.harga) || 0;
+          const eSubtotal = ePrice * eUnits;
+          subtotal += eSubtotal;
+          units += eUnits;
+          itemsSummary.push({
+            layanan_id: extraSvc.id,
+            nama: extraSvc.nama_layanan,
+            units: eUnits,
+            hargaSatuan: ePrice,
+            subtotal: eSubtotal,
+            catatan: extra.catatan || '',
+          });
+        }
+      }
+    }
 
     // Multi-unit discount: 5% for 2 units, 10% for 3+ units
     let discount = 0;
@@ -253,23 +373,31 @@ export default function BookingPage() {
     const total = subtotal - discount;
 
     // Estimate duration & warranty based on service tier
-    let estDuration = (selectedService.durasi_menit || 60) * units;
+    let estDuration = (selectedService.durasi_menit || 60) * primaryUnits;
+    if (Array.isArray(form.extra_items)) {
+      for (const extra of form.extra_items) {
+        const extraSvc = services.find((s) => s.id === Number(extra.layanan_id));
+        if (extraSvc) {
+          estDuration += (extraSvc.durasi_menit || 60) * (Number(extra.jumlah_unit) || 1);
+        }
+      }
+    }
     if (units > 1) {
       estDuration = Math.round(estDuration * 0.85); // concurrency efficiency
     }
 
     let warranty = '14 Hari';
-    const sName = (selectedService.nama_layanan || '').toLowerCase();
-    if (sName.includes('freon') && sName.includes('core')) {
+    const allNames = itemsSummary.map(i => (i.nama || '').toLowerCase()).join(' ');
+    if (allNames.includes('freon') && allNames.includes('core')) {
       warranty = '45 Hari Penuh';
-    } else if (sName.includes('core')) {
+    } else if (allNames.includes('core')) {
       warranty = '30 Hari Penuh';
-    } else if (sName.includes('bongkar')) {
+    } else if (allNames.includes('bongkar')) {
       warranty = '30 Hari';
     }
 
-    return { basePrice, subtotal, discount, total, estDuration, warranty };
-  }, [selectedService, form.jumlah_unit]);
+    return { basePrice: primaryPrice, subtotal, discount, total, estDuration, warranty, totalUnits: units, items: itemsSummary };
+  }, [selectedService, form.jumlah_unit, form.extra_items, services]);
 
   // Validation handlers
   const handleNext = () => {
@@ -317,17 +445,19 @@ export default function BookingPage() {
       }
       // Generate idempotency key saat melangkah ke Step 4 (Konfirmasi) jika belum ada
       if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        idempotencyKeyRef.current = `idem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
       }
     }
     setError('');
     setStep(prev => prev + 1);
+    setHasUnsavedChanges(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePrev = () => {
     setError('');
     setStep(prev => prev - 1);
+    setHasUnsavedChanges(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -341,8 +471,22 @@ export default function BookingPage() {
 
     try {
       if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current = `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        idempotencyKeyRef.current = `idem-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
       }
+
+      const hasExtra = Array.isArray(form.extra_items) && form.extra_items.length > 0;
+      const allItems = hasExtra ? [
+        {
+          layanan_id: parseInt(form.layanan_id, 10),
+          jumlah_unit: parseInt(form.jumlah_unit, 10) || 1,
+          catatan: form.keluhan.trim(),
+        },
+        ...form.extra_items.map((it) => ({
+          layanan_id: parseInt(it.layanan_id, 10),
+          jumlah_unit: parseInt(it.jumlah_unit, 10) || 1,
+          catatan: (it.catatan || '').trim(),
+        })),
+      ] : null;
 
       const payload = {
         layanan_id: parseInt(form.layanan_id, 10),
@@ -351,8 +495,9 @@ export default function BookingPage() {
         alamat: form.alamat.trim(),
         jadwal_mulai: `${form.tanggal}T${form.jam}:00+07:00`,
         keluhan: form.keluhan.trim(),
-        jumlah_unit: parseInt(form.jumlah_unit, 10) || 1,
-        idempotency_key: idempotencyKeyRef.current
+        jumlah_unit: allItems ? allItems.reduce((acc, it) => acc + it.jumlah_unit, 0) : (parseInt(form.jumlah_unit, 10) || 1),
+        idempotency_key: idempotencyKeyRef.current,
+        ...(allItems ? { items: allItems } : {}),
       };
 
       const res = await api.post('/bookings', payload);
@@ -360,6 +505,14 @@ export default function BookingPage() {
       setSuccessData(bookingResult);
       idempotencyKeyRef.current = null; // Reset setelah sukses
       setStep(5); // Success step
+      setHasUnsavedChanges(false);
+      setUserHasInteracted(false);
+      // Hapus draft setelah booking sukses
+      try {
+        localStorage.removeItem('bookingFormDraft');
+      } catch (err) {
+        console.error('Gagal menghapus draft:', err);
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       const msg = err?.error?.message || 
@@ -533,6 +686,11 @@ export default function BookingPage() {
         {/* Progress Bar (Hidden on success step) */}
         {step < 5 && (
           <div className="max-w-3xl mx-auto mb-10 sm:mb-12">
+            {/* Progress text untuk mobile */}
+            <div className="flex justify-between text-xs text-slate-500 mb-3 sm:hidden">
+              <span>Langkah {step} dari {steps.length}</span>
+              <span>{steps[step - 1]?.title}</span>
+            </div>
             <div className="flex items-center justify-between relative px-4 sm:px-8">
               {/* Background Line */}
               <div className="absolute left-8 right-8 top-1/2 -translate-y-1/2 h-1 bg-slate-200 rounded-full z-0" />
@@ -556,16 +714,22 @@ export default function BookingPage() {
                         ? "bg-blue-600 text-white shadow-blue-500/25" 
                         : isCurrent 
                           ? "bg-white text-blue-600 border-2 border-blue-600 ring-4 ring-blue-500/15 shadow-md" 
-                          : "bg-white text-slate-400 border border-slate-200"
+                          : "bg-white text-slate-500 border border-slate-200"
                     )}>
                       {isPassed ? <Check className="w-5 h-5 stroke-[2.5]" /> : s.num}
                     </div>
                     <span className={cn(
-                      "mt-2 text-[11px] font-bold uppercase tracking-wider hidden sm:block whitespace-nowrap",
-                      isCurrent ? "text-blue-600 font-black" : isPassed ? "text-slate-700" : "text-slate-400"
+                      "mt-2 text-xs font-bold uppercase tracking-wider whitespace-nowrap",
+                      isCurrent ? "text-blue-600 font-black" : isPassed ? "text-slate-700" : "text-slate-500"
                     )}>
                       {s.title}
                     </span>
+                    {/* Label untuk mobile */}
+                    {isCurrent && (
+                      <span className="sm:hidden absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 whitespace-nowrap">
+                        {s.title}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -617,7 +781,7 @@ export default function BookingPage() {
                   
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-100 gap-4">
                     <div>
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">
                         KODE TIKET LAYANAN
                       </span>
                       <div className="flex items-center gap-3">
@@ -646,27 +810,27 @@ export default function BookingPage() {
                   {/* Summary Rows */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs mb-6">
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <span className="text-slate-400 font-semibold block mb-1">Paket & Volume:</span>
+                      <span className="text-slate-500 font-semibold block mb-1">Paket & Volume:</span>
                       <p className="font-bold text-slate-900 text-sm">{selectedService?.nama_layanan || 'Service AC'}</p>
                       <p className="text-slate-600 font-semibold mt-0.5">{form.jumlah_unit} Unit AC</p>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <span className="text-slate-400 font-semibold block mb-1">Waktu Pengerjaan:</span>
+                      <span className="text-slate-500 font-semibold block mb-1">Waktu Pengerjaan:</span>
                       <p className="font-bold text-slate-900 text-sm">{form.tanggal}</p>
                       <p className="text-slate-600 font-semibold mt-0.5">Pukul {form.jam} WIB</p>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <span className="text-slate-400 font-semibold block mb-1">Pemesan & Kontak:</span>
+                      <span className="text-slate-500 font-semibold block mb-1">Pemesan & Kontak:</span>
                       <p className="font-bold text-slate-900">{form.nama}</p>
                       <p className="text-slate-600 font-mono mt-0.5">{form.kontak}</p>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <span className="text-slate-400 font-semibold block mb-1">Total Biaya Jasa:</span>
+                      <span className="text-slate-500 font-semibold block mb-1">Estimasi Biaya Jasa:</span>
                       <p className="font-black text-blue-600 text-base font-mono">Rp {calculation.total.toLocaleString('id-ID')}</p>
-                      <p className="text-slate-500 text-[11px]">Pembayaran selesai setelah pengerjaan</p>
+                      <p className="text-slate-500 text-xs">Pembayaran selesai setelah pengerjaan</p>
                     </div>
                   </div>
 
@@ -679,41 +843,45 @@ export default function BookingPage() {
             })()}
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              {/* Tombol Cetak & Pratinjau Invoice Langsung */}
-              <Button
-                type="button"
-                onClick={() => setIsInvoiceModalOpen(true)}
-                className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <Printer className="w-4 h-4 text-white" />
-                <span>Lihat & Cetak E-Invoice</span>
-              </Button>
+            <div className="max-w-xl mx-auto space-y-4">
+              {/* Primary Actions (2-Column Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <Link to={`/status/${successData?.kode_booking || ''}`} className="w-full">
+                  <Button className="w-full h-12 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 cursor-pointer flex items-center justify-center gap-2 transition-all">
+                    <FileText className="w-4 h-4" />
+                    <span>Pantau Status Tiket</span>
+                    <ArrowRight className="w-4 h-4 ml-0.5" />
+                  </Button>
+                </Link>
 
-              <Link to={`/status/${successData?.kode_booking || ''}`} className="w-full sm:w-auto">
-                <Button className="w-full sm:w-auto h-12 px-7 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 cursor-pointer flex items-center justify-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span>Pantau Status Tiket</span>
+                <Button
+                  type="button"
+                  onClick={() => setIsInvoiceModalOpen(true)}
+                  className="w-full h-12 px-5 rounded-2xl bg-white hover:bg-emerald-50 border-2 border-emerald-600 text-emerald-700 font-bold text-sm shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-all"
+                >
+                  <Printer className="w-4 h-4 text-emerald-600" />
+                  <span>Lihat & Cetak E-Invoice</span>
                 </Button>
-              </Link>
+              </div>
 
-              <a 
-                href={`https://wa.me/6281385293137?text=Halo%20Admin%20Nara%20AC,%20saya%20sudah%20membuat%20booking%20dengan%20kode%20${encodeURIComponent(successData?.kode_booking || '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto"
-              >
-                <Button variant="outline" className="w-full sm:w-auto h-12 px-7 rounded-2xl border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-sm cursor-pointer flex items-center justify-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-600" />
-                  <span>Konfirmasi via WhatsApp</span>
-                </Button>
-              </a>
-
-              <Link to="/" className="w-full sm:w-auto">
-                <Button variant="ghost" className="w-full sm:w-auto h-12 px-6 rounded-2xl text-slate-500 hover:text-slate-900 font-bold text-sm cursor-pointer">
-                  <span>Ke Beranda</span>
-                </Button>
-              </Link>
+              {/* Secondary Utility Action (WhatsApp) */}
+              <div className="flex items-center justify-center pt-1">
+                <a 
+                  href={buildWhatsAppUrl(whatsappNumber, `Halo Admin Nara AC, saya sudah membuat booking dengan kode ${successData?.kode_booking || ''}`)}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto"
+                >
+                  <Button 
+                    variant="outline" 
+                    className="w-full sm:w-auto h-10 px-6 rounded-xl border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/70 text-slate-700 hover:text-emerald-700 font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 transition-all shadow-2xs"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Konfirmasi via WhatsApp</span>
+                    <span className="sr-only"> (buka di tab baru)</span>
+                  </Button>
+                </a>
+              </div>
             </div>
           </motion.div>
         )}
@@ -739,7 +907,7 @@ export default function BookingPage() {
                     className="space-y-6"
                   >
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                         Langkah 1 dari 4
                       </span>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-2.5">
@@ -798,7 +966,7 @@ export default function BookingPage() {
                                       {svc.nama_layanan}
                                     </h3>
                                     {isPopular && (
-                                      <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-sky-600 text-white px-2 py-0.5 rounded-full shadow-xs">
+                                      <span className="text-xs font-black uppercase tracking-wider bg-gradient-to-r from-blue-600 to-sky-600 text-white px-2 py-0.5 rounded-full shadow-xs">
                                         ⭐ Best Value
                                       </span>
                                     )}
@@ -808,7 +976,7 @@ export default function BookingPage() {
                                     {svc.deskripsi}
                                   </p>
 
-                                  <div className="flex items-center gap-3 mt-2 text-[11px] font-semibold text-slate-500">
+                                  <div className="flex items-center gap-3 mt-2 text-xs font-semibold text-slate-500">
                                     <span className="flex items-center gap-1 text-slate-600">
                                       <Clock className="w-3.5 h-3.5 text-blue-500" />
                                       ± {svc.durasi_menit} Menit
@@ -835,7 +1003,7 @@ export default function BookingPage() {
                                   <span className="text-base sm:text-lg font-black text-blue-700 font-mono">
                                     Rp {(svc.harga || 0).toLocaleString('id-ID')}
                                   </span>
-                                  <span className="text-[10px] text-slate-400 block font-semibold">/ unit</span>
+                                  <span className="text-xs text-slate-500 block font-semibold">/ unit</span>
                                 </div>
                               </div>
                             </div>
@@ -846,12 +1014,12 @@ export default function BookingPage() {
 
                     {/* Unit Selector Component */}
                     <div className="pt-6 border-t border-slate-100">
-                      <div className="flex items-center justify-between mb-3">
+                      <div role="group" aria-labelledby="booking-unit-count-label" className="flex items-center justify-between mb-3">
                         <div>
-                          <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                          <label id="booking-unit-count-label" className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
                             Jumlah Unit AC yang Diservis
                           </label>
-                          <p className="text-xs text-slate-400">
+                          <p className="text-xs text-slate-500">
                             Diskon khusus multi-unit aktif otomatis
                           </p>
                         </div>
@@ -888,6 +1056,7 @@ export default function BookingPage() {
                           <button
                             type="button"
                             onClick={() => setForm(f => ({ ...f, jumlah_unit: Math.max(1, f.jumlah_unit - 1) }))}
+                            aria-label="Kurangi jumlah unit"
                             className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-slate-700 flex items-center justify-center cursor-pointer"
                           >
                             -
@@ -898,11 +1067,123 @@ export default function BookingPage() {
                           <button
                             type="button"
                             onClick={() => setForm(f => ({ ...f, jumlah_unit: Math.min(20, f.jumlah_unit + 1) }))}
+                            aria-label="Tambah jumlah unit"
                             className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-black text-slate-700 flex items-center justify-center cursor-pointer"
                           >
                             +
                           </button>
                         </div>
+                      </div>
+
+                      {/* Multi-Service: Tambah Layanan Berbeda dalam 1 Booking */}
+                      <div className="mt-4 p-4 rounded-2xl bg-blue-50/50 border border-blue-100/80">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <Layers className="w-4 h-4 text-blue-600" />
+                              Layanan Berbeda untuk Unit Lain?
+                            </span>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Butuh kombinasi layanan (mis. cuci standar + isi freon)? Tambahkan langsung di sini tanpa booking berulang.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const otherServices = services.filter(s => s.id !== Number(form.layanan_id));
+                              const nextSvc = otherServices[0] || services[0];
+                              if (!nextSvc) return;
+                              setForm(f => ({
+                                ...f,
+                                extra_items: [...(f.extra_items || []), { layanan_id: nextSvc.id, jumlah_unit: 1, catatan: '' }]
+                              }));
+                            }}
+                            className="shrink-0 text-xs font-bold text-blue-600 hover:text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Tambah Layanan</span>
+                          </button>
+                        </div>
+
+                        {/* List of Extra Items */}
+                        {form.extra_items && form.extra_items.length > 0 && (
+                          <div className="mt-3 space-y-2.5 pt-3 border-t border-blue-100">
+                            {form.extra_items.map((extra, idx) => (
+                              <div key={idx} className="bg-white p-3 rounded-xl border border-blue-100/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                    Layanan Tambahan #{idx + 1}
+                                  </label>
+                                  <select
+                                    value={extra.layanan_id}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setForm(f => ({
+                                        ...f,
+                                        extra_items: f.extra_items.map((it, i) => i === idx ? { ...it, layanan_id: val } : it)
+                                      }));
+                                    }}
+                                    className="w-full text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 outline-none"
+                                  >
+                                    {services.map(s => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.nama_layanan} — Rp {Number(s.harga).toLocaleString('id-ID')}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center gap-3 self-end sm:self-center">
+                                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setForm(f => ({
+                                          ...f,
+                                          extra_items: f.extra_items.map((it, i) => i === idx ? { ...it, jumlah_unit: Math.max(1, it.jumlah_unit - 1) } : it)
+                                        }));
+                                      }}
+                                      aria-label={`Kurangi unit layanan tambahan ${idx + 1}`}
+                                      className="w-6 h-6 rounded bg-white text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer border border-slate-200"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="w-6 text-center font-mono font-bold text-xs text-slate-900">
+                                      {extra.jumlah_unit}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setForm(f => ({
+                                          ...f,
+                                          extra_items: f.extra_items.map((it, i) => i === idx ? { ...it, jumlah_unit: Math.min(10, it.jumlah_unit + 1) } : it)
+                                        }));
+                                      }}
+                                      aria-label={`Tambah unit layanan tambahan ${idx + 1}`}
+                                      className="w-6 h-6 rounded bg-white text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer border border-slate-200"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setForm(f => ({
+                                        ...f,
+                                        extra_items: f.extra_items.filter((_, i) => i !== idx)
+                                      }));
+                                    }}
+                                    aria-label={`Hapus layanan tambahan ${idx + 1}`}
+                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -931,7 +1212,7 @@ export default function BookingPage() {
                     className="space-y-6"
                   >
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                         Langkah 2 dari 4
                       </span>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-2.5">
@@ -944,8 +1225,8 @@ export default function BookingPage() {
 
                     {/* Date Selection */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                      <div role="group" aria-labelledby="booking-date-label" className="flex items-center justify-between mb-2">
+                        <label id="booking-date-label" className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
                           Tanggal Kedatangan Teknisi
                         </label>
                         {form.tanggal && (
@@ -980,7 +1261,7 @@ export default function BookingPage() {
                             >
                               <span>{label}</span>
                               <span className={cn(
-                                "text-[10px] font-semibold mt-0.5",
+                                "text-xs font-semibold mt-0.5",
                                 isSelected
                                   ? "text-sky-200"
                                   : badge.status === 'closed'
@@ -1011,8 +1292,8 @@ export default function BookingPage() {
 
                     {/* Time Slot Selection */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                      <div role="group" aria-labelledby="booking-time-label" className="flex items-center justify-between mb-2">
+                        <label id="booking-time-label" className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
                           Pilihan Jam Kedatangan
                         </label>
                         {form.jam && availability?.buka && (
@@ -1116,11 +1397,11 @@ export default function BookingPage() {
                                   <div>
                                     <div className="flex items-center gap-1.5 mb-2">
                                       <Sun className="w-3.5 h-3.5 text-amber-500" />
-                                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                         Slot Pagi (08:00 – 11:00)
                                       </span>
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2">
                                       {morningSlots.map((s) => {
                                         const isSelected = form.jam === s.jam;
                                         return (
@@ -1132,7 +1413,7 @@ export default function BookingPage() {
                                             className={cn(
                                               "py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center flex flex-col items-center justify-center relative",
                                               !s.tersedia
-                                                ? "bg-slate-100/70 text-slate-400 border-slate-200 cursor-not-allowed opacity-50"
+                                                ? "bg-slate-100/70 text-slate-500 border-slate-200 cursor-not-allowed opacity-50"
                                                 : isSelected
                                                   ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 cursor-pointer"
                                                   : "bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 cursor-pointer"
@@ -1142,7 +1423,7 @@ export default function BookingPage() {
                                               {s.jam} WIB
                                             </span>
                                             {!s.tersedia ? (
-                                              <span className="text-[9px] text-slate-400 font-normal mt-0.5">
+                                              <span className="text-[9px] text-slate-500 font-normal mt-0.5">
                                                 {s.alasan?.includes('lewat') || s.alasan?.includes('minimal') ? 'Lewat' : 'Penuh'}
                                               </span>
                                             ) : isSelected ? (
@@ -1162,11 +1443,11 @@ export default function BookingPage() {
                                   <div>
                                     <div className="flex items-center gap-1.5 mb-2">
                                       <Sunset className="w-3.5 h-3.5 text-blue-500" />
-                                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                         Slot Siang & Sore (12:00 – 16:00)
                                       </span>
                                     </div>
-                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                                       {afternoonSlots.map((s) => {
                                         const isSelected = form.jam === s.jam;
                                         return (
@@ -1178,7 +1459,7 @@ export default function BookingPage() {
                                             className={cn(
                                               "py-2.5 px-2 rounded-xl text-xs font-bold border transition-all text-center flex flex-col items-center justify-center relative",
                                               !s.tersedia
-                                                ? "bg-slate-100/70 text-slate-400 border-slate-200 cursor-not-allowed opacity-50"
+                                                ? "bg-slate-100/70 text-slate-500 border-slate-200 cursor-not-allowed opacity-50"
                                                 : isSelected
                                                   ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 cursor-pointer"
                                                   : "bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 cursor-pointer"
@@ -1188,7 +1469,7 @@ export default function BookingPage() {
                                               {s.jam} WIB
                                             </span>
                                             {!s.tersedia ? (
-                                              <span className="text-[9px] text-slate-400 font-normal mt-0.5">
+                                              <span className="text-[9px] text-slate-500 font-normal mt-0.5">
                                                 {s.alasan?.includes('lewat') || s.alasan?.includes('minimal') ? 'Lewat' : 'Penuh'}
                                               </span>
                                             ) : isSelected ? (
@@ -1249,7 +1530,7 @@ export default function BookingPage() {
                     className="space-y-6"
                   >
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                         Langkah 3 dari 4
                       </span>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-2.5">
@@ -1263,38 +1544,42 @@ export default function BookingPage() {
                     <div className="space-y-4">
                       {/* Nama Lengkap */}
                       <div>
-                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
+                        <label htmlFor="booking-nama" className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
                           Nama Lengkap Pemesan *
                         </label>
                         <div className="relative">
-                          <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <Input
+                            id="booking-nama"
                             name="nama"
                             value={form.nama}
                             onChange={handleChange}
                             placeholder="Contoh: Budi Santoso"
                             className="h-12 pl-10 rounded-xl text-sm border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
+                            autoComplete="name"
                           />
                         </div>
                       </div>
 
                       {/* No. WhatsApp */}
                       <div>
-                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
+                        <label htmlFor="booking-kontak" className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
                           Nomor WhatsApp Aktif *
                         </label>
                         <div className="relative">
-                          <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                          <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                           <Input
+                            id="booking-kontak"
                             name="kontak"
                             value={form.kontak}
                             onChange={handleChange}
                             placeholder="Contoh: 081234567890"
                             type="tel"
                             className="h-12 pl-10 rounded-xl text-sm border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all font-mono"
+                            autoComplete="tel"
                           />
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Notifikasi tiket digital dan kontak teknisi akan dikirim via WhatsApp.
                         </p>
                       </div>
@@ -1313,10 +1598,11 @@ export default function BookingPage() {
 
                       {/* Catatan / Keluhan */}
                       <div>
-                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
+                        <label htmlFor="booking-keluhan" className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-1.5">
                           Catatan Keluhan AC (Opsional)
                         </label>
                         <textarea
+                          id="booking-keluhan"
                           name="keluhan"
                           value={form.keluhan}
                           onChange={handleChange}
@@ -1332,7 +1618,7 @@ export default function BookingPage() {
                               key={tag}
                               type="button"
                               onClick={() => handleAddComplaint(tag)}
-                              className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200/80 transition-colors cursor-pointer"
+                              className="text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 px-2.5 py-1 rounded-lg border border-slate-200/80 transition-colors cursor-pointer"
                             >
                               + {tag}
                             </button>
@@ -1376,7 +1662,7 @@ export default function BookingPage() {
                     className="space-y-6"
                   >
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                         Langkah Terakhir (4 dari 4)
                       </span>
                       <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-2.5">
@@ -1390,24 +1676,31 @@ export default function BookingPage() {
                     {/* Order Details Recap Card */}
                     <div className="bg-sky-50/50 border border-sky-100 rounded-2xl p-5 space-y-4">
                       
-                      <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paket Dipilih:</span>
-                        <div className="text-right">
-                          <span className="font-extrabold text-slate-900 text-sm block">{selectedService?.nama_layanan}</span>
-                          <span className="text-xs text-blue-600 font-bold font-mono">{form.jumlah_unit} Unit AC</span>
+                      <div className="pb-3 border-b border-sky-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Paket Layanan Dipilih:</span>
+                        <div className="space-y-1.5">
+                          {calculation.items.map((it, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-slate-900">{it.nama}</span>
+                              <span className="font-mono text-slate-600 font-semibold">{it.units} Unit × Rp {it.hargaSatuan.toLocaleString('id-ID')}</span>
+                            </div>
+                          ))}
+                          <div className="text-right pt-1">
+                            <span className="text-xs text-blue-600 font-bold font-mono">Total {calculation.totalUnits} Unit AC</span>
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jadwal Servis:</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Jadwal Servis:</span>
                         <div className="text-right">
-                          <span className="font-bold text-slate-900 text-sm block">{form.tanggal}</span>
+                          <span className="font-bold text-slate-900 text-sm block">{formatIndoDate(form.tanggal)}</span>
                           <span className="text-xs text-slate-500 font-semibold">Pukul {form.jam} WIB</span>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between pb-3 border-b border-sky-100">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pemesan & WA:</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pemesan & WA:</span>
                         <div className="text-right">
                           <span className="font-bold text-slate-900 text-sm block">{form.nama}</span>
                           <span className="text-xs text-slate-500 font-mono">{form.kontak}</span>
@@ -1415,7 +1708,7 @@ export default function BookingPage() {
                       </div>
 
                       <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Alamat Tujuan:</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Alamat Tujuan:</span>
                         <p className="text-xs font-semibold text-slate-800 leading-relaxed bg-white p-3 rounded-xl border border-sky-100">
                           {form.alamat}
                         </p>
@@ -1423,7 +1716,7 @@ export default function BookingPage() {
 
                       {form.keluhan && (
                         <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Keluhan / Catatan:</span>
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Keluhan / Catatan:</span>
                           <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-sky-100">
                             {form.keluhan}
                           </p>
@@ -1498,26 +1791,28 @@ export default function BookingPage() {
                 {selectedService ? (
                   <div className="space-y-4">
                     {/* Selected Service Cardlet */}
-                    <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-bold text-slate-900 text-sm">
-                            {selectedService.nama_layanan}
-                          </p>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">
-                            Rp {calculation.basePrice.toLocaleString('id-ID')} × {form.jumlah_unit} Unit
-                          </p>
+                    <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-100 space-y-2">
+                      {calculation.items.map((it, idx) => (
+                        <div key={idx} className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-slate-900 text-sm">
+                              {it.nama}
+                            </p>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">
+                              Rp {it.hargaSatuan.toLocaleString('id-ID')} × {it.units} Unit
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-blue-700 font-mono">
+                            Rp {it.subtotal.toLocaleString('id-ID')}
+                          </span>
                         </div>
-                        <span className="text-xs font-bold text-blue-700 font-mono">
-                          Rp {calculation.subtotal.toLocaleString('id-ID')}
-                        </span>
-                      </div>
+                      ))}
                     </div>
 
                     {/* Transparent Price Breakdown */}
                     <div className="space-y-2.5 text-xs pt-2">
                       <div className="flex justify-between text-slate-600">
-                        <span>Subtotal Jasa:</span>
+                        <span>Subtotal Jasa ({calculation.totalUnits} Unit):</span>
                         <span className="font-semibold font-mono text-slate-900">
                           Rp {calculation.subtotal.toLocaleString('id-ID')}
                         </span>
@@ -1527,25 +1822,25 @@ export default function BookingPage() {
                         <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                           <span className="font-bold flex items-center gap-1">
                             <Percent className="w-3.5 h-3.5" />
-                            Diskon Multi-Unit ({form.jumlah_unit === 2 ? '5%' : '10%'}):
+                            Diskon Multi-Unit ({calculation.totalUnits === 2 ? '5%' : '10%'}):
                           </span>
                           <span className="font-bold font-mono">
                             -Rp {calculation.discount.toLocaleString('id-ID')}
                           </span>
                         </div>
                       ) : (
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                          <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                          <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
                           <span>Pesan 2 unit ke atas untuk dapat diskon otomatis</span>
                         </div>
                       )}
 
                       <div className="pt-3 border-t border-slate-100 flex items-baseline justify-between">
                         <div>
-                          <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
+                          <span className="text-xs font-bold uppercase text-slate-500 tracking-wider block">
                             Total Estimasi
                           </span>
-                          <span className="text-[10px] text-slate-400">Termasuk SOP & Peralatan</span>
+                          <span className="text-xs text-slate-500">Termasuk SOP & Peralatan</span>
                         </div>
                         <div className="text-right">
                           <span className="text-2xl font-black text-blue-700 font-mono tracking-tight">
@@ -1576,7 +1871,7 @@ export default function BookingPage() {
 
                   </div>
                 ) : (
-                  <div className="py-8 text-center text-slate-400 text-xs">
+                  <div className="py-8 text-center text-slate-500 text-xs">
                     Pilih paket layanan pada kolom kiri untuk melihat rincian biaya.
                   </div>
                 )}
@@ -1588,12 +1883,12 @@ export default function BookingPage() {
                     Teknisi Internal CV. Nara
                   </span>
                   <a
-                    href="https://wa.me/6281385293137?text=Halo%20NARA%20AC,%20saya%20butuh%20bantuan%20booking"
-                    target="_blank"
-                    rel="noreferrer"
+                    href={buildWhatsAppUrl(whatsappNumber, 'Halo NARA AC, saya butuh bantuan booking')}
+                    target="_blank" rel="noopener noreferrer"
                     className="text-blue-600 hover:underline font-bold flex items-center gap-1"
                   >
                     <span>Bantuan CS</span>
+<span className="sr-only"> (buka di tab baru)</span>
                   </a>
                 </div>
 
@@ -1608,10 +1903,10 @@ export default function BookingPage() {
       {/* ============================================================== */}
       {/* 3. FOOTER COPYRIGHT                                            */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-400 mt-auto">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto">
         <div className="max-w-7xl mx-auto px-4">
           <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             Sistem Booking Online Terverifikasi & SOP 7 Langkah Pengerjaan
           </p>
         </div>
@@ -1620,17 +1915,20 @@ export default function BookingPage() {
       {/* ============================================================== */}
       {/* 4. MODAL E-INVOICE RESMI CV. NARA TEKNINDOTAMA                 */}
       {/* ============================================================== */}
-      <AnimatePresence>
+      <>
         {isInvoiceModalOpen && successData && typeof document !== 'undefined' && createPortal(
           <div 
             id="invoice-print-portal"
             className="invoice-modal-backdrop fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
+            onClick={(e) => { if (e.target === e.currentTarget) setIsInvoiceModalOpen(false); }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               className="invoice-modal-card bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] print:max-w-none print:w-full print:rounded-none print:shadow-none print:border-none print:max-h-none print:h-auto print:overflow-visible print:block print:transform-none"
+              ref={invoiceModalRef}
+              tabIndex={-1}
             >
               {/* Modal Top Actions (Non-printable) */}
               <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">
@@ -1657,7 +1955,7 @@ export default function BookingPage() {
                   <button
                     type="button"
                     onClick={() => setIsInvoiceModalOpen(false)}
-                    className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-lg hover:bg-white/10 text-slate-500 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
                     aria-label="Tutup modal"
                   >
                     <X className="w-4 h-4" />
@@ -1669,6 +1967,7 @@ export default function BookingPage() {
               <OfficialInvoicePaper 
                 booking={{
                   ...successData,
+                  items: successData?.items || calculation.items,
                   layanan: selectedService?.nama_layanan || successData?.layanan?.nama || successData?.layanan || 'Cuci AC Standard',
                   customer_nama: form.nama,
                   kontak: form.kontak,
@@ -1676,7 +1975,7 @@ export default function BookingPage() {
                   keluhan: form.keluhan,
                   jadwal_mulai: `${form.tanggal}T${form.jam}:00+07:00`,
                   harga: calculation.basePrice,
-                  jumlah_unit: form.jumlah_unit,
+                  jumlah_unit: calculation.totalUnits || form.jumlah_unit,
                   total: calculation.total,
                   discount: calculation.discount
                 }} 
@@ -1685,7 +1984,59 @@ export default function BookingPage() {
           </div>,
           document.body
         )}
+      </>
+      
+      {/* ============================================================== */}
+      {/* MODAL RESTORE DRAFT AUTO-SAVE                                */}
+      {/* ============================================================== */}
+      <AnimatePresence>
+        {showRestoreDraft && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl shadow-slate-900/20"
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <History className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight mb-1">Data Tersimpan</h3>
+                  <p className="text-sm text-slate-600">
+                    Kami menemukan data booking yang disimpan sementara. Apakah Anda ingin melanjutkan dari data tersebut?
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={discardDraft}
+                  className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold"
+                >
+                  Buang & Mulai Baru
+                </Button>
+                <Button
+                  onClick={restoreDraft}
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                >
+                  Lanjutkan Draft
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
+      
+      {/* Tombol Kembali ke Atas */}
+      <ScrollToTopButton />
 
     </div>
   );

@@ -1,5 +1,16 @@
 import axios from 'axios';
 
+// Module-level CSRF token storage so the interceptor can access it
+let csrfTokenValue = null;
+
+export function setCsrfToken(token) {
+  csrfTokenValue = token;
+}
+
+export function getCsrfToken() {
+  return csrfTokenValue;
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1',
   timeout: 10000,
@@ -10,13 +21,19 @@ api.interceptors.request.use((config) => {
   // With HttpOnly cookies, we cannot read the token from JS
   // Axios withCredentials: true will automatically send the HttpOnly cookie
   // No need to manually set Authorization header
-  
+
+  // Add CSRF token for state-changing requests (AUD-004)
+  const stateChangingMethods = ['post', 'put', 'patch', 'delete'];
+  if (stateChangingMethods.includes(config.method?.toLowerCase()) && csrfTokenValue) {
+    config.headers['X-CSRF-Token'] = csrfTokenValue;
+  }
+
   // Anti-cache untuk semua request GET
   if (config.method === 'get') {
     config.params = config.params || {};
     config.params._t = Date.now();
   }
-  
+
   return config;
 });
 
@@ -31,8 +48,12 @@ api.interceptors.response.use(
       if (error.response.status === 401) {
         // Clear cookie by calling logout endpoint or manually
         document.cookie = 'nara_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        sessionStorage.removeItem('nara_user');
+        csrfTokenValue = null;
         window.dispatchEvent(new Event('auth-expired'));
+      }
+      // Jika CSRF token ditolak, clear agar di-fetch ulang
+      if (error.response.status === 403 && error.response.data?.error?.code?.startsWith('CSRF_')) {
+        csrfTokenValue = null;
       }
       return Promise.reject(error.response.data);
     }
@@ -76,7 +97,6 @@ export function apiWithCsrf(csrfToken) {
       if (error.response) {
         if (error.response.status === 401) {
           document.cookie = 'nara_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-          sessionStorage.removeItem('nara_user');
           window.dispatchEvent(new Event('auth-expired'));
         }
         return Promise.reject(error.response.data);

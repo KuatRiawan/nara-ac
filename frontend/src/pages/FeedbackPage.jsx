@@ -1,36 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import CompanyLogo from '../components/CompanyLogo';
 import { cn } from '../lib/utils';
 import { useToast } from '../components/ui/toast';
-import { 
-  Star, 
-  MessageSquare, 
-  CheckCircle2, 
-  ArrowLeft, 
-  Loader2, 
-  ShieldCheck, 
-  User, 
-  Calendar, 
-  Wrench, 
-  Sparkles,
-  HeartHandshake,
-  Check,
-  AlertCircle,
-  FileText,
-  Clock,
-  ThumbsUp
-} from 'lucide-react';
+import { Star, MessageSquare, CheckCircle2, ArrowLeft, Loader2, ShieldCheck, User, Wrench, Sparkles, HeartHandshake, Check, AlertCircle, FileText, Clock } from 'lucide-react';
 
 export default function FeedbackPage() {
   const { kode } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { success: showSuccessToast, error: showErrorToast } = useToast();
 
+  const feedbackToken = new URLSearchParams(location.search).get('token') || '';
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState('');
@@ -118,7 +103,7 @@ export default function FeedbackPage() {
       return;
     }
 
-    if (!kontak || kontak.trim().length < 6) {
+    if (!feedbackToken && (!kontak || kontak.trim().length < 6)) {
       setSubmitError('Mohon masukkan nomor WhatsApp yang sesuai saat booking untuk verifikasi kepemilikan tiket.');
       return;
     }
@@ -133,7 +118,8 @@ export default function FeedbackPage() {
 
       await api.post(`/bookings/${booking.id}/feedback`, {
         kode_booking: booking.kode_booking,
-        kontak: kontak.trim(),
+        feedback_token: feedbackToken || undefined,
+        kontak: kontak.trim() || undefined,
         rating,
         komentar: finalComment
       });
@@ -234,7 +220,7 @@ export default function FeedbackPage() {
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-5 shadow-inner">
               <CheckCircle2 className="w-9 h-9" />
             </div>
-            <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-black uppercase tracking-wider mb-2 border border-emerald-200">
+            <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-black uppercase tracking-wider mb-2 border border-emerald-200">
               Ulasan Sudah Terkirim
             </span>
             <h2 className="text-2xl font-black text-slate-900 mb-2">Terima Kasih atas Penilaian Anda!</h2>
@@ -269,7 +255,7 @@ export default function FeedbackPage() {
             <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
               <Clock className="w-7 h-7" />
             </div>
-            <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black uppercase tracking-wider mb-2">
+            <span className="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black uppercase tracking-wider mb-2">
               Servis Sedang Berjalan
             </span>
             <h2 className="text-xl font-black text-slate-900 mb-2">Pekerjaan Belum Selesai</h2>
@@ -303,7 +289,7 @@ export default function FeedbackPage() {
               <CheckCircle2 className="w-10 h-10 relative z-10" />
             </div>
             
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black uppercase tracking-wider mb-3">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider mb-3">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Ulasan Diterima
             </span>
 
@@ -345,7 +331,7 @@ export default function FeedbackPage() {
           >
             {/* Header Title */}
             <div className="text-center max-w-xl mx-auto mb-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold uppercase tracking-wider border border-blue-200 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider border border-blue-200 mb-3">
                 <HeartHandshake className="w-3.5 h-3.5" /> Ulasan Kepuasan Servis
               </span>
               <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
@@ -374,12 +360,12 @@ export default function FeedbackPage() {
               </div>
 
               <div className="bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-2xl border sm:border-0 border-slate-200 w-full sm:w-auto text-left sm:text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Teknisi Bertugas:</span>
+                <span className="text-xs uppercase font-bold text-slate-500 block tracking-wider">Teknisi Bertugas:</span>
                 <p className="text-xs font-black text-slate-800 mt-0.5 flex items-center sm:justify-end gap-1.5">
                   <User className="w-3.5 h-3.5 text-blue-600" />
                   <span>{booking.teknisi_lengkap || booking.teknisi || 'Teknisi NARA AC'}</span>
                 </p>
-                <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">✓ Terverifikasi SOP 7 Langkah</span>
+                <span className="text-xs text-emerald-600 font-bold block mt-0.5">✓ Terverifikasi SOP 7 Langkah</span>
               </div>
             </div>
 
@@ -397,7 +383,7 @@ export default function FeedbackPage() {
                 
                 {/* 1. STAR RATING SECTION */}
                 <div className="text-center py-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-4">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-4">
                     Beri Penilaian Bintang
                   </span>
 
@@ -438,11 +424,11 @@ export default function FeedbackPage() {
                 </div>
 
                 {/* 2. QUICK APPRECIATION TAGS */}
-                <div className="pt-6 border-t border-slate-100">
-                  <label className="text-xs font-bold text-slate-900 block mb-2">
+                <div className="pt-6 border-t border-slate-100" role="group" aria-labelledby="feedback-tags-label">
+                  <label id="feedback-tags-label" className="text-xs font-bold text-slate-900 block mb-2">
                     Apa yang paling memuaskan dari servis kami? (Pilih satu atau lebih):
                   </label>
-                  <p className="text-[11px] text-slate-400 mb-3.5">
+                  <p className="text-xs text-slate-500 mb-3.5">
                     Klik tag untuk menandai hal-hal positif yang Anda rasakan selama pengerjaan.
                   </p>
 
@@ -471,16 +457,17 @@ export default function FeedbackPage() {
 
                 {/* 3. COMMENT TEXTAREA */}
                 <div className="pt-6 border-t border-slate-100">
-                  <label className="text-xs font-bold text-slate-900 flex items-center justify-between mb-2">
+                  <label htmlFor="feedback-komentar" className="text-xs font-bold text-slate-900 flex items-center justify-between mb-2">
                     <span className="flex items-center gap-1.5">
                       <MessageSquare className="w-4 h-4 text-blue-600" />
                       Ulasan & Catatan Tambahan (Opsional)
                     </span>
-                    <span className="text-[10px] font-normal text-slate-400 font-mono">
+                    <span className="text-xs font-normal text-slate-500 font-mono">
                       {komentar.length}/400 Karakter
                     </span>
                   </label>
                   <textarea
+                    id="feedback-komentar"
                     rows={4}
                     maxLength={400}
                     value={komentar}
@@ -492,20 +479,35 @@ export default function FeedbackPage() {
 
                 {/* 4. SECURITY VERIFICATION CONTACT */}
                 <div className="pt-6 border-t border-slate-100">
-                  <label className="text-xs font-bold text-slate-900 block mb-1">
-                    Verifikasi Nomor WhatsApp Pelanggan *
-                  </label>
-                  <p className="text-[11px] text-slate-400 mb-2.5">
-                    Pastikan nomor WhatsApp sesuai dengan nomor pemesanan tiket untuk memvalidasi keaslian ulasan.
-                  </p>
-                  <Input
-                    type="tel"
-                    required
-                    value={kontak}
-                    onChange={(e) => setKontak(e.target.value)}
-                    placeholder="Contoh: 081234567890"
-                    className="h-11 rounded-xl text-xs font-mono font-bold"
-                  />
+                  {feedbackToken ? (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center gap-3 text-emerald-800 text-xs">
+                      <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="font-bold">Tautan Resmi Terverifikasi</p>
+                        <p className="text-emerald-700 text-[11px] mt-0.5">
+                          Ulasan ini terhubung secara aman dengan tiket servis Anda via token kepemilikan tunggal (single-use).
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <label htmlFor="feedback-kontak" className="text-xs font-bold text-slate-900 block mb-1">
+                        Verifikasi Nomor WhatsApp Pelanggan *
+                      </label>
+                      <p className="text-xs text-slate-500 mb-2.5">
+                        Pastikan nomor WhatsApp sesuai dengan nomor pemesanan tiket untuk memvalidasi keaslian ulasan.
+                      </p>
+                      <Input
+                        id="feedback-kontak"
+                        type="tel"
+                        required
+                        value={kontak}
+                        onChange={(e) => setKontak(e.target.value)}
+                        placeholder="Contoh: 081234567890"
+                        className="h-11 rounded-xl text-xs font-mono font-bold"
+                      />
+                    </>
+                  )}
                 </div>
 
                 {/* SUBMIT BUTTON */}
@@ -527,7 +529,7 @@ export default function FeedbackPage() {
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-[10px] text-slate-400 mt-2.5">
+                  <p className="text-center text-xs text-slate-500 mt-2.5">
                     Ulasan Anda akan dipublikasikan secara anonim demi menjaga kerahasiaan data pribadi.
                   </p>
                 </div>
@@ -544,10 +546,10 @@ export default function FeedbackPage() {
       {/* ============================================================== */}
       {/* 3. FOOTER                                                      */}
       {/* ============================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-400 mt-auto">
+      <footer className="bg-white border-t border-slate-200/80 py-6 text-center text-xs text-slate-500 mt-auto">
         <div className="max-w-5xl mx-auto px-4">
           <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-xs text-slate-500">
             Sistem Informasi Evaluasi Mutu Layanan & Kepuasan Pelanggan NARA AC
           </p>
         </div>

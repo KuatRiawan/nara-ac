@@ -3,31 +3,10 @@ import { createPortal } from 'react-dom';
 import api from '../../api';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Badge } from '../../components/ui/badge';
+
 import { useToast } from '../../components/ui/toast';
 import OfficialInvoicePaper from '../../components/OfficialInvoicePaper';
-import { 
-  Receipt, 
-  Search, 
-  Printer, 
-  CheckCircle2, 
-  Clock, 
-  Filter, 
-  CreditCard, 
-  Building2, 
-  X, 
-  Download, 
-  FileText, 
-  Check, 
-  ShieldCheck, 
-  Sparkles,
-  ExternalLink,
-  ChevronRight,
-  Edit3,
-  Plus,
-  Trash2,
-  Loader2
-} from 'lucide-react';
+import { Receipt, Search, Printer, CheckCircle2, Clock, CreditCard, Building2, X, Check, Edit3, Plus, Trash2, Loader2 } from 'lucide-react';
 
 export default function AdminInvoices() {
   const { error: showError, success: showSuccess } = useToast();
@@ -38,6 +17,18 @@ export default function AdminInvoices() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paidStatusMap, setPaidStatusMap] = useState({});
+  const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
+
+  // Escape key to close invoice modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   // Payment settings state (Bank accounts for invoice)
   const [paymentSettings, setPaymentSettings] = useState(() => {
@@ -104,17 +95,18 @@ export default function AdminInvoices() {
         const list = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
         setBookings(list);
 
-        // Initialize paid status map from local storage or default
-        const savedPaid = localStorage.getItem('nara_admin_invoice_paid_map');
-        if (savedPaid) {
-          try {
-            setPaidStatusMap(JSON.parse(savedPaid));
-          } catch (e) {
-            // ignore
+        // Initialize paid status map from API data (status_pembayaran field from database)
+        const statusMapFromAPI = {};
+        list.forEach(b => {
+          if (b.status_pembayaran) {
+            statusMapFromAPI[b.id] = b.status_pembayaran === 'paid';
+          } else {
+            statusMapFromAPI[b.id] = b.status === 'done';
           }
-        }
+        });
+        setPaidStatusMap(statusMapFromAPI);
       } catch (err) {
-        showError('Gagal memuat data faktur: ' + (err?.response?.data?.error?.message || err?.message));
+        showError('Gagal memuat data faktur: ' + (err?.error?.message || err?.response?.data?.error?.message || err?.message));
       } finally {
         setLoading(false);
       }
@@ -122,16 +114,36 @@ export default function AdminInvoices() {
     fetchInvoices();
   }, [showError]);
 
-  const togglePaidStatus = (bookingId) => {
-    setPaidStatusMap(prev => {
-      const updated = {
-        ...prev,
-        [bookingId]: !prev[bookingId]
-      };
-      localStorage.setItem('nara_admin_invoice_paid_map', JSON.stringify(updated));
-      showSuccess(`Status pembayaran #${bookingId} berhasil diperbarui.`);
-      return updated;
-    });
+  const togglePaidStatus = async (bookingId) => {
+    const currentStatus = paidStatusMap[bookingId] !== undefined ? paidStatusMap[bookingId] : false;
+    const newStatus = !currentStatus; // true = paid, false = pending
+
+    setUpdatingPaymentId(bookingId);
+
+    try {
+      const res = await api.patch(`/bookings/${bookingId}/payment-status`, {
+        status_pembayaran: newStatus ? 'paid' : 'pending'
+      });
+
+      if (res && (res.status_pembayaran || res.id || res.status === 200)) {
+        setPaidStatusMap(prev => ({
+          ...prev,
+          [bookingId]: newStatus
+        }));
+
+        setBookings(prev => prev.map(b => (
+          b.id === bookingId ? { ...b, status_pembayaran: newStatus ? 'paid' : 'pending' } : b
+        )));
+
+        showSuccess(`Status pembayaran #${bookingId} berhasil diperbarui menjadi ${newStatus ? 'Lunas' : 'Pending'}.`);
+      } else {
+        throw new Error('Gagal memperbarui status pembayaran');
+      }
+    } catch (err) {
+      showError('Gagal memperbarui status pembayaran: ' + (err?.error?.message || err?.response?.data?.error?.message || err?.message));
+    } finally {
+      setUpdatingPaymentId(null);
+    }
   };
 
   // Helper calculations
@@ -318,7 +330,7 @@ export default function AdminInvoices() {
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-gray-50/50 relative min-w-0">
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-slate-50/50 relative min-w-0">
       
       {/* Title & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -358,7 +370,7 @@ export default function AdminInvoices() {
         {/* Total Omzet */}
         <div className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Omzet Servis</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Omzet Servis</span>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
               <CreditCard className="w-4 h-4" />
             </div>
@@ -367,7 +379,7 @@ export default function AdminInvoices() {
             <p className="text-2xl font-black text-slate-900">
               Rp {kpis.totalOmzet.toLocaleString('id-ID')}
             </p>
-            <p className="text-[11px] font-medium text-slate-500 mt-1">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               Dari {kpis.totalCount} tiket faktur tercatat
             </p>
           </div>
@@ -376,7 +388,7 @@ export default function AdminInvoices() {
         {/* Lunas */}
         <div className="p-5 rounded-3xl bg-white border border-emerald-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Pembayaran Lunas</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Pembayaran Lunas</span>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -385,7 +397,7 @@ export default function AdminInvoices() {
             <p className="text-2xl font-black text-emerald-700">
               Rp {kpis.totalLunas.toLocaleString('id-ID')}
             </p>
-            <p className="text-[11px] font-medium text-emerald-600/80 mt-1">
+            <p className="text-xs font-medium text-emerald-600/80 mt-1">
               {kpis.countLunas} transaksi terverifikasi
             </p>
           </div>
@@ -394,7 +406,7 @@ export default function AdminInvoices() {
         {/* Menunggu Pembayaran */}
         <div className="p-5 rounded-3xl bg-white border border-amber-100 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Menunggu Pembayaran</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Menunggu Pembayaran</span>
             <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
               <Clock className="w-4 h-4" />
             </div>
@@ -403,7 +415,7 @@ export default function AdminInvoices() {
             <p className="text-2xl font-black text-amber-700">
               Rp {kpis.totalPending.toLocaleString('id-ID')}
             </p>
-            <p className="text-[11px] font-medium text-amber-600/80 mt-1">
+            <p className="text-xs font-medium text-amber-600/80 mt-1">
               {kpis.countPending} invoice menunggu transfer
             </p>
           </div>
@@ -413,14 +425,14 @@ export default function AdminInvoices() {
         <div className="p-5 rounded-3xl bg-white border border-sky-100 shadow-sm flex flex-col justify-between hover:border-blue-200 transition-all">
           <div className="flex justify-between items-start mb-2">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block">Rekening Resmi Invoice</span>
-              <p className="text-[10px] text-slate-400">Tercetak pada lembar faktur</p>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 block">Rekening Resmi Invoice</span>
+              <p className="text-xs text-slate-500">Tercetak pada lembar faktur</p>
             </div>
             <Button
               size="sm"
               variant="outline"
               onClick={openEditBankModal}
-              className="h-7 px-2.5 rounded-lg text-[11px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="h-7 px-2.5 rounded-lg text-xs font-bold border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer flex items-center gap-1 shadow-2xs"
             >
               <Edit3 className="w-3 h-3" />
               <span>Ubah</span>
@@ -433,7 +445,7 @@ export default function AdminInvoices() {
                 <span className="font-bold text-blue-600">{acc.account_number}</span>
               </div>
             ))}
-            <p className="text-[10px] text-slate-400 pt-0.5 truncate">
+            <p className="text-xs text-slate-500 pt-0.5 truncate">
               a.n {paymentSettings.accounts?.[0]?.account_holder || 'CV NARA TEKNINDOTAMA'}
             </p>
           </div>
@@ -444,9 +456,10 @@ export default function AdminInvoices() {
       {/* Filter & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <Input 
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Input
             placeholder="Cari no invoice, tiket, nama..."
+            aria-label="Cari invoice"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-10 text-xs font-semibold rounded-xl border-slate-200 bg-slate-50/50"
@@ -498,13 +511,13 @@ export default function AdminInvoices() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     Memuat data invoice...
                   </td>
                 </tr>
               ) : filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="py-12 text-center text-slate-400">
+                  <td colSpan="6" className="py-12 text-center text-slate-500">
                     Tidak ada faktur invoice yang cocok dengan pencarian.
                   </td>
                 </tr>
@@ -513,29 +526,29 @@ export default function AdminInvoices() {
                   <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-5">
                       <p className="font-mono font-black text-slate-900">{inv.invNo}</p>
-                      <p className="font-mono text-[11px] text-blue-600 mt-0.5">{inv.kode_booking || `BK-${inv.id}`}</p>
+                      <p className="font-mono text-xs text-blue-600 mt-0.5">{inv.kode_booking || `BK-${inv.id}`}</p>
                     </td>
                     <td className="py-3.5 px-5">
                       <p className="font-bold text-slate-900">{inv.customer?.nama || inv.nama_customer || 'Pelanggan NARA'}</p>
-                      <p className="text-[11px] text-slate-400">{inv.customer?.kontak || inv.kontak || '-'}</p>
+                      <p className="text-xs text-slate-500">{inv.customer?.kontak || inv.kontak || '-'}</p>
                     </td>
                     <td className="py-3.5 px-5">
                       <p className="font-semibold text-slate-800">{inv.layanan?.nama || 'Cuci AC Standard'}</p>
-                      <p className="text-[11px] text-slate-400">{inv.unit} Unit AC</p>
+                      <p className="text-xs text-slate-500">{inv.unit} Unit AC</p>
                     </td>
                     <td className="py-3.5 px-5">
                       <p className="font-bold text-slate-900">
                         Rp {inv.total.toLocaleString('id-ID')}
                       </p>
-                      <p className="text-[10px] text-slate-400">@ Rp {inv.basePrice.toLocaleString('id-ID')}</p>
+                      <p className="text-xs text-slate-500">@ Rp {inv.basePrice.toLocaleString('id-ID')}</p>
                     </td>
                     <td className="py-3.5 px-5">
                       {inv.isPaid ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <CheckCircle2 className="w-3 h-3" /> Lunas
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
                           <Clock className="w-3 h-3" /> Menunggu Transfer
                         </span>
                       )}
@@ -546,16 +559,24 @@ export default function AdminInvoices() {
                           size="sm"
                           variant="outline"
                           onClick={() => togglePaidStatus(inv.id)}
-                          className={`rounded-xl text-[11px] font-bold h-8 px-2.5 cursor-pointer ${
+                          disabled={updatingPaymentId === inv.id}
+                          className={`rounded-xl text-xs font-bold h-8 px-2.5 cursor-pointer ${
                             inv.isPaid ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                          }`}
+                          } ${updatingPaymentId === inv.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          {inv.isPaid ? 'Batal Lunas' : 'Tandai Lunas'}
+                          {updatingPaymentId === inv.id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              <span>Memproses...</span>
+                            </>
+                          ) : (
+                            <>{inv.isPaid ? 'Batal Lunas' : 'Tandai Lunas'}</>
+                          )}
                         </Button>
                         <Button
                           size="sm"
                           onClick={() => openInvoiceModal(inv)}
-                          className="rounded-xl text-[11px] font-bold h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-1"
+                          className="rounded-xl text-xs font-bold h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white cursor-pointer flex items-center gap-1"
                         >
                           <Printer className="w-3.5 h-3.5" />
                           <span>Cetak Invoice</span>
@@ -663,18 +684,6 @@ export default function AdminInvoices() {
           onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
           className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/75 backdrop-blur-sm flex justify-center items-start p-3 sm:p-6 lg:p-8 invoice-modal-backdrop print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:block print:w-full print:h-auto"
         >
-          {/* Floating Close Button in Top Right */}
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(false)}
-            className="fixed top-4 right-4 z-50 p-2 sm:px-3 sm:py-2 rounded-full bg-slate-800/90 text-white hover:bg-rose-600 shadow-xl border border-slate-700/80 cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold print:hidden"
-            title="Tutup Invoice (Esc)"
-            aria-label="Tutup Invoice"
-          >
-            <X className="w-4 h-4" />
-            <span className="hidden sm:inline">Tutup (Esc)</span>
-          </button>
-
           <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-2 sm:my-4 animate-in fade-in zoom-in-95 duration-200 invoice-modal-card relative flex flex-col print:overflow-visible print:max-w-none print:w-full print:border-none print:shadow-none print:my-0 print:rounded-none">
             
             {/* Modal Header Actions - STICKY AT TOP SO IT NEVER DISAPPEARS */}
@@ -719,14 +728,6 @@ export default function AdminInvoices() {
             {/* Modal Bottom Bar for convenience */}
             <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 print:hidden">
               <span className="truncate pr-2">Gunakan tombol <strong>Cetak / Download PDF</strong> untuk menyimpan dokumen faktur resmi.</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setIsModalOpen(false)}
-                className="text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 rounded-xl cursor-pointer shrink-0"
-              >
-                Tutup Tampilan
-              </Button>
             </div>
 
           </div>
@@ -759,7 +760,7 @@ export default function AdminInvoices() {
               <button
                 type="button"
                 onClick={() => setIsBankModalOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 aria-label="Tutup"
               >
                 <X className="w-5 h-5" />
@@ -791,14 +792,14 @@ export default function AdminInvoices() {
                     className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3 relative group"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-wider">
                         Rekening #{index + 1}
                       </span>
                       {bankFormData.accounts.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveAccountRow(index)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Hapus rekening ini"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -808,11 +809,12 @@ export default function AdminInvoices() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label htmlFor="admin-invoices-f1" className="block text-xs font-bold text-slate-700 mb-1">
                           Nama Bank *
                         </label>
                         <div className="flex flex-col gap-1.5">
                           <Input
+                            id="admin-invoices-f1"
                             placeholder="Contoh: BCA, Mandiri, BRI..."
                             value={acc.bank_name}
                             onChange={(e) => handleAccountChange(index, 'bank_name', e.target.value)}
@@ -826,7 +828,7 @@ export default function AdminInvoices() {
                                 key={bName}
                                 type="button"
                                 onClick={() => handleAccountChange(index, 'bank_name', bName)}
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                                className={`text-xs font-bold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                                   acc.bank_name === bName 
                                     ? 'bg-blue-600 text-white' 
                                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -840,10 +842,11 @@ export default function AdminInvoices() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        <label htmlFor="admin-invoices-f2" className="block text-xs font-bold text-slate-700 mb-1">
                           Nomor Rekening *
                         </label>
                         <Input
+                          id="admin-invoices-f2"
                           placeholder="Contoh: 8720-9182-33"
                           value={acc.account_number}
                           onChange={(e) => handleAccountChange(index, 'account_number', e.target.value)}
@@ -854,10 +857,11 @@ export default function AdminInvoices() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      <label htmlFor="admin-invoices-f3" className="block text-xs font-bold text-slate-700 mb-1">
                         Atas Nama (Pemilik Rekening) *
                       </label>
                       <Input
+                        id="admin-invoices-f3"
                         placeholder="Contoh: CV NARA TEKNINDOTAMA"
                         value={acc.account_holder}
                         onChange={(e) => handleAccountChange(index, 'account_holder', e.target.value)}
@@ -869,17 +873,18 @@ export default function AdminInvoices() {
                 ))}
 
                 <div className="pt-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label htmlFor="admin-invoices-f4" className="block text-xs font-bold text-slate-700 mb-1">
                     Catatan Instruksi Pembayaran (Opsional)
                   </label>
                   <textarea
+                    id="admin-invoices-f4"
                     rows={2}
                     placeholder="Contoh: *Tersedia juga opsi pembayaran tunai / QRIS langsung kepada teknisi setelah pekerjaan selesai di lokasi."
                     value={bankFormData.instruction_note}
                     onChange={(e) => setBankFormData(prev => ({ ...prev, instruction_note: e.target.value }))}
                     className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-700 resize-none"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Catatan ini akan dicetak di bagian bawah kotak rekening pada lembar invoice.
                   </p>
                 </div>
