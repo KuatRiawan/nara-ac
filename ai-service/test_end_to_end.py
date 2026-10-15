@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-End-to-end test for the AI service
-"""
-
+import pytest
 import requests
 
 AI_SERVICE_URL = "http://localhost:8000"
@@ -21,47 +17,50 @@ test_cases = [
     ("saya mau booking", "booking_service"),
 ]
 
-print("=" * 80)
-print("End-to-End AI Service Test")
-print("=" * 80)
 
-# First check if the service is running
-try:
-    response = requests.get(f"{AI_SERVICE_URL}/health")
-    if response.status_code == 200:
-        print(f"\n✓ AI Service is running at {AI_SERVICE_URL}")
-        print(f"  Health check: {response.json()}")
-    else:
-        print(f"\n✗ AI Service health check failed: {response.status_code}")
-        print("  Starting the service might be needed...")
-except Exception as e:
-    print(f"\n✗ AI Service is not running: {e}")
-    print("  Please start the AI service with: python3 main.py")
-    exit(1)
-
-print("\n" + "=" * 80)
-print("Testing predict-intent endpoint")
-print("=" * 80)
-
-for message, expected_intent in test_cases:
+def test_predict_intent_e2e():
+    """End-to-end integration test against running AI service."""
     try:
-        response = requests.post(
+        response = requests.get(f"{AI_SERVICE_URL}/health", timeout=2)
+        if response.status_code != 200:
+            pytest.skip(f"AI Service health check returned status {response.status_code}")
+    except Exception as e:
+        pytest.skip(f"AI Service is not running ({e}). Skipping E2E test.")
+
+    for message, expected_intent in test_cases:
+        res = requests.post(
             f"{AI_SERVICE_URL}/predict-intent",
             json={"text": message},
-            timeout=5
+            timeout=5,
         )
-        if response.status_code == 200:
-            result = response.json()
-            intent = result.get("intent", "UNKNOWN")
-            confidence = result.get("confidence", 0)
-            fallback = result.get("fallback", False)
-            status = "✓" if intent == expected_intent else "✗"
-            print(f"{status} '{message}' -> {intent} (confidence: {confidence:.4f}, fallback: {fallback})")
-            if intent != expected_intent:
-                print(f"    Expected: {expected_intent}")
-        else:
-            print(f"✗ '{message}' -> HTTP {response.status_code}")
-    except Exception as e:
-        print(f"✗ '{message}' -> Error: {e}")
+        assert res.status_code == 200, f"Expected 200 for '{message}', got {res.status_code}"
+        result = res.json()
+        assert result.get("intent") == expected_intent, f"Expected {expected_intent} for '{message}', got {result.get('intent')}"
 
-print("\n" + "=" * 80)
+
+if __name__ == "__main__":
+    print("=" * 80)
+    print("End-to-End AI Service Test")
+    print("=" * 80)
+    try:
+        r = requests.get(f"{AI_SERVICE_URL}/health", timeout=2)
+        if r.status_code == 200:
+            print(f"\n✓ AI Service is running at {AI_SERVICE_URL}")
+        else:
+            print(f"\n✗ AI Service health check failed: {r.status_code}")
+    except Exception as err:
+        print(f"\n✗ AI Service is not running: {err}")
+        print("  Please start the AI service with: python3 main.py")
+        sys.exit(1)
+
+    for msg, exp in test_cases:
+        try:
+            resp = requests.post(f"{AI_SERVICE_URL}/predict-intent", json={"text": msg}, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                print(f"✓ '{msg}' -> {data.get('intent')}")
+            else:
+                print(f"✗ '{msg}' -> HTTP {resp.status_code}")
+        except Exception as ex:
+            print(f"✗ '{msg}' -> Error: {ex}")
+

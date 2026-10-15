@@ -1,5 +1,6 @@
 import os
 import re
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -10,20 +11,62 @@ from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-app = FastAPI(title="Nara AC - AI Service", version="2.0.0")
-
 BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "intent_model.pkl"
+VECTORIZER_PATH = BASE_DIR / "vectorizer.pkl"
+LABEL_ENCODER_PATH = BASE_DIR / "label_encoder.pkl"
+
+model = None
+vectorizer = None
+label_encoder = None
+
+
+def load_model():
+    """Load model, vectorizer, and label encoder."""
+    global model, vectorizer, label_encoder
+    if os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
+        model = joblib.load(MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        if os.path.exists(LABEL_ENCODER_PATH):
+            label_encoder = joblib.load(LABEL_ENCODER_PATH)
+        else:
+            label_encoder = None
+        return True
+    return False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager for startup and shutdown lifecycle."""
+    load_model()
+    yield
+
+
+# Eager load on import for tests and immediate readiness
+load_model()
+
+app = FastAPI(title="Nara AC - AI Service", version="2.0.0", lifespan=lifespan)
 
 # Simple API key authentication
 AI_API_KEY = os.getenv("AI_API_KEY")
+IS_PROD = os.getenv("NODE_ENV") == "production" or os.getenv("ENV") == "production"
+
+if IS_PROD and not AI_API_KEY:
+    import sys
+    print("[ai-service] FATAL: AI_API_KEY wajib diisi di production. AI Service gagal start.", file=sys.stderr)
 
 
 @app.middleware("http")
 async def verify_api_key(request, call_next):
-    # Skip authentication if no API key is configured (dev mode)
+    # Skip authentication if no API key is configured (dev mode only)
     if not AI_API_KEY:
+        if IS_PROD:
+            return JSONResponse(
+                status_code=503,
+                content={"error": {"code": "SERVICE_UNAVAILABLE", "message": "AI Service tidak terkonfigurasi dengan benar (missing API key)."}},
+            )
         return await call_next(request)
-    
+
     # Check for API key in header
     api_key = request.headers.get("X-AI-API-Key")
     if api_key != AI_API_KEY:
@@ -31,7 +74,7 @@ async def verify_api_key(request, call_next):
             status_code=401,
             content={"error": {"code": "UNAUTHORIZED", "message": "API key tidak valid"}},
         )
-    
+
     return await call_next(request)
 MODEL_VERSION = "2.0"
 CONFIDENCE_THRESHOLD = float(os.getenv("AI_CONFIDENCE_THRESHOLD", "0.55"))
@@ -58,14 +101,6 @@ class EntityResponse(BaseModel):
     entities: Dict[str, Any]
     intent_specific_data: Optional[Dict[str, Any]] = None
 
-
-MODEL_PATH = BASE_DIR / "intent_model.pkl"
-VECTORIZER_PATH = BASE_DIR / "vectorizer.pkl"
-LABEL_ENCODER_PATH = BASE_DIR / "label_encoder.pkl"
-
-model = None
-vectorizer = None
-label_encoder = None
 
 # All possible intents in the system
 ALL_INTENTS = [
@@ -297,25 +332,6 @@ def extract_booking_code(text: str) -> Optional[str]:
     entities = extract_entities(text)
     return entities.get("booking_code")
 
-
-@app.on_event("startup")
-def load_model():
-    global model, vectorizer, label_encoder
-    if os.path.exists(MODEL_PATH) and os.path.exists(VECTORIZER_PATH):
-        model = joblib.load(MODEL_PATH)
-        vectorizer = joblib.load(VECTORIZER_PATH)
-        # Try to load label encoder if it exists
-        if os.path.exists(LABEL_ENCODER_PATH):
-            label_encoder = joblib.load(LABEL_ENCODER_PATH)
-            print("Model and label encoder loaded successfully.")
-            print("Intent classes:", list(label_encoder.classes_))
-        else:
-            # Fallback: use INTENT_MAPPING for models trained before this update
-            print("Warning: Label encoder not found, using fallback INTENT_MAPPING.")
-            label_encoder = None
-        print("Model loaded successfully.")
-    else:
-        print("Warning: Model files not found. Run train.py to train the model.")
 
 
 @app.get("/health")
