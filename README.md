@@ -554,10 +554,12 @@ Seluruh endpoint di bawah ini terdaftar secara faktual pada router backend (`/ap
 |---|---|---|---|---|
 | `POST` | `/api/v1/auth/login` | Public | Masuk ke sistem, mengembalikan token JWT dan set cookie `nara_token` | Body: `{ email, password }` ➔ 200 `{ token, user }` |
 | `POST` | `/api/v1/auth/register` | Public | Pendaftaran akun baru customer mandiri | Body: `{ nama, email, password, kontak, alamat }` ➔ 201 `{ token, user }` |
+| `POST` | `/api/v1/auth/forgot-password` | Public | Permintaan token reset password dengan rate limiting & hash SHA-256 | Body: `{ email }` ➔ 200 `{ message }` |
+| `POST` | `/api/v1/auth/reset-password` | Public | Reset password menggunakan token valid & penegakan kebijakan password | Body: `{ token, new_password }` ➔ 200 `{ message }` |
 | `GET` | `/api/v1/auth/me` | Authenticated | Mendapatkan profil akun yang sedang login | Headers/Cookie ➔ 200 `{ user: {...} }` |
 | `PATCH` | `/api/v1/auth/profile` | Authenticated | Memperbarui nama, email, dan nomor telepon akun | Body: `{ nama, email, kontak }` ➔ 200 `{ user, message }` |
 | `PATCH` | `/api/v1/auth/password` | Authenticated | Mengubah password akun dengan validasi password lama | Body: `{ current_password, new_password }` ➔ 200 `{ ok: true }` |
-| `GET` | `/api/v1/auth/csrf-token` | Authenticated | Mendapatkan token CSRF unik berumur 15 menit | Headers/Cookie ➔ 200 `{ csrfToken: string }` |
+| `GET` | `/api/v1/auth/csrf-token` | Authenticated | Mendapatkan token CSRF unik berumur 15 menit (HMAC-signed) | Headers/Cookie ➔ 200 `{ csrfToken: string }` |
 | `POST` | `/api/v1/auth/logout` | Authenticated | Keluar sistem, menghapus cookie `nara_token` & invalidasi CSRF | Headers/Cookie ➔ 200 `{ success: true }` |
 
 #### B. Portal Customer (`/api/v1/customer`)
