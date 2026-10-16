@@ -12,15 +12,9 @@ function required(name, fallbackForDev) {
 module.exports = {
   isProd,
   port: Number(process.env.PORT || 4000),
-  databaseUrl: required('DATABASE_URL', 'postgres://postgres@localhost:5433/nara_ac'),
+  databaseUrl: required('DATABASE_URL', 'mysql://root@127.0.0.1:3306/nara_ac'),
   dbSsl: process.env.DB_SSL === 'true',
-  jwtSecret: required('JWT_SECRET', (() => {
-    if (!isProd) {
-      console.warn('[config] PERINGATAN: JWT_SECRET tidak diisi. Menggunakan secret default development yang TIDAK AMAN. Wajib diisi di production!');
-      return 'dev-only-insecure-jwt-secret-change-me';
-    }
-    return undefined;
-  })()),
+  jwtSecret: required('JWT_SECRET', 'dev-only-insecure-jwt-secret-change-me'),
   jwtExpires: process.env.JWT_EXPIRES || '8h',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',').map((s) => s.trim()).filter(Boolean),
@@ -51,4 +45,7 @@ module.exports = {
   allowAnyLocalOrigin: !isProd,
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  whatsappApiUrl: process.env.WHATSAPP_API_URL || '',
+  whatsappApiToken: process.env.WHATSAPP_API_TOKEN || '',
 };

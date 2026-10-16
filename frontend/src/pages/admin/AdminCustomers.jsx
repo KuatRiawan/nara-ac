@@ -17,6 +17,11 @@ export default function AdminCustomers() {
 
   // List State
   const [customers, setCustomers] = useState([]);
+  const [customerMeta, setCustomerMeta] = useState({
+    total: 0,
+    total_customers: 0,
+    total_units: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all'); // all | has_ac | no_ac
@@ -114,16 +119,23 @@ export default function AdminCustomers() {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/admin/customers?q=${encodeURIComponent(search.trim())}`);
-      const raw = res?.data?.data || res?.data || res;
-      const list = Array.isArray(raw) ? raw : (raw?.data && Array.isArray(raw.data) ? raw.data : []);
+      const params = new URLSearchParams({
+        q: search.trim(),
+        page: String(currentPage),
+        limit: String(itemsPerPage),
+      });
+      if (filterType === 'has_ac') params.set('has_ac', 'true');
+      if (filterType === 'no_ac') params.set('has_ac', 'false');
+      const res = await api.get(`/admin/customers?${params.toString()}`);
+      const list = Array.isArray(res?.data) ? res.data : [];
       setCustomers(list);
+      setCustomerMeta(res?.meta || { total: list.length, total_customers: list.length, total_units: 0 });
     } catch (err) {
       showError('Gagal memuat pelanggan: ' + getErrorMessage(err, 'Terjadi kesalahan'));
     } finally {
       setLoading(false);
     }
-  }, [search, showError]);
+  }, [currentPage, filterType, search, showError]);
 
   useEffect(() => {
     fetchCustomers();
@@ -297,37 +309,23 @@ export default function AdminCustomers() {
   };
 
   // Filtered Customers
-  const filteredCustomers = useMemo(() => {
-    let list = [...customers];
-    if (filterType === 'has_ac') {
-      list = list.filter(c => Number(c.total_unit ?? c.jumlah_unit ?? c.total_ac ?? 0) > 0);
-    } else if (filterType === 'no_ac') {
-      list = list.filter(c => Number(c.total_unit ?? c.jumlah_unit ?? c.total_ac ?? 0) === 0);
-    }
-    return list;
-  }, [customers, filterType]);
-
   // Reset pagination when search or filterType changes
   useEffect(() => {
     setCurrentPage(1);
   }, [search, filterType]);
 
   // Paginated customers
-  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
-  const paginatedCustomers = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredCustomers.slice(start, start + itemsPerPage);
-  }, [filteredCustomers, currentPage, itemsPerPage]);
+  const totalResults = Number(customerMeta.total || 0);
+  const totalPages = Math.max(1, Math.ceil(totalResults / itemsPerPage));
+  const paginatedCustomers = customers;
 
   // Quick Metrics
   const metrics = useMemo(() => {
-    const totalCust = customers.length;
-    let totalAC = 0;
-    customers.forEach(c => {
-      totalAC += Number(c.total_unit ?? c.jumlah_unit ?? c.total_ac ?? 0);
-    });
-    return { totalCust, totalAC };
-  }, [customers]);
+    return {
+      totalCust: Number(customerMeta.total_customers || 0),
+      totalAC: Number(customerMeta.total_units || 0),
+    };
+  }, [customerMeta]);
 
   // Variables for selectedCustomer
   const acUnitsList = selectedCustomer?.ac_units || [];
@@ -880,7 +878,7 @@ export default function AdminCustomers() {
             <p className="text-slate-900 font-bold text-base">Memuat Data Pelanggan...</p>
             <p className="text-xs text-slate-500 mt-1">Mengambil direktori profil dan unit AC pelanggan.</p>
           </div>
-        ) : filteredCustomers.length === 0 ? (
+        ) : customers.length === 0 ? (
           <div className="p-16 text-center max-w-md mx-auto">
             <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 mx-auto mb-4">
               <User className="w-8 h-8" />
@@ -1156,7 +1154,7 @@ export default function AdminCustomers() {
           {/* PAGINATION TOOLBAR */}
           <div className="p-4 bg-slate-50/70 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
             <div>
-              Menampilkan <strong className="text-slate-900">{filteredCustomers.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(filteredCustomers.length, currentPage * itemsPerPage)}</strong> dari <strong className="text-slate-900">{filteredCustomers.length}</strong> pelanggan
+              Menampilkan <strong className="text-slate-900">{totalResults === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</strong> - <strong className="text-slate-900">{Math.min(totalResults, (currentPage - 1) * itemsPerPage + customers.length)}</strong> dari <strong className="text-slate-900">{totalResults}</strong> pelanggan
             </div>
 
             {totalPages > 1 && (

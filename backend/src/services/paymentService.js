@@ -2,13 +2,33 @@ const { query, withTx } = require('../db/pool');
 const { E } = require('../errors');
 const { notify } = require('./common');
 const { calculateInvoice } = require('./bookingService');
+const { normalizePhone } = require('../utils/ids');
+const config = require('../config');
+
+async function loadInvoiceData(db, booking) {
+  booking.items = (await db.query(`SELECT bi.*, s.nama_layanan FROM booking_items bi JOIN service_catalog s ON s.id=bi.layanan_id WHERE bi.booking_id=$1`, [booking.id])).rows;
+  booking.harga = (await db.query('SELECT harga FROM service_catalog WHERE id=$1', [booking.layanan_id])).rows[0]?.harga || 0;
+  booking.is_member = (await db.query("SELECT id FROM users WHERE customer_id=$1 AND role='customer' AND aktif=true", [booking.customer_id])).rows.length > 0;
+  return booking;
+}
+
+function assertPaymentOwner(booking, user, kontak) {
+  if (user?.role === 'admin') return;
+  if (user) {
+    if (user.role === 'customer' && user.customer_id && Number(user.customer_id) === Number(booking.customer_id)) return;
+    throw E.forbidden('Booking ini bukan milik Anda.');
+  }
+  const phone = normalizePhone(kontak);
+  if (!phone || phone !== normalizePhone(booking.kontak)) throw E.forbidden('Nomor kontak lengkap yang sesuai booking wajib diisi.');
+}
+
 
 /**
  * Mengambil pengaturan skema & metode pembayaran aktif (BR-34, BR-36)
  */
 async function getPaymentSettings() {
-  const schemesRow = (await query("SELECT value FROM settings WHERE key = 'payment_schemes'")).rows[0];
-  const methodsRow = (await query("SELECT value FROM settings WHERE key = 'payment_methods'")).rows[0];
+  const schemesRow = (await query("SELECT value FROM settings WHERE setting_key= 'payment_schemes'")).rows[0];
+  const methodsRow = (await query("SELECT value FROM settings WHERE setting_key= 'payment_methods'")).rows[0];
 
   const defaultSchemes = {
     full_upfront: { enabled: true, label: 'Bayar Lunas di Awal', deskripsi: 'Pelunasan penuh saat booking dibuat' },
@@ -34,17 +54,17 @@ async function getPaymentSettings() {
 async function updatePaymentSettings({ schemes, methods }) {
   if (schemes) {
     await query(`
-      INSERT INTO settings (key, value)
-      VALUES ('payment_schemes', $1::jsonb)
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+      INSERT INTO settings (setting_key, value)
+      VALUES ('payment_schemes', $1)
+      ON DUPLICATE KEY UPDATE value = VALUES(value)
     `, [JSON.stringify(schemes)]);
   }
 
   if (methods) {
     await query(`
-      INSERT INTO settings (key, value)
-      VALUES ('payment_methods', $1::jsonb)
-      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+      INSERT INTO settings (setting_key, value)
+      VALUES ('payment_methods', $1)
+      ON DUPLICATE KEY UPDATE value = VALUES(value)
     `, [JSON.stringify(methods)]);
   }
 
@@ -78,16 +98,7 @@ async function selectPaymentScheme(bookingId, { skema_pembayaran, metode_pembaya
     const booking = bRes.rows[0];
     if (!booking) throw E.notFound('Booking tidak ditemukan.');
 
-    // Verifikasi kepemilikan jika user customer
-    if (user && user.role === 'customer' && user.customer_id && booking.customer_id !== user.customer_id) {
-      throw E.forbidden('Anda tidak berhak mengakses booking ini.');
-    } else if (!user && kontak) {
-      const cleanKontak = kontak.replace(/\D/g, '');
-      const cleanBookingKontak = (booking.kontak || '').replace(/\D/g, '');
-      if (!cleanBookingKontak.endsWith(cleanKontak) && !cleanKontak.endsWith(cleanBookingKontak)) {
-        throw E.forbidden('Nomor kontak verifikasi tidak sesuai.');
-      }
-    }
+    assertPaymentOwner(booking, user, kontak);
 
     const updated = (await client.query(`
       UPDATE bookings
@@ -116,7 +127,7 @@ async function uploadTransferProof(bookingId, { bukti_url, nominal, catatan }, u
   }
 
   const nominalNum = Number(nominal);
-  if (!nominalNum || nominalNum <= 0) {
+  if (!Number.isFinite(nominalNum) || nominalNum <= 0) {
     throw E.badRequest('Nominal pembayaran harus berupa angka positif.');
   }
 
@@ -125,15 +136,9 @@ async function uploadTransferProof(bookingId, { bukti_url, nominal, catatan }, u
     const booking = bRes.rows[0];
     if (!booking) throw E.notFound('Booking tidak ditemukan.');
 
-    // Verifikasi kepemilikan jika user customer
-    if (user && user.role === 'customer' && user.customer_id && booking.customer_id !== user.customer_id) {
-      throw E.forbidden('Anda tidak berhak mengunggah bukti bayar untuk booking ini.');
-    } else if (!user && kontak) {
-      const cleanKontak = kontak.replace(/\D/g, '');
-      const cleanBookingKontak = (booking.kontak || '').replace(/\D/g, '');
-      if (!cleanBookingKontak.endsWith(cleanKontak) && !cleanKontak.endsWith(cleanBookingKontak)) {
-        throw E.forbidden('Nomor WhatsApp verifikasi tidak sesuai dengan pemesan.');
-      }
+    assertPaymentOwner(booking, user, kontak);
+    if (booking.bukti_pembayaran_url === bukti_url.trim() && booking.status_verifikasi_pembayaran === 'diverifikasi') {
+      throw E.conflict('Bukti pembayaran ini sudah diverifikasi.');
     }
 
     const updated = (await client.query(`
@@ -158,7 +163,7 @@ async function uploadTransferProof(bookingId, { bukti_url, nominal, catatan }, u
         tautan: `/admin/bookings/${booking.id}`,
         dedup: `proof_uploaded_${booking.id}_${Date.now()}`,
       });
-    } catch (_) {}
+    } catch (error) { console.warn('[payment] Notifikasi gagal:', error.message); }
 
     return {
       success: true,
@@ -181,14 +186,14 @@ async function verifyPaymentProof(bookingId, { disetujui, catatan, nominal_diset
     const booking = bRes.rows[0];
     if (!booking) throw E.notFound('Booking tidak ditemukan.');
 
-    if (booking.status_verifikasi_pembayaran !== 'menunggu_verifikasi' && !booking.bukti_pembayaran_url) {
+    if (booking.status_verifikasi_pembayaran !== 'menunggu_verifikasi' || !booking.bukti_pembayaran_url) {
       throw E.badRequest('Booking ini belum memiliki bukti pembayaran yang menunggu verifikasi.');
     }
 
     let updated;
     if (disetujui) {
       const nominal = Number(nominal_disetujui) || 0;
-      if (nominal <= 0) {
+      if (!Number.isFinite(nominal) || nominal <= 0) {
         throw E.badRequest('Nominal yang disetujui harus lebih dari 0.');
       }
 
@@ -205,6 +210,7 @@ async function verifyPaymentProof(bookingId, { disetujui, catatan, nominal_diset
       booking.items = itemsRes.rows;
       booking.total_dibayar = totalDibayarBaru;
 
+      await loadInvoiceData(client, booking);
       const invoice = calculateInvoice(booking);
       const isLunas = invoice.balance_due === 0;
 
@@ -256,7 +262,7 @@ async function verifyPaymentProof(bookingId, { disetujui, catatan, nominal_diset
  */
 async function processRefund(bookingId, { nominal_refund, catatan }, adminUser) {
   const nominal = Number(nominal_refund);
-  if (!nominal || nominal <= 0) {
+  if (!Number.isFinite(nominal) || nominal <= 0) {
     throw E.badRequest('Nominal refund harus lebih dari 0 (BR-41).');
   }
 
@@ -264,6 +270,10 @@ async function processRefund(bookingId, { nominal_refund, catatan }, adminUser) 
     const bRes = await client.query('SELECT * FROM bookings WHERE id = $1 FOR UPDATE', [bookingId]);
     const booking = bRes.rows[0];
     if (!booking) throw E.notFound('Booking tidak ditemukan.');
+
+    await loadInvoiceData(client, booking);
+    const remaining = calculateInvoice(booking).refund_amount - Number(booking.refund_nominal || 0);
+    if (nominal > remaining) throw E.badRequest('Nominal refund melebihi sisa kelebihan pembayaran.');
 
     const updated = (await client.query(`
       UPDATE bookings
@@ -273,7 +283,7 @@ async function processRefund(bookingId, { nominal_refund, catatan }, adminUser) 
           updated_at = now()
       WHERE id = $3
       RETURNING *
-    `, [nominal, catatan ? catatan.trim() : 'Kelebihan pembayaran telah dikembalikan kepada customer.', bookingId])).rows[0];
+    `, [nominal + Number(booking.refund_nominal || 0), catatan ? catatan.trim() : 'Kelebihan pembayaran telah dikembalikan kepada customer.', bookingId])).rows[0];
 
     return {
       success: true,
@@ -292,7 +302,7 @@ async function queueAndDispatchWhatsAppInvoice(bookingId, { tipe_invoice = 'auto
   // 1. Ambil detail booking & invoice
   const bRes = await db.query(`
     SELECT b.*, c.nama AS customer_nama, c.kontak AS customer_kontak,
-           s.nama_layanan
+           s.nama_layanan, s.harga
     FROM bookings b
     JOIN customers c ON c.id = b.customer_id
     LEFT JOIN service_catalog s ON s.id = b.layanan_id
@@ -311,6 +321,7 @@ async function queueAndDispatchWhatsAppInvoice(bookingId, { tipe_invoice = 'auto
   `, [bookingId]);
   booking.items = itemsRes.rows;
 
+  await loadInvoiceData(db, booking);
   const invoice = calculateInvoice(booking);
 
   const determinedType = tipe_invoice === 'auto'
@@ -318,7 +329,7 @@ async function queueAndDispatchWhatsAppInvoice(bookingId, { tipe_invoice = 'auto
     : tipe_invoice;
 
   const phone = (booking.kontak || booking.customer_kontak || '').trim();
-  const invoiceLink = `https://nara-ac.com/status/${booking.kode_booking}/invoice`;
+  const invoiceLink = `${config.frontendUrl}/invoice/${encodeURIComponent(booking.kode_booking)}`;
 
   const pesan = [
     `*NARA AC SERVICE - ${determinedType === 'final' ? 'INVOICE FINAL' : 'INVOICE AWAL'}*`,
@@ -355,6 +366,8 @@ async function queueAndDispatchWhatsAppInvoice(bookingId, { tipe_invoice = 'auto
     if (simulatedFailure) {
       throw new Error('Simulated WhatsApp Gateway Network Timeout (BR-43)');
     }
+
+    await require('./reminderService').whatsappSend(phone, pesan);
 
     // Berhasil terkirim
     const updatedLog = (await db.query(`
@@ -410,8 +423,9 @@ async function retryFailedWhatsAppInvoices(maxLimit = 20) {
 
   for (const log of failedLogs) {
     try {
+      await require('./reminderService').whatsappSend(log.nomor_whatsapp, log.pesan);
       // Mencoba mengirim ulang
-      const updated = (await query(`
+      await query(`
         UPDATE whatsapp_invoice_logs
         SET status = 'sent',
             percobaan = percobaan + 1,
@@ -420,7 +434,7 @@ async function retryFailedWhatsAppInvoices(maxLimit = 20) {
             updated_at = now()
         WHERE id = $1
         RETURNING *
-      `, [log.id])).rows[0];
+      `, [log.id]);
 
       results.push({ id: log.id, status: 'sent', success: true });
     } catch (err) {
@@ -444,6 +458,7 @@ async function retryFailedWhatsAppInvoices(maxLimit = 20) {
 }
 
 module.exports = {
+  assertPaymentOwner,
   getPaymentSettings,
   updatePaymentSettings,
   selectPaymentScheme,

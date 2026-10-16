@@ -87,7 +87,7 @@ router.get('/inference-logs', requireAuth(['admin']), validate(Joi.object({
 }), 'query'), wrap(async (req, res) => {
   const { limit } = req.valid.query;
   const rows = (await query(
-    `SELECT id, intent, confidence::float, endpoint, rute, fallback, error, latency_ms, model_version, waktu, panjang_teks
+    `SELECT id, intent, confidence, endpoint, rute, fallback, error, latency_ms, model_version, waktu, panjang_teks
      FROM inference_log ORDER BY id DESC LIMIT $1`, [limit])).rows;
   res.json({ data: rows });
 }));

@@ -152,7 +152,7 @@ describe('Security Remediation Suite (FIND-01 to FIND-18)', () => {
       // Create done booking directly in DB with feedback token
       const client = await query(
         `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, status, feedback_token)
-         VALUES ($1, 1, 1, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '1 hour', 'Alamat Test', 'Keluhan test', $2, 'done', $3)
+         VALUES ($1, 1, 1, NOW() - INTERVAL 2 HOUR, NOW() - INTERVAL 1 HOUR, 'Alamat Test', 'Keluhan test', $2, 'done', $3)
          RETURNING id, kode_booking, feedback_token`,
         [`NARA-AC-FB-${Date.now()}`, uniquePhone, feedbackToken]
       );

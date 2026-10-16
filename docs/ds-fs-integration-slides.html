@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kolaborasi Data Science & Full-stack — NARA AC</title>
+  <style>
+    :root {
+      --navy:#09152f; --blue:#1768ff; --cyan:#12b8d0; --green:#14a36f;
+      --amber:#f59e0b; --red:#ef476f; --ink:#14213d; --muted:#63708a;
+      --line:#dfe7f3; --soft:#f4f8fd; --white:#fff; --shadow:0 18px 60px rgba(9,21,47,.12);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#dfe9f7;color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
+    button{font:inherit}
+    .deck{position:absolute;inset:0;margin:auto;width:min(100vw,177.78vh);height:min(100vh,56.25vw);background:var(--white);overflow:hidden;box-shadow:var(--shadow)}
+    .slide{position:absolute;inset:0;padding:4.4% 5.2% 5.7%;display:flex;flex-direction:column;opacity:0;visibility:hidden;transform:translateX(24px);transition:.28s ease;background:
+      radial-gradient(circle at 92% 7%,rgba(23,104,255,.10),transparent 24%),
+      linear-gradient(145deg,#fff 0%,#f8fbff 100%)}
+    .slide.active{opacity:1;visibility:visible;transform:none}
+    .slide.dark{color:#fff;background:
+      radial-gradient(circle at 82% 16%,rgba(18,184,208,.22),transparent 28%),
+      radial-gradient(circle at 12% 85%,rgba(23,104,255,.26),transparent 32%),var(--navy)}
+    .slide::after{content:attr(data-section);position:absolute;right:5.2%;top:3.1%;font-size:clamp(9px,.72vw,13px);font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7f8ca5}
+    .dark::after{color:#91a4c7}
+    .eyebrow{color:var(--blue);font-size:clamp(10px,.8vw,15px);font-weight:900;letter-spacing:.14em;text-transform:uppercase;margin-bottom:.55rem}
+    .dark .eyebrow{color:#68dff0}
+    h1,h2,h3,p{margin:0}
+    h1{font-size:clamp(36px,5.4vw,86px);line-height:1.02;letter-spacing:-.055em;max-width:1000px}
+    h2{font-size:clamp(26px,3.25vw,54px);line-height:1.06;letter-spacing:-.04em;max-width:1180px}
+    h3{font-size:clamp(15px,1.25vw,23px);line-height:1.15}
+    .lead{font-size:clamp(14px,1.35vw,23px);line-height:1.52;color:var(--muted);max-width:1000px}
+    .dark .lead{color:#c5d3e9}
+    .accent{color:var(--blue)} .dark .accent{color:#65def0}
+    .title-wrap{display:flex;flex-direction:column;justify-content:center;flex:1;gap:1.3rem}
+    .brand{display:flex;gap:.65rem;align-items:center;font-size:clamp(12px,.9vw,16px);font-weight:900;letter-spacing:.08em}
+    .brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff}
+    .tag-row,.stack-row{display:flex;flex-wrap:wrap;gap:.55rem}
+    .tag{padding:.45rem .75rem;border-radius:999px;background:#edf4ff;border:1px solid #d6e5ff;color:#1e56bd;font-size:clamp(10px,.73vw,13px);font-weight:800}
+    .dark .tag{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#dbe8ff}
+    .grid{display:grid;gap:1rem;width:100%;margin-top:1.4rem}
+    .cols-2{grid-template-columns:repeat(2,1fr)} .cols-3{grid-template-columns:repeat(3,1fr)} .cols-4{grid-template-columns:repeat(4,1fr)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:1.2rem;box-shadow:0 8px 24px rgba(9,21,47,.055);min-height:0}
+    .dark .card{background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14);box-shadow:none}
+    .card p,.small{margin-top:.55rem;color:var(--muted);font-size:clamp(11px,.86vw,15px);line-height:1.43}
+    .dark .card p,.dark .small{color:#c5d3e9}
+    .icon{width:40px;height:40px;border-radius:13px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center;font-weight:1000;margin-bottom:.75rem}
+    .dark .icon{background:rgba(101,222,240,.12);color:#65def0}
+    .number{font-size:clamp(24px,2.5vw,44px);font-weight:950;letter-spacing:-.04em;color:var(--blue)}
+    .dark .number{color:#65def0}
+    .split{display:grid;grid-template-columns:1.05fr .95fr;gap:2.3rem;align-items:center;flex:1;min-height:0}
+    .flow{display:flex;align-items:stretch;gap:.55rem;width:100%;margin-top:1.55rem}
+    .flow-node{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:18px;padding:1rem;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:.35rem;box-shadow:0 7px 22px rgba(9,21,47,.05)}
+    .flow-node strong{font-size:clamp(12px,1vw,18px)}
+    .flow-node span{font-size:clamp(9px,.72vw,13px);line-height:1.35;color:var(--muted)}
+    .flow-arrow{display:grid;place-items:center;color:var(--blue);font-size:clamp(16px,1.7vw,28px);font-weight:950}
+    .step-list{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-top:1.25rem}
+    .step{position:relative;border:1px solid var(--line);border-radius:16px;background:#fff;padding:1rem .85rem .85rem}
+    .step b{position:absolute;right:.7rem;top:.55rem;font-size:clamp(20px,2vw,36px);color:#d9e6f8}
+    .step strong{display:block;color:var(--blue);font-size:clamp(11px,.88vw,16px);margin-bottom:.35rem;padding-right:1.5rem}
+    .step p{font-size:clamp(9px,.72vw,13px);line-height:1.38;color:var(--muted)}
+    .table-wrap{margin-top:1.1rem;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:#fff}
+    table{width:100%;border-collapse:collapse;font-size:clamp(9px,.76vw,14px)}
+    th{text-align:left;background:#edf4ff;color:#1c4eaa;padding:.7rem .85rem;font-weight:900}
+    td{padding:.64rem .85rem;border-top:1px solid #edf1f7;vertical-align:top;line-height:1.35}
+    td:first-child{font-weight:850;color:var(--ink)}
+    .code{background:#0c1730;color:#dce8ff;border-radius:16px;padding:1rem 1.1rem;font:clamp(9px,.72vw,13px)/1.5 Consolas,"SFMono-Regular",monospace;white-space:pre-wrap;overflow:hidden;border:1px solid #203253}
+    .code .c{color:#7793bb}.code .k{color:#65def0}.code .s{color:#ffc96b}.code .f{color:#9ec5ff}
+    .callout{border-left:5px solid var(--blue);background:#eef5ff;border-radius:14px;padding:.9rem 1rem;font-size:clamp(11px,.85vw,15px);line-height:1.45;color:#40506c}
+    .callout strong{color:var(--ink)}
+    .compare{display:grid;grid-template-columns:1fr 70px 1fr;align-items:stretch;gap:1rem;margin-top:1.4rem}
+    .bad{border-top:6px solid var(--red)} .good{border-top:6px solid var(--green)}
+    .vs{display:grid;place-items:center;font-weight:950;color:#9ba9bf;font-size:clamp(16px,1.4vw,25px)}
+    .checklist{display:grid;grid-template-columns:1fr 1fr;gap:.65rem 1rem;margin-top:1.1rem}
+    .check{display:flex;gap:.7rem;align-items:flex-start;padding:.7rem .8rem;border:1px solid var(--line);background:#fff;border-radius:14px;font-size:clamp(10px,.77vw,14px);line-height:1.35}
+    .check i{font-style:normal;color:var(--green);font-weight:1000}
+    .mock-dashboard{border:1px solid #cfdbea;border-radius:18px;background:#f7faff;padding:1rem;box-shadow:var(--shadow)}
+    .mock-top{height:12px;width:34%;background:#d7e3f4;border-radius:10px;margin-bottom:.8rem}
+    .mock-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:.45rem}
+    .mock-kpi{height:56px;background:#fff;border:1px solid #dce5f1;border-radius:11px;padding:.55rem}
+    .mock-kpi::before{content:"";display:block;width:55%;height:7px;background:#e0e8f4;border-radius:5px}
+    .mock-kpi::after{content:"";display:block;width:35%;height:15px;background:#1768ff;border-radius:5px;margin-top:.55rem}
+    .mock-chart{height:130px;margin-top:.65rem;border:1px solid #dce5f1;border-radius:12px;background:#fff;display:flex;align-items:flex-end;gap:.45rem;padding:.8rem}
+    .bar{flex:1;background:linear-gradient(#1768ff,#4a8cff);border-radius:5px 5px 0 0}
+    .status{display:inline-flex;align-items:center;gap:.45rem;padding:.48rem .7rem;border-radius:10px;background:#eaf9f3;color:#087650;font-weight:850;font-size:clamp(10px,.75vw,13px)}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+    .footer-note{position:absolute;left:5.2%;bottom:2.3%;font-size:clamp(8px,.62vw,11px);color:#8a97ad}
+    .nav{position:fixed;z-index:30;left:50%;bottom:1.2%;transform:translateX(-50%);display:flex;align-items:center;gap:.7rem;padding:.4rem .55rem;border:1px solid rgba(255,255,255,.6);background:rgba(9,21,47,.88);border-radius:999px;box-shadow:0 10px 30px rgba(9,21,47,.25);backdrop-filter:blur(12px)}
+    .nav button{width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:17px}
+    .nav button:hover,.nav button:focus-visible{background:var(--blue);outline:2px solid #fff;outline-offset:2px}
+    .counter{min-width:64px;text-align:center;color:#d9e5f8;font-size:12px;font-weight:800}
+    .progress{position:fixed;z-index:40;left:0;top:0;height:4px;background:linear-gradient(90deg,var(--blue),var(--cyan));transition:width .25s}
+    .hint{position:absolute;right:5.2%;bottom:2.3%;font-size:clamp(8px,.62vw,11px);color:#8a97ad}
+    @media(max-width:850px){.slide{padding:7% 5% 10%}.cols-4{grid-template-columns:repeat(2,1fr)}.step-list{grid-template-columns:repeat(2,1fr)}.split{gap:1rem}.flow{gap:.25rem}.flow-node{padding:.6rem}.flow-arrow{font-size:14px}.card{padding:.8rem}.table-wrap{margin-top:.6rem}}
+    @media(max-width:620px){.deck{width:100vw;height:100vh}.slide{overflow:auto;padding:12% 5% 16%}.split,.cols-2,.cols-3,.compare{grid-template-columns:1fr}.vs{display:none}.flow{flex-direction:column}.flow-arrow{transform:rotate(90deg)}.checklist{grid-template-columns:1fr}.footer-note,.hint{display:none}}
+    @media print{html,body{overflow:visible;background:#fff}.deck{position:static;width:auto;height:auto;box-shadow:none}.slide{position:relative;width:13.333in;height:7.5in;opacity:1;visibility:visible;transform:none;break-after:page}.nav,.progress{display:none}}
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <main class="deck" aria-label="Presentasi kolaborasi Data Science dan Full-stack">
+    <section class="slide dark active" data-section="Pembuka">
+      <div class="title-wrap">
+        <div class="brand"><span class="brand-mark">N</span> NARA TEKNINDOTAMA</div>
+        <div class="eyebrow">Panduan kolaborasi mahasiswa DS × FS</div>
+        <h1>Dari transaksi menjadi <span class="accent">laporan yang bisa dipakai</span></h1>
+        <p class="lead">Penjelasan ringan tentang siapa mengerjakan apa, file yang digunakan, alur data, dan cara dashboard diperbarui otomatis.</p>
+        <div class="tag-row"><span class="tag">MySQL/XAMPP</span><span class="tag">Python + pandas</span><span class="tag">Express API</span><span class="tag">React + Recharts</span></div>
+      </div>
+      <div class="footer-note">Capstone Asah 2026 · NARA AC</div><div class="hint">Gunakan tombol ← → atau keyboard</div>
+    </section>
+
+    <section class="slide" data-section="Masalah">
+      <div class="eyebrow">01 · Mengapa perlu dipisah?</div>
+      <h2>Dashboard bukan sekadar mengambil data lalu membuat grafik</h2>
+      <div class="compare">
+        <div class="card bad"><div class="icon">×</div><h3>Jika semua dihitung backend</h3><p>FS harus menentukan rumus bisnis, membersihkan data, membuat ranking, dan memeriksa kualitas. Peran DS tidak terlihat.</p></div>
+        <div class="vs">VS</div>
+        <div class="card good"><div class="icon">✓</div><h3>Jika memakai pipeline DS</h3><p>DS menghasilkan data laporan yang sudah bersih dan siap tampil. FS fokus pada API, keamanan, dan tampilan.</p></div>
+      </div>
+      <div class="callout" style="margin-top:1rem"><strong>Tujuan bersama:</strong> satu definisi data, satu hasil yang konsisten, dan pembagian kerja yang dapat dinilai dari checklist.</div>
+    </section>
+
+    <section class="slide" data-section="Peran Tim">
+      <div class="eyebrow">02 · Pembagian sederhana</div>
+      <h2>DS memasak data, FS mengantarkan hasilnya</h2>
+      <div class="grid cols-3">
+        <div class="card"><div class="icon">DS</div><h3>Data Science</h3><p>Mengambil data, membersihkan, memvalidasi, menghitung metrik, membuat insight, dan menerbitkan snapshot.</p></div>
+        <div class="card"><div class="icon">BE</div><h3>Backend FS</h3><p>Membaca snapshot DS, menjaga autentikasi, menerima filter, lalu mengirim JSON melalui API.</p></div>
+        <div class="card"><div class="icon">FE</div><h3>Frontend FS</h3><p>Menampilkan card, tabel, grafik, filter, status loading, dan pesan ketika data belum tersedia.</p></div>
+      </div>
+      <div class="callout" style="margin-top:1rem"><strong>Batas penting:</strong> backend boleh membaca tabel hasil DS, tetapi tidak menghitung ulang Top 10, revenue, atau pelanggan unik dari tabel transaksi.</div>
+    </section>
+
+    <section class="slide dark" data-section="Arsitektur">
+      <div class="eyebrow">03 · Integrasi yang dibangun</div>
+      <h2>Satu jalur data, empat lapisan tanggung jawab</h2>
+      <div class="flow">
+        <div class="flow-node"><strong>1 · MySQL</strong><span>booking, customer, layanan, teknisi, invoice</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>2 · Pipeline DS</strong><span>validasi, wrangling, agregasi, filter</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>3 · Snapshot DS</strong><span>payload laporan siap tampil</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>4 · Express API</strong><span>read-only, auth, response JSON</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>5 · React</strong><span>grafik, tabel, dan filter pengguna</span></div>
+      </div>
+      <div class="grid cols-3">
+        <div class="card"><div class="number">2.502</div><p>booking dibaca pipeline saat snapshot terakhir dibuat</p></div>
+        <div class="card"><div class="number">9.720</div><p>snapshot periode dan kombinasi filter dipublikasikan</p></div>
+        <div class="card"><div class="number">3 / 6 / 12</div><p>pilihan periode laporan yang sudah tersedia</p></div>
+      </div>
+    </section>
+
+    <section class="slide" data-section="Workflow">
+      <div class="eyebrow">04 · Alur data langkah demi langkah</div>
+      <h2>Dari klik customer sampai grafik tampil</h2>
+      <div class="step-list">
+        <div class="step"><b>1</b><strong>Customer booking</strong><p>Customer mengisi layanan, jadwal, alamat, dan jumlah unit.</p></div>
+        <div class="step"><b>2</b><strong>FS menyimpan</strong><p>Backend memvalidasi input lalu menyimpan transaksi ke MySQL.</p></div>
+        <div class="step"><b>3</b><strong>Worker DS membaca</strong><p>Proses latar belakang membaca perubahan data secara otomatis.</p></div>
+        <div class="step"><b>4</b><strong>DS membersihkan</strong><p>Timestamp diubah ke WIB, duplikasi dan nilai kosong diperiksa.</p></div>
+        <div class="step"><b>5</b><strong>DS menghitung</strong><p>Top 10, revenue, status teknisi, dan pelanggan unik dihitung.</p></div>
+        <div class="step"><b>6</b><strong>DS mempublikasikan</strong><p>Hasil siap tampil ditulis ke tabel snapshot secara utuh.</p></div>
+        <div class="step"><b>7</b><strong>API membaca</strong><p>Backend memilih snapshot sesuai periode dan filter pengguna.</p></div>
+        <div class="step"><b>8</b><strong>React menampilkan</strong><p>Grafik dan tabel muncul tanpa menghitung ulang data bisnis.</p></div>
+      </div>
+    </section>
+
+    <section class="slide" data-section="Pengolahan DS">
+      <div class="eyebrow">05 · Apa yang dikerjakan DS?</div>
+      <div class="split">
+        <div><h2>DS mengubah data transaksi menjadi data laporan</h2><div class="checklist">
+          <div class="check"><i>✓</i><span>Konversi waktu UTC menjadi Asia/Jakarta</span></div>
+          <div class="check"><i>✓</i><span>Mengeluarkan booking berstatus cancelled</span></div>
+          <div class="check"><i>✓</i><span>Memeriksa booking duplikat dan nilai kosong</span></div>
+          <div class="check"><i>✓</i><span>Menggabungkan booking dengan layanan dan teknisi</span></div>
+          <div class="check"><i>✓</i><span>Mengisi bulan tanpa transaksi dengan angka nol</span></div>
+          <div class="check"><i>✓</i><span>Membuat kombinasi filter layanan dan customer</span></div>
+        </div></div>
+        <pre class="code"><span class="c"># File milik DS</span>
+<span class="f">facts</span> = <span class="f">extract_facts</span>(connection)
+<span class="f">validate_facts</span>(facts)
+
+rows = <span class="f">build_snapshots</span>(
+    facts,
+    as_of=<span class="s">tanggal_hari_ini</span>
+)
+
+<span class="f">publish_snapshots</span>(connection, rows)</pre>
+      </div>
+    </section>
+
+    <section class="slide" data-section="Laporan">
+      <div class="eyebrow">06 · Lima output laporan</div>
+      <h2>Setiap grafik harus memiliki pertanyaan bisnis yang jelas</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Laporan</th><th>Pertanyaan yang dijawab</th><th>Ukuran utama</th></tr></thead>
+        <tbody>
+          <tr><td>Top 10 Customer</td><td>Siapa pelanggan yang paling sering melakukan transaksi?</td><td>Jumlah booking, unit, revenue</td></tr>
+          <tr><td>Top 10 Service</td><td>Layanan apa yang paling banyak dibutuhkan?</td><td>Booking dan unit AC</td></tr>
+          <tr><td>Top 10 Teknisi</td><td>Bagaimana pembagian beban kerja teknisi?</td><td>Total, selesai, aktif, tertunda</td></tr>
+          <tr><td>Revenue per Bulan</td><td>Bagaimana perubahan pendapatan setiap bulan?</td><td>Subtotal booking berstatus done</td></tr>
+          <tr><td>Booking Terjadwal</td><td>Berapa permintaan servis dan customer unik per bulan?</td><td>Booking, customer unik, unit</td></tr>
+        </tbody>
+      </table></div>
+      <p class="small">Catatan: ranking menunjukkan volume pekerjaan. Ranking tidak langsung berarti kualitas layanan atau kualitas teknisi.</p>
+    </section>
+
+    <section class="slide" data-section="Filter">
+      <div class="eyebrow">07 · Periode dan filter</div>
+      <div class="split">
+        <div><h2>Filter hanya bekerja pada laporan yang relevan</h2><div class="grid cols-2">
+          <div class="card"><h3>Periode global</h3><p>3, 6, atau 12 bulan untuk kelima laporan.</p></div>
+          <div class="card"><h3>Filter lokal</h3><p>Layanan dan customer khusus untuk Teknisi serta Booking Terjadwal.</p></div>
+          <div class="card"><h3>Customer dipilih</h3><p>Seri “Pelanggan Unik” disembunyikan karena hanya satu customer dianalisis.</p></div>
+          <div class="card"><h3>Tidak ada transaksi</h3><p>Grafik tetap memiliki bulan lengkap dengan nilai nol.</p></div>
+        </div></div>
+        <div class="mock-dashboard" aria-label="Ilustrasi dashboard">
+          <div class="mock-top"></div><div class="mock-kpis"><div class="mock-kpi"></div><div class="mock-kpi"></div><div class="mock-kpi"></div><div class="mock-kpi"></div><div class="mock-kpi"></div></div>
+          <div class="mock-chart"><div class="bar" style="height:42%"></div><div class="bar" style="height:68%"></div><div class="bar" style="height:54%"></div><div class="bar" style="height:86%"></div><div class="bar" style="height:72%"></div><div class="bar" style="height:95%"></div></div>
+          <p class="small">Ilustrasi: FS hanya menerima angka siap tampil dari API.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" data-section="File Proyek">
+      <div class="eyebrow">08 · File yang dikerjakan</div>
+      <h2>Lokasi kerja setiap tim sudah dipisahkan</h2>
+      <div class="grid cols-3">
+        <div class="card"><div class="icon">DS</div><h3>Data Science</h3><p><b>business_report_pipeline.py</b><br>Pengolahan lima laporan.<br><br><b>test_business_report_pipeline.py</b><br>Pengujian kualitas.<br><br><b>DATA_DICTIONARY.md</b><br>Definisi metrik.</p></div>
+        <div class="card"><div class="icon">DB</div><h3>Kontrak bersama</h3><p><b>003_ds_dashboard_snapshots.sql</b><br>Tabel pertukaran hasil DS dan FS.<br><br><b>ds_dashboard_snapshots</b><br>Isi laporan siap tampil.</p></div>
+        <div class="card"><div class="icon">FS</div><h3>Full-stack</h3><p><b>dashboardService.js</b><br>Membaca snapshot.<br><br><b>admin.js</b><br>Endpoint dan validasi filter.<br><br><b>AdminHome.jsx</b><br>Grafik dan tabel.</p></div>
+      </div>
+    </section>
+
+    <section class="slide dark" data-section="Kontrak API">
+      <div class="eyebrow">09 · Bentuk komunikasi DS–FS</div>
+      <div class="split">
+        <div><h2>DS mengirim struktur yang disepakati</h2><p class="lead" style="margin-top:1rem">Jika nama kolom atau arti angka berubah, DS dan FS memperbarui data dictionary serta test sebelum frontend diubah.</p><div class="status" style="margin-top:1.2rem"><span class="dot"></span> Backend membaca snapshot, bukan tabel transaksi</div></div>
+        <pre class="code"><span class="c">// Contoh response API</span>
+{
+  <span class="s">"periode"</span>: { <span class="s">"months"</span>: 12 },
+  <span class="s">"topCustomers"</span>: [...],
+  <span class="s">"topServices"</span>: [...],
+  <span class="s">"topTechnicians"</span>: [...],
+  <span class="s">"revenueMonthly"</span>: [...],
+  <span class="s">"scheduledBookingsMonthly"</span>: [...],
+  <span class="s">"filterOptions"</span>: {...},
+  <span class="s">"dibuat_pada"</span>: <span class="s">"..."</span>
+}</pre>
+      </div>
+    </section>
+
+    <section class="slide" data-section="Production">
+      <div class="eyebrow">10 · Pembaruan otomatis</div>
+      <h2>Customer tidak menjalankan pipeline</h2>
+      <div class="flow">
+        <div class="flow-node"><strong>Transaksi berubah</strong><span>user tetap memakai aplikasi seperti biasa</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>Scheduler</strong><span>menjalankan worker DS setiap 5 menit</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>Atomic publish</strong><span>snapshot lama diganti setelah proses berhasil</span></div><div class="flow-arrow">→</div>
+        <div class="flow-node"><strong>Dashboard segar</strong><span>FS membaca versi terbaru</span></div>
+      </div>
+      <div class="grid cols-3">
+        <div class="card"><h3>KPI hari ini</h3><div class="number">Realtime</div><p>Dibaca backend karena bersifat operasional.</p></div>
+        <div class="card"><h3>Laporan bisnis</h3><div class="number">5 menit</div><p>Diperbarui worker DS secara berkala.</p></div>
+        <div class="card"><h3>Forecast ML</h3><div class="number">1 hari</div><p>Dilatih atau diterbitkan sesuai jadwal DS.</p></div>
+      </div>
+    </section>
+
+    <section class="slide" data-section="Menjalankan">
+      <div class="eyebrow">11 · Local dan production</div>
+      <div class="split">
+        <div><h2>Satu perintah untuk developer, otomatis untuk production</h2><p class="lead" style="margin-top:1rem">Saat belajar atau menguji data, DS boleh menjalankan pipeline manual. Di production, Task Scheduler, cron, atau worker service yang menjalankannya.</p></div>
+        <pre class="code"><span class="c"># Local — dijalankan tim DS</span>
+<span class="k">cd</span> C:\xampp\htdocs\cp\nara-ac\data-science
+\.venv\Scripts\python.exe \
+  business_report_pipeline.py
+
+<span class="c"># Production — scheduler setiap 5 menit</span>
+<span class="c"># user/customer tidak melihat proses ini</span></pre>
+      </div>
+      <div class="callout"><strong>Jika pipeline gagal:</strong> snapshot terakhir tetap dipakai. Sistem mencatat error dan tim menerima pemberitahuan; customer tetap dapat melakukan booking.</div>
+    </section>
+
+    <section class="slide" data-section="Checklist DS">
+      <div class="eyebrow">12 · Kaitan dengan checklist</div>
+      <h2>Setiap ketentuan memiliki bukti pekerjaan</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Ketentuan checklist</th><th>Bukti pada proyek</th><th>Pemilik</th></tr></thead>
+        <tbody>
+          <tr><td>Masalah UMKM & peran data</td><td>5 pertanyaan bisnis dan definisi laporan</td><td>DS + FS</td></tr>
+          <tr><td>Data wrangling</td><td>extract, validasi, WIB, kalender lengkap, filter scope</td><td>DS</td></tr>
+          <tr><td>Analisis & jawaban bisnis</td><td>Top 10, tren revenue, beban teknisi, tren booking</td><td>DS</td></tr>
+          <tr><td>Hasil dapat digunakan tim lain</td><td>Tabel snapshot, API contract, data dictionary</td><td>DS → FS</td></tr>
+          <tr><td>Pemeriksaan ketepatan</td><td>pytest pipeline dan test kontrak backend</td><td>DS + FS</td></tr>
+          <tr><td>Dashboard interaktif</td><td>Periode, layanan, customer, grafik, tabel</td><td>FS</td></tr>
+          <tr><td>Pembaruan dari sumber data</td><td>Worker DS terjadwal dari koneksi MySQL</td><td>DevOps + DS</td></tr>
+          <tr><td>Integrasi dengan web</td><td>Snapshot → Express API → React</td><td>FS</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="slide" data-section="Rutinitas Tim">
+      <div class="eyebrow">13 · Cara kerja mahasiswa</div>
+      <h2>Urutan kerja yang ringan untuk setiap perubahan laporan</h2>
+      <div class="step-list">
+        <div class="step"><b>1</b><strong>Sepakati pertanyaan</strong><p>Contoh: layanan apa yang paling sering dipesan dalam 6 bulan?</p></div>
+        <div class="step"><b>2</b><strong>DS tulis definisi</strong><p>Tentukan sumber tabel, status yang masuk, rumus, dan grain.</p></div>
+        <div class="step"><b>3</b><strong>DS buat pipeline</strong><p>Tambahkan pengolahan serta test untuk kasus normal dan kosong.</p></div>
+        <div class="step"><b>4</b><strong>Sepakati JSON</strong><p>DS dan backend menyetujui nama field dan tipe data.</p></div>
+        <div class="step"><b>5</b><strong>Backend membaca</strong><p>Backend membuat endpoint aman tanpa mengubah angka.</p></div>
+        <div class="step"><b>6</b><strong>Frontend menampilkan</strong><p>Pilih chart, tabel, tooltip, dan filter yang relevan.</p></div>
+        <div class="step"><b>7</b><strong>Bandingkan hasil</strong><p>Cocokkan output DS, response API, dan angka pada layar.</p></div>
+        <div class="step"><b>8</b><strong>Catat temuan</strong><p>Tulis arti hasil dan rekomendasi untuk pemilik UMKM.</p></div>
+      </div>
+    </section>
+
+    <section class="slide dark" data-section="Selesai">
+      <div class="title-wrap">
+        <div class="eyebrow">14 · Definisi selesai</div>
+        <h1>Satu angka, <span class="accent">satu definisi</span>, tiga tim yang selaras</h1>
+        <p class="lead">DS bertanggung jawab pada kebenaran dan arti data. Backend menjaga akses dan kontrak. Frontend membuat hasilnya mudah dipahami.</p>
+        <div class="grid cols-3">
+          <div class="card"><h3>Data dapat dipercaya</h3><p>Ada validasi, test, waktu pembaruan, dan definisi yang tertulis.</p></div>
+          <div class="card"><h3>Integrasi dapat dirawat</h3><p>Perubahan rumus tidak tersebar di backend dan frontend.</p></div>
+          <div class="card"><h3>User tetap sederhana</h3><p>Customer memakai aplikasi; seluruh proses data berjalan di belakang layar.</p></div>
+        </div>
+      </div>
+      <div class="footer-note">Dokumen: docs/ds-fs-integration-slides.html</div>
+    </section>
+  </main>
+
+  <nav class="nav" aria-label="Navigasi slide">
+    <button id="prev" type="button" aria-label="Slide sebelumnya">←</button>
+    <span class="counter"><span id="current">1</span> / <span id="total">14</span></span>
+    <button id="next" type="button" aria-label="Slide berikutnya">→</button>
+  </nav>
+  <script>
+    const slides=[...document.querySelectorAll('.slide')];
+    let index=0;
+    const current=document.getElementById('current');
+    const total=document.getElementById('total');
+    const progress=document.getElementById('progress');
+    total.textContent=slides.length;
+    function show(next){
+      index=Math.max(0,Math.min(slides.length-1,next));
+      slides.forEach((slide,i)=>slide.classList.toggle('active',i===index));
+      current.textContent=index+1;
+      progress.style.width=((index+1)/slides.length*100)+'%';
+      history.replaceState(null,'','#slide-'+(index+1));
+    }
+    document.getElementById('prev').addEventListener('click',()=>show(index-1));
+    document.getElementById('next').addEventListener('click',()=>show(index+1));
+    document.addEventListener('keydown',event=>{
+      if(['ArrowRight','PageDown',' '].includes(event.key)){event.preventDefault();show(index+1)}
+      if(['ArrowLeft','PageUp'].includes(event.key)){event.preventDefault();show(index-1)}
+      if(event.key==='Home')show(0);
+      if(event.key==='End')show(slides.length-1);
+    });
+    const requested=Number(location.hash.replace('#slide-',''));
+    show(Number.isInteger(requested)&&requested>0?requested-1:0);
+  </script>
+</body>
+</html>

@@ -223,7 +223,7 @@ router.get('/feedback', requireAuth(['admin']), validate(Joi.object({
     `SELECT f.id, f.rating, f.komentar, f.sentimen, f.waktu, b.kode_booking, s.nama_layanan, t.nama AS teknisi
      FROM feedback f JOIN bookings b ON b.id=f.booking_id JOIN service_catalog s ON s.id=b.layanan_id
      LEFT JOIN technicians t ON t.id=b.teknisi_id ORDER BY f.waktu DESC LIMIT $1 OFFSET $2`, [limit, offset])).rows;
-  const total = (await query('SELECT COUNT(*)::int FROM feedback')).rows[0].count;
+  const total = (await query('SELECT COUNT(*) AS count FROM feedback')).rows[0].count;
   res.json({ data: rows, meta: { total: Number(total), page, limit } });
 }));
 

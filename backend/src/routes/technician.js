@@ -24,8 +24,8 @@ const tid = (req) => req.user.technicianId;
 const JOB_COLS = `b.id, b.kode_booking, b.jadwal_mulai, b.jadwal_selesai, b.status, b.alamat, b.keluhan, b.alasan_tunda,
   c.nama AS nama_customer, c.kontak AS kontak_customer, s.nama_layanan, s.durasi_menit,
   u.brand, u.model, u.kapasitas_pk,
-  (SELECT COUNT(*)::int FROM work_order_checklists k WHERE k.booking_id=b.id) AS checklist_total,
-  (SELECT COUNT(*)::int FROM work_order_checklists k WHERE k.booking_id=b.id AND k.status<>'pending') AS checklist_selesai`;
+  (SELECT COUNT(*) AS count FROM work_order_checklists k WHERE k.booking_id=b.id) AS checklist_total,
+  (SELECT COUNT(*) AS count FROM work_order_checklists k WHERE k.booking_id=b.id AND k.status<>'pending') AS checklist_selesai`;
 const JOB_FROM = `FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN service_catalog s ON s.id=b.layanan_id
   LEFT JOIN ac_units u ON u.id=b.ac_unit_id`;
 
@@ -81,9 +81,9 @@ router.get('/jobs', TECH, validate(Joi.object({
   if (scope === 'today') { params.push(ds, de); where.push(`b.jadwal_mulai>=$${params.length - 1} AND b.jadwal_mulai<$${params.length}`); }
   if (scope === 'upcoming') { params.push(de); where.push(`b.jadwal_mulai>=$${params.length} AND b.status<>'done'`); }
   if (scope === 'done') where.push("b.status='done'");
-  if (q) { params.push(`%${q}%`); where.push(`(b.kode_booking ILIKE $${params.length} OR c.nama ILIKE $${params.length})`); }
+  if (q) { params.push(`%${q}%`); where.push(`(b.kode_booking LIKE $${params.length} OR c.nama LIKE $${params.length})`); }
   const w = where.join(' AND ');
-  const total = (await query(`SELECT COUNT(*)::int n ${JOB_FROM} WHERE ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n ${JOB_FROM} WHERE ${w}`, params)).rows[0].n;
   // ORDER BY direction: upcoming & today order chronologically ASC, all & done order newest first DESC
   const orderDir = (scope === 'today' || scope === 'upcoming') ? 'ASC' : 'DESC';
   const rows = (await query(`SELECT ${JOB_COLS} ${JOB_FROM} WHERE ${w} ORDER BY b.jadwal_mulai ${orderDir} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, safeLimit, safeOffset])).rows;
@@ -186,7 +186,7 @@ router.get('/availability', TECH, validate(Joi.object({
 }), 'query'), wrap(async (req, res) => {
   const { limit } = req.valid.query;
   const today = wibDateString(new Date());
-  const r = await query('SELECT tanggal::text AS tanggal, status, catatan FROM technician_availability WHERE teknisi_id=$1 AND tanggal>=$2 ORDER BY tanggal LIMIT $3', [tid(req), today, limit]);
+  const r = await query('SELECT tanggal AS tanggal, status, catatan FROM technician_availability WHERE teknisi_id=$1 AND tanggal>=$2 ORDER BY tanggal LIMIT $3', [tid(req), today, limit]);
   res.json({ data: r.rows });
 }));
 
@@ -200,7 +200,7 @@ router.put('/availability', TECH, validate(Joi.object({
   const out = await withTx(async (client) => {
     const r = await client.query(
       `INSERT INTO technician_availability (teknisi_id, tanggal, status, catatan, updated_at) VALUES ($1,$2,$3,$4,now())
-       ON CONFLICT (teknisi_id, tanggal) DO UPDATE SET status=$3, catatan=$4, updated_at=now() RETURNING tanggal::text AS tanggal, status, catatan`,
+       ON DUPLICATE KEY UPDATE status=$3, catatan=$4, updated_at=now() RETURNING tanggal AS tanggal, status, catatan`,
       [tid(req), tanggal, status, catatan || null]);
     await audit(client, req.user, 'availability_changed', 'technician', tid(req), { after: { tanggal, status } });
     return r.rows[0];

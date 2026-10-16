@@ -39,7 +39,7 @@ async function whatsappSend(phone, text) {
 
   // Periksa konfigurasi dinamis yang disimpan admin di dashboard
   try {
-    const row = (await query("SELECT value FROM settings WHERE key='whatsapp_gateway_config'")).rows[0];
+    const row = (await query("SELECT value FROM settings WHERE setting_key='whatsapp_gateway_config'")).rows[0];
     if (row && row.value && row.value.enabled && row.value.api_token) {
       apiUrl = row.value.api_url;
       apiToken = row.value.api_token;
@@ -92,6 +92,8 @@ async function whatsappSend(phone, text) {
     } finally {
       clearTimeout(timer);
     }
+  } else {
+    throw E.unavailable('Gateway WhatsApp belum dikonfigurasi. Pesan belum dikirim.');
   }
 }
 
@@ -194,7 +196,7 @@ async function runReminders({ force = false, now = new Date() } = {}) {
       const kanal = target === 'pelanggan' ? 'whatsapp' : (target === 'teknisi' && config.telegramBotToken ? 'telegram' : 'in_app');
       const r = await query(
         `INSERT INTO reminder_log (booking_id, target, penerima, kanal, untuk_tanggal, pesan, tipe_reminder)
-         VALUES ($1,$2,$3,$4,$5,$6,'jadwal_h_minus_1') ON CONFLICT (booking_id,target,untuk_tanggal) DO NOTHING`,
+         VALUES ($1,$2,$3,$4,$5,$6,'jadwal_h_minus_1') ON DUPLICATE KEY UPDATE booking_id=booking_id`,
         [b.id, target, penerima, kanal, tomorrow, buildMessage(b, target, 'jadwal_h_minus_1')],
       );
       created += r.rowCount;
@@ -231,7 +233,7 @@ async function runMaintenanceReminders({ days = 7, force = false } = {}) {
     const r = await query(
       `INSERT INTO reminder_log (booking_id, unit_ac_id, target, penerima, kanal, untuk_tanggal, pesan, tipe_reminder)
        VALUES ($1, $2, 'pelanggan', $3, 'whatsapp', $4, $5, 'perawatan_berkala')
-       ON CONFLICT (booking_id, target, untuk_tanggal) DO NOTHING
+       ON DUPLICATE KEY UPDATE booking_id=booking_id
        RETURNING id`,
       [lastB.id, u.id, u.kontak, todayStr, pesan]
     );

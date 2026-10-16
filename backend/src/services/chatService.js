@@ -134,7 +134,7 @@ async function getOperationalSettings() {
 
 // Helper to get payment settings from database
 async function getPaymentSettings() {
-  const r = await query("SELECT value FROM settings WHERE key = 'payment_accounts'");
+  const r = await query("SELECT value FROM settings WHERE setting_key= 'payment_accounts'");
   if (r.rows[0]) {
     return r.rows[0].value;
   }
@@ -150,7 +150,7 @@ async function getPaymentSettings() {
 
 // Helper to get business profile from database
 async function getBusinessProfile() {
-  const r = await query("SELECT value FROM settings WHERE key = 'business_profile'");
+  const r = await query("SELECT value FROM settings WHERE setting_key= 'business_profile'");
   if (r.rows[0]) {
     return r.rows[0].value;
   }
@@ -1129,11 +1129,11 @@ async function handleRejection(message, context) {
 async function handleHandoffRequest(message, context = {}) {
   let adminPhone = '081385293137';
   try {
-    const cfgRow = (await query("SELECT value FROM settings WHERE key='ai_whatsapp_config'")).rows[0];
+    const cfgRow = (await query("SELECT value FROM settings WHERE setting_key='ai_whatsapp_config'")).rows[0];
     if (cfgRow && cfgRow.value && cfgRow.value.admin_whatsapp) {
       adminPhone = cfgRow.value.admin_whatsapp;
     }
-  } catch (_) {}
+  } catch (error) { console.warn('[chat] Konfigurasi tidak dapat dimuat:', error.message); }
 
   // 1. Buat tiket eskalasi di complaint_tickets (BR-46)
   const cleanMsg = String(message || 'Permintaan eskalasi ke CS Admin').slice(0, 950);
@@ -1422,7 +1422,7 @@ async function handleAdminQuery(message, context) {
   }
   
   const today = new Date().toISOString().split('T')[0];
-  const totalToday = (await query(`SELECT COUNT(*) as n FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < ($1::date + '1 day'::interval)`, [today])).rows[0].n;
+  const totalToday = (await query(`SELECT COUNT(*) as n FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < DATE_ADD($1, INTERVAL 1 DAY)`, [today])).rows[0].n;
   const totalPending = (await query("SELECT COUNT(*) as n FROM bookings WHERE status = 'scheduled' AND jadwal_mulai >= now()")).rows[0].n;
   
   return {

@@ -1,3 +1,4 @@
+import { XCircle } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api';
@@ -383,7 +384,8 @@ export default function AdminInvoices({ bookings: propBookings, onBookingUpdated
       const res = await api.post(`/payments/bookings/${bookingId}/send-whatsapp`, {
         tipe_invoice: 'auto',
       });
-      showSuccess(res.data?.message || 'Salinan E-Invoice resmi berhasil dikirim ke nomor WhatsApp pemesan.');
+      if (!res.success) { showError(res.message || 'Gateway belum berhasil mengirim invoice.'); return; }
+      showSuccess(res.message || 'Salinan E-Invoice resmi berhasil dikirim ke nomor WhatsApp pemesan.');
     } catch (err) {
       showError('Gagal mengirim WhatsApp invoice: ' + (err?.response?.data?.error?.message || err?.message));
     } finally {

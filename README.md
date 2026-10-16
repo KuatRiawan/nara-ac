@@ -1,5 +1,27 @@
 # NARA AC — Sistem Pengelolaan Jadwal & Pengingat Servis AC Terpadu
 
+> **Setup lokal terbaru — MySQL XAMPP (16 Oktober 2026)**
+>
+> Backend sekarang memakai `mysql2` dan database MySQL/MariaDB XAMPP di `127.0.0.1:3306/nara_ac`. SQL PostgreSQL di `backend/migrations/001_*.sql` sampai `018_*.sql` disimpan sebagai arsip; runner hanya membaca `backend/migrations/mysql/`.
+>
+> 1. Aktifkan **MySQL** lewat XAMPP Control Panel. Apache opsional; aplikasi berjalan dengan Node/Vite.
+> 2. Dari root proyek jalankan `npm --prefix backend install` dan `npm --prefix frontend install`.
+> 3. File lokal `backend/.env` dan `frontend/.env` sudah disiapkan. Untuk checkout baru, salin masing-masing `.env.example` ke `.env`, isi `JWT_SECRET`, `AI_API_KEY` dan `DEMO_PASSWORD`. Jika root MySQL memakai password/port berbeda, sesuaikan `DATABASE_URL` (URL-encode karakter khusus pada password).
+> 4. Jalankan `npm --prefix backend run migrate`, lalu `npm --prefix backend run seed` untuk akun/data demo. Seed memperbarui password akun demo memakai `DEMO_PASSWORD`; jalankan hanya saat setup database lokal/demo.
+> 5. Terminal pertama: `npm --prefix backend run dev`. Terminal kedua: `npm --prefix frontend run dev`.
+> 6. Buka [aplikasi lokal](http://localhost:5173), [login staf](http://localhost:5173/staff/login), [health backend](http://localhost:4000/health), atau [phpMyAdmin](http://localhost/phpmyadmin).
+>
+> Dataset awal Excel dapat diimpor dengan `npm --prefix backend run seed:sample` jika file `Dummy Data Pelanggan & Service.xlsx` berada satu tingkat di atas folder proyek. Untuk lokasi lain, tambahkan path file setelah `--`. Importer memvalidasi relasi dan total, berjalan dalam transaksi, serta aman dijalankan ulang tanpa menggandakan data sumber.
+>
+> Akun demo: `admin@nara-ac.local` (admin), `budi@nara-ac.local` / `agus@nara-ac.local` (teknisi), `citra@nara-ac.local` (pelanggan). Password mengikuti `DEMO_PASSWORD` di `.env` lokal. Login pelanggan memakai email/password secara default; OTP lokal ditampilkan jika `ENABLE_DEV_OTP=true`. OTP dan token reset pengembangan tidak ditampilkan dalam production.
+>
+> WhatsApp memerlukan `WHATSAPP_API_URL` dan `WHATSAPP_API_TOKEN` atau konfigurasi gateway di admin. Tanpa gateway, pengiriman dicatat **failed**, bukan terkirim. Scheduler dinonaktifkan pada `.env` lokal. Chatbot memiliki fallback saat layanan Python belum berjalan. Dashboard Python opsional kini memakai `PyMySQL`; instal `data-science/requirements.txt` sebelum menjalankannya.
+>
+> Verifikasi: `npm --prefix backend test`, `npm --prefix frontend test`, `npm --prefix backend run lint`, `npm --prefix frontend run lint`, `npm --prefix frontend run build`. Test backend otomatis membuat ulang **database terpisah `nara_ac_automated_test`**. Override opsional `TEST_DATABASE_URL` wajib berakhir `_automated_test`. Database aplikasi `nara_ac` tidak dipakai oleh test.
+>
+> Belum ada transfer data lama PostgreSQL: koneksi PostgreSQL sebelumnya tidak tersedia. Database XAMPP ini berisi skema baru dan data demo. Catatan PostgreSQL di bagian dokumentasi lama di bawah adalah referensi historis dan tidak berlaku untuk setup lokal ini.
+
+
 > **Dokumentasi Teknis Resmi Sistem Operasional, Layanan Mandiri, AI, & Analitik**  
 > **Kode Proyek Capstone:** A26-CS054  
 > **Mitra UMKM:** CV. Nara Teknindotama  
@@ -927,34 +949,42 @@ Sistem membedakan tiga level otorisasi:
 ## 11. Dokumentasi Data Science
 
 ### 11.1 Tujuan & Sumber Data
-Modul Data Science bertujuan membantu pemilik usaha CV. Nara Teknindotama merencanakan alokasi kapasitas teknisi harian berdasarkan estimasi permintaan servis yang dipengaruhi faktor hari, tren musiman, dan temperatur udara.
-- **Sumber Data Real-Time:** Database relasional PostgreSQL Nara AC (koneksi via `psycopg2`).
-- **Sumber Data Historis:** `data-science/data/historical_demand.csv` (berisi 365 observasi harian buatan yang memodelkan tren pesanan servis AC selama 1 tahun penuh).
+Modul Data Science membantu pemilik usaha merencanakan kapasitas teknisi harian dari riwayat booking yang tersimpan di MySQL/MariaDB lokal. Sumber utamanya adalah tabel `bookings` dan `booking_items`; data pelanggan, inventori, teknisi, dan feedback dipakai untuk analitik operasional pendukung. Definisi setiap kolom, grain data, target, fitur, dan aturan kualitas tersedia di `data-science/DATA_DICTIONARY.md`.
+
+Dataset dari workbook contoh ditandai sebagai data sintetis melalui metadata model. Karena itu hasil prediksi cocok untuk integrasi dan pengujian alur aplikasi, tetapi belum menjadi dasar keputusan produksi sampai data operasional nyata tersedia.
+
+Lima laporan pada Dashboard Operasional menggunakan alur kolaborasi terpisah. `data-science/business_report_pipeline.py` membaca dan memvalidasi transaksi MySQL, menghitung agregat periode 3/6/12 bulan beserta kombinasi filter, lalu mempublikasikan hasil siap tampil ke `ds_dashboard_snapshots`. Endpoint backend hanya membaca snapshot DS tersebut.
+
+```powershell
+cd data-science
+.\.venv\Scripts\python.exe business_report_pipeline.py
+```
 
 ### 11.2 Pipeline Machine Learning & Algoritma
-Dikelola di `data-science/generate_dataset.py`:
-- **Fitur Masukan (Features):**
-  1. `dayofweek`: Hari dalam seminggu (0 = Senin, 6 = Minggu).
-  2. `dayofyear`: Hari ke-n dalam setahun (1–365).
-  3. `suhu_rata2`: Rata-rata temperatur udara harian (°C).
-  4. `is_libur`: Penanda biner akhir pekan / hari libur (0 atau 1).
-- **Target:** `jumlah_booking` (angka bulat permintaan servis harian).
-- **Algoritma Utama:** **`RandomForestRegressor`** (100 estimators, random state 42).
-- **Model Pembanding (Baseline):** `LinearRegression` konvensional.
-- **Pencegahan Data Leakage:** Menggunakan pemisahan berbasis waktu (*chronological time-series split*): 75% data terawal (9 bulan) digunakan sebagai data latih (*training set*), dan 25% data terakhir (3 bulan) digunakan sebagai data uji (*test set*). Tidak menggunakan acak k-fold agar tidak terjadi kebocoran informasi masa depan ke masa lalu.
+Pipeline utama berada di `data-science/demand_pipeline.py` dan menjalankan alur berikut:
+1. Mengekstrak jumlah item booking per hari dari MySQL/MariaDB.
+2. Melengkapi tanggal tanpa booking dengan nilai nol dan menjalankan validasi kualitas.
+3. Membentuk fitur kalender serta fitur historis `lag_1`, `lag_7`, `rolling_mean_7`, dan `rolling_mean_28`. Seluruh fitur rolling memakai data sebelum tanggal target.
+4. Membagi train/test secara kronologis dan membandingkan seasonal naive 7 hari, `LinearRegression`, dan `RandomForestRegressor`.
+5. Menyimpan snapshot data, artefak model, metadata evaluasi, lalu menerbitkan forecast ke tabel `prediction_output`.
+
+Target model adalah `jumlah_booking_harian`. Batas tanggal ekstraksi bersifat eksklusif dan default-nya adalah hari ini, sehingga booking hari yang masih berjalan tidak masuk proses training.
 
 ### 11.3 Metrik Evaluasi & Pencegahan Data Leakage
-Evaluasi dihitung pada test set:
+Evaluasi dihitung pada blok test paling akhir:
 - **MAE (Mean Absolute Error):** Mengukur rata-rata selisih absolut estimasi unit.
 - **RMSE (Root Mean Squared Error):** Mengukur penalti kuadrat terhadap kesalahan prediksi besar.
 - **WAPE (Weighted Absolute Percentage Error):** Mengukur rasio total selisih error terhadap total aktual permintaan.
-- Artefak model disimpan dalam `data-science/models/demand_model_v2.pkl` lengkap dengan metadata struktur fitur dan tanggal split.
+- Artefak model disimpan sebagai `data-science/models/demand_model_v3.pkl`; metadata mencatat periode train/test, hasil pembanding, model terpilih, horizon, versi, dan status data sintetis.
+- Pembagian acak tidak dipakai. Fitur lag dan rolling hanya mengambil nilai dari tanggal sebelumnya untuk mencegah data leakage.
 
 ### 11.4 Streamlit Analytics Dashboard
-Dijalankan melalui `streamlit run data-science/dashboard.py` (Port 8501) dengan 3 tab analitik:
-1. **Tab 1: Operational Insights (Realtime):** Membaca tabel `bookings`, `inventory`, `feedback`, dan `customers` langsung dari PostgreSQL untuk menampilkan metrik KPI, tren booking harian, distribusi beban kerja per teknisi, dan popularitas jenis layanan.
-2. **Tab 2: AI Demand Forecasting:** Visualisasi deteksi outlier data historis menggunakan metode Interquartile Range (IQR), input slider pemilihan tanggal, slider temperatur udara (20–40°C), checkbox hari libur, serta kalkulator estimasi kebutuhan teknisi yang harus disiagakan (`max(1, int(prediksi / 3))`).
-3. **Tab 3: Inventory & Feedback Analytics:** Grafik batang posisi stok barang terhadap batas minimum (*safety stock*) serta diagram lingkaran distribusi kepuasan bintang rating.
+Jalankan `streamlit run data-science/dashboard.py --server.port 8501`. Dashboard memiliki tiga tab:
+1. **Operational Insights:** membaca KPI, tren booking, beban teknisi, dan layanan populer langsung dari MySQL/MariaDB.
+2. **AI Demand Forecasting:** membaca batch forecast terbaru dari `prediction_output`, menampilkan model dan metrik uji, rentang estimasi, hari puncak, serta rekomendasi jumlah teknisi.
+3. **Inventory & Feedback Analytics:** menampilkan posisi stok terhadap batas minimum dan distribusi rating pelanggan.
+
+Halaman Analytics pada frontend juga membaca endpoint `GET /api/v1/predictions/latest`, sehingga FS dan DS menggunakan kontrak hasil prediksi yang sama.
 
 ---
 
@@ -1014,17 +1044,17 @@ Integrasi antar-komponen sistem berjalan melalui protokol terstandarisasi:
 ```mermaid
 flowchart LR
     A["Frontend (React)"] -->|"HTTP JSON (Credentials Enabled)"| B["Backend (Express API)"]
-    B -->|"SQL Query & Transaction (pg.Pool)"| C[("PostgreSQL")]
+    B -->|"SQL Query & Transaction"| C[("MySQL / MariaDB")]
     B -->|"Internal REST API (aiClient.js)"| D["AI Service (FastAPI)"]
-    E["Data Science (Streamlit)"] -->|"Read-Only SQL Query (psycopg2)"| C
+    E["Data Science (Streamlit)"] -->|"SQL Query (PyMySQL)"| C
 ```
 
 | Jalur Integrasi | Protokol | Autentikasi / Kredensial | Penanganan Kegagalan / Fallback |
 |---|---|---|---|
 | **Frontend ➔ Backend** | HTTP REST (JSON) | Cookie `nara_token` (HttpOnly) & Header `Authorization: Bearer` | Retry di client, modal pesan error terstruktur, redirect ke `/login` jika 401 |
-| **Backend ➔ PostgreSQL** | PostgreSQL Wire Protocol (TCP 5432/5433) | `DATABASE_URL` via pool connection | Auto rollback transaksi via `withTx`, status degradasi pada `/health` probe |
+| **Backend ➔ MySQL/MariaDB** | MySQL Protocol (TCP 3306) | `DATABASE_URL` via pool connection | Auto rollback transaksi via `withTx`, status degradasi pada `/health` probe |
 | **Backend ➔ AI Service** | Internal HTTP REST | `AI_SERVICE_URL` internal | Timeout 6 detik (`AI_TIMEOUT_MS`); jika AI mati, backend beralih otomatis ke *rule-based fallback* tanpa memutus alur pemesanan pelanggan |
-| **Data Science ➔ PostgreSQL** | PostgreSQL Wire Protocol (TCP 5432/5433) | `DATABASE_URL` dari `.env` | Peringatan pada sidebar dasbor; dasbor tetap dapat berjalan menggunakan data historis lokal CSV |
+| **Data Science ➔ MySQL/MariaDB** | MySQL Protocol (TCP 3306) | `DATABASE_URL` dari `backend/.env` | Dashboard menampilkan pesan diagnostik jika database atau hasil pipeline belum tersedia |
 
 ---
 
@@ -1038,8 +1068,8 @@ Dokumentasikan nama variabel lingkungan yang digunakan oleh sistem tanpa menyert
 |---|---|---|---|
 | `PORT` | Opsional (Default: 4000) | Port listener server HTTP backend | `4000` |
 | `NODE_ENV` | Wajib | Lingkungan eksekusi runtime (`development` / `production`) | `development` |
-| `DATABASE_URL` | Wajib | URL koneksi database PostgreSQL | `postgres://USER:PASSWORD@localhost:5432/nara_ac` |
-| `DB_SSL` | Opsional (Default: false) | Mengaktifkan koneksi SSL untuk PostgreSQL produksi | `false` atau `true` |
+| `DATABASE_URL` | Wajib | URL koneksi database MySQL/MariaDB | `mysql://root@127.0.0.1:3306/nara_ac` |
+| `DB_SSL` | Opsional (Default: false) | Mengaktifkan koneksi SSL database produksi | `false` atau `true` |
 | `JWT_SECRET` | Wajib | Kunci enkripsi penandatanganan token JWT | `generate_string_acak_minimal_32_karakter` |
 | `JWT_EXPIRES` | Opsional (Default: 8h) | Durasi masa aktif token autentikasi | `8h` atau `24h` |
 | `DEMO_PASSWORD` | Opsional (Default: Admin123) | Password default untuk akun hasil seeding database | `KataSandiKuat#2026` |
@@ -1142,15 +1172,22 @@ python train.py
 ```
 
 #### 6. Setup Data Science Dashboard (Streamlit)
-```bash
+```powershell
 cd ../data-science
 
-# 1. Gunakan virtual environment Python (bisa memakai .venv yang sama atau tersendiri)
-pip install -r requirements.txt
+# 1. Buat environment khusus Data Science
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 
-# 2. Generate dataset historis dan model Random Forest demand forecasting
-python generate_dataset.py
+# 2. Ekstrak data MySQL, latih/evaluasi model, dan publikasikan forecast
+python demand_pipeline.py --horizon 14
+
+# 3. Jalankan dashboard
+streamlit run dashboard.py --server.port 8501
 ```
+
+Pipeline membaca `DATABASE_URL` dari `backend/.env`. Gunakan `--no-publish` jika DS hanya ingin memvalidasi model tanpa menulis hasil ke `prediction_output`.
 
 ### 15.3 Pemeriksaan Startup Berhasil
 
@@ -1166,8 +1203,8 @@ cd frontend && npm run dev
 # Terminal 3: AI Service (Port 8000)
 cd ai-service && source .venv/bin/activate && python main.py
 
-# Terminal 4: Data Science Dashboard (Port 8501)
-cd data-science && source ../ai-service/.venv/bin/activate && streamlit run dashboard.py
+# Terminal 4: Data Science Dashboard (Port 8501, Windows PowerShell)
+cd data-science; .\.venv\Scripts\Activate.ps1; streamlit run dashboard.py --server.port 8501
 ```
 
 **Verifikasi URL & Status Endpoint:**

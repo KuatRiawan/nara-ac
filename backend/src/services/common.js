@@ -22,7 +22,7 @@ async function audit(db, user, action, entity, entityId, { before = null, after 
 async function notify(db, { role, id = null, title, message, type, bookingId = null, tautan = null, dedup = null }) {
   await db.query(
     `INSERT INTO notifications (target_role, target_id, title, message, type, reference_id, booking_id, tautan, dedup_key)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT DO NOTHING`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON DUPLICATE KEY UPDATE booking_id=booking_id`,
     [role, id, title, message, type, bookingId, bookingId, tautan, dedup],
   );
 }

@@ -88,7 +88,7 @@ export default function AdminDashboard() {
     fetchBookings();
     try {
       localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
-    } catch (_) {}
+    } catch (_) { /* Storage is unavailable in private browser sessions. */ }
     window.dispatchEvent(new CustomEvent('nara-booking-updated'));
   }, [fetchBookings]);
 

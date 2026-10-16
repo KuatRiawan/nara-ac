@@ -25,7 +25,7 @@ import { getSidebarNavItems, isActivePath, getBreadcrumbItems } from './navConfi
  *    - Independent smooth scrolling content
  */
 export default function DashboardLayout({ children, role, title, onOpenNotif, unreadCount = 0 }) {
-  const { user, logout, confirmLogout, cancelLogout, executeLogout, showLogoutConfirm, isLoggingOut } = useContext(AuthContext);
+  const { user, logout, confirmLogout, cancelLogout, executeLogout, showLogoutConfirm, isLoggingOut, logoutError } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef(null);
@@ -467,7 +467,7 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
         isOpen={showLogoutConfirm}
         onConfirm={executeLogout}
         onCancel={cancelLogout}
-        message="Apakah Anda yakin ingin mengakhiri sesi sekarang?"
+        message={logoutError || 'Apakah Anda yakin ingin mengakhiri sesi sekarang?'}
       />
       
       {/* Tombol Kembali ke Atas */}

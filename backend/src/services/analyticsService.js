@@ -12,47 +12,47 @@ async function summary({ dari, sampai } = {}, now = new Date()) {
   const one = async (sql, p = range) => (await query(sql, p)).rows;
 
   const [tot] = await one(
-    `SELECT COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE is_synthetic)::int AS sintetis,
-            COUNT(*) FILTER (WHERE teknisi_id IS NULL AND status='scheduled')::int AS belum_ditugaskan
+    `SELECT COUNT(*) AS total,
+            COUNT(CASE WHEN is_synthetic THEN 1 END) AS sintetis,
+            COUNT(CASE WHEN teknisi_id IS NULL AND status='scheduled' THEN 1 END) AS belum_ditugaskan
      FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < $2`);
   const status = await one(
-    `SELECT status, COUNT(*)::int AS jumlah FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < $2 GROUP BY status`);
+    `SELECT status, COUNT(*) AS jumlah FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < $2 GROUP BY status`);
   const perPeriode = await one(
-    `SELECT to_char(date_trunc('month', jadwal_mulai AT TIME ZONE 'Asia/Jakarta'), 'YYYY-MM') AS periode, COUNT(*)::int AS jumlah
+    `SELECT DATE_FORMAT(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR), '%Y-%m') AS periode, COUNT(*) AS jumlah
      FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < $2 GROUP BY 1 ORDER BY 1`);
   const perHari = await one(
-    `SELECT to_char((jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date, 'YYYY-MM-DD') AS tanggal, COUNT(*)::int AS jumlah
+    `SELECT DATE_FORMAT(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR), '%Y-%m-%d') AS tanggal, COUNT(*) AS jumlah
      FROM bookings WHERE jadwal_mulai >= $1 AND jadwal_mulai < $2 GROUP BY 1 ORDER BY 1`);
   const bulanIni = (await one(
-    `SELECT COUNT(*)::int AS n FROM bookings WHERE to_char(jadwal_mulai AT TIME ZONE 'Asia/Jakarta','YYYY-MM') = $1`,
+    `SELECT COUNT(*) AS n FROM bookings WHERE DATE_FORMAT(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR),'%Y-%m') = $1`,
     [today.slice(0, 7)]))[0].n;
   const workload = await one(
     `SELECT t.id, t.nama, t.aktif,
-            COUNT(b.id) FILTER (WHERE b.status='scheduled')::int AS scheduled,
-            COUNT(b.id) FILTER (WHERE b.status='on process')::int AS on_process,
-            COUNT(b.id) FILTER (WHERE b.status='done')::int AS done,
-            COUNT(b.id)::int AS total
+            COUNT(CASE WHEN b.status='scheduled' THEN b.id END) AS scheduled,
+            COUNT(CASE WHEN b.status='on process' THEN b.id END) AS on_process,
+            COUNT(CASE WHEN b.status='done' THEN b.id END) AS done,
+            COUNT(b.id) AS total
      FROM technicians t LEFT JOIN bookings b ON b.teknisi_id=t.id AND b.jadwal_mulai >= $1 AND b.jadwal_mulai < $2
      GROUP BY t.id ORDER BY total DESC, t.nama`);
   const [rating] = await one(
-    `SELECT COALESCE(ROUND(AVG(f.rating)::numeric,2),0)::float AS rata, COUNT(f.id)::int AS jumlah,
-            COUNT(*) FILTER (WHERE f.rating<=2)::int AS rendah
+    `SELECT COALESCE(ROUND(AVG(f.rating),2),0) AS rata, COUNT(f.id) AS jumlah,
+            COUNT(CASE WHEN f.rating<=2 THEN 1 END) AS rendah
      FROM feedback f JOIN bookings b ON b.id=f.booking_id WHERE b.jadwal_mulai >= $1 AND b.jadwal_mulai < $2`);
   const distRating = await one(
-    `SELECT f.rating, COUNT(*)::int AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id
+    `SELECT f.rating, COUNT(*) AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id
      WHERE b.jadwal_mulai >= $1 AND b.jadwal_mulai < $2 GROUP BY f.rating ORDER BY f.rating`);
   const stokMenipis = await one(
-    `SELECT id, nama, kategori, stok::float, satuan, min_stok::float FROM inventory
-     WHERE aktif AND stok <= min_stok ORDER BY (stok / NULLIF(min_stok,0)) NULLS FIRST, nama`, []);
+    `SELECT id, nama, kategori, stok, satuan, min_stok FROM inventory
+     WHERE aktif AND stok <= min_stok ORDER BY (stok / NULLIF(min_stok,0)), nama`, []);
   const reminder = await one(
-    `SELECT status, COUNT(*)::int AS jumlah FROM reminder_log GROUP BY status`, []);
-  const [komplain] = await one(`SELECT COUNT(*) FILTER (WHERE status='open')::int AS terbuka FROM complaint_tickets`, []);
+    `SELECT status, COUNT(*) AS jumlah FROM reminder_log GROUP BY status`, []);
+  const [komplain] = await one(`SELECT COUNT(CASE WHEN status='open' THEN 1 END) AS terbuka FROM complaint_tickets`, []);
 
   const besok = addDaysWibString(today, 1);
   const [bsk] = await one(
-    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE teknisi_id IS NULL)::int AS tanpa_teknisi
-     FROM bookings WHERE status='scheduled' AND (jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date = $1::date`, [besok]);
+    `SELECT COUNT(*) AS total, COUNT(CASE WHEN teknisi_id IS NULL THEN 1 END) AS tanpa_teknisi
+     FROM bookings WHERE status='scheduled' AND DATE(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR)) = $1`, [besok]);
 
   const toMap = (rows, k) => Object.fromEntries(rows.map((r) => [r[k], r.jumlah]));
   const statusDist = { scheduled: 0, 'on process': 0, done: 0, ...toMap(status, 'status') };
@@ -87,7 +87,7 @@ async function summary({ dari, sampai } = {}, now = new Date()) {
     tiket_keluhan_terbuka: komplain.terbuka,
     insight: insights,
     sumber_data: {
-      database: 'PostgreSQL (tabel bookings, feedback, inventory, reminder_log)',
+      database: 'MySQL/MariaDB (tabel bookings, feedback, inventory, reminder_log)',
       booking_sintetis: tot.sintetis,
       booking_nyata: tot.total - tot.sintetis,
       catatan: tot.sintetis > 0
@@ -99,7 +99,7 @@ async function summary({ dari, sampai } = {}, now = new Date()) {
 
 async function latestPredictions() {
   const rows = (await query(
-    `SELECT target, periode, nilai_prediksi::float AS nilai, batas_bawah::float AS bawah, batas_atas::float AS atas,
+    `SELECT target, periode, nilai_prediksi AS nilai, batas_bawah AS bawah, batas_atas AS atas,
             model_version, keterangan, is_synthetic, metrik, dibuat_pada
      FROM prediction_output
      WHERE dibuat_pada = (SELECT MAX(dibuat_pada) FROM prediction_output)
@@ -132,9 +132,9 @@ async function trends(period = '7d', now = new Date()) {
 
     const rows = (await query(`
       SELECT 
-        to_char(date_trunc('month', jadwal_mulai AT TIME ZONE 'Asia/Jakarta'), 'MM') AS month_num,
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+        DATE_FORMAT(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR), '%m') AS month_num,
+        COUNT(*) AS total,
+        COUNT(CASE WHEN status = 'done' THEN 1 END) AS selesai
       FROM bookings
       WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
       GROUP BY 1
@@ -163,9 +163,9 @@ async function trends(period = '7d', now = new Date()) {
 
     const rows = (await query(`
       SELECT 
-        to_char(date_trunc('week', jadwal_mulai AT TIME ZONE 'Asia/Jakarta'), 'YYYY-MM-DD') AS week_start,
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+        DATE_FORMAT(DATE_SUB(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR), INTERVAL WEEKDAY(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR)) DAY), '%Y-%m-%d') AS week_start,
+        COUNT(*) AS total,
+        COUNT(CASE WHEN status = 'done' THEN 1 END) AS selesai
       FROM bookings
       WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
       GROUP BY 1
@@ -192,9 +192,9 @@ async function trends(period = '7d', now = new Date()) {
 
   const rows = (await query(`
     SELECT 
-      to_char((jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date, 'YYYY-MM-DD') AS day_str,
-      COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE status = 'done')::int AS selesai
+      DATE_FORMAT(DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR), '%Y-%m-%d') AS day_str,
+      COUNT(*) AS total,
+      COUNT(CASE WHEN status = 'done' THEN 1 END) AS selesai
     FROM bookings
     WHERE jadwal_mulai >= $1 AND jadwal_mulai <= $2
     GROUP BY 1

@@ -1,5 +1,6 @@
 /** Agregasi dasbor admin: satu endpoint, semua dari database nyata (WIB). */
 const { query } = require('../db/pool');
+const { E } = require('../errors');
 const { wibDateString, addDaysWibString, startOfWibDay, DAY_MS } = require('../utils/time');
 const analytics = require('./analyticsService');
 
@@ -17,7 +18,7 @@ async function conflicts() {
     `SELECT b.id AS a_id, b.kode_booking AS a_kode, t.id AS teknisi_id, t.nama AS teknisi, b.jadwal_mulai AS mulai, b.jadwal_selesai AS selesai,
             CASE WHEN NOT t.aktif THEN 'teknisi_nonaktif' ELSE 'teknisi_tidak_tersedia' END AS jenis
      FROM bookings b JOIN technicians t ON t.id=b.teknisi_id
-     LEFT JOIN technician_availability ta ON ta.teknisi_id=t.id AND ta.tanggal=(b.jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date
+     LEFT JOIN technician_availability ta ON ta.teknisi_id=t.id AND ta.tanggal=DATE(DATE_ADD(b.jadwal_mulai, INTERVAL 7 HOUR))
      WHERE b.status IN ('scheduled','rescheduled','delayed') AND b.jadwal_selesai >= now()
        AND (NOT t.aktif OR (ta.status IS NOT NULL AND ta.status <> 'available'))
      ORDER BY b.jadwal_mulai LIMIT 50`)).rows;
@@ -34,15 +35,16 @@ async function maintenanceDue(daysArg = 14, limitArg = 50) {
   const { sanitizeLimitOffset } = require('../db/pool');
   const { limit: safeLimit } = sanitizeLimitOffset(limit);
   return (await query(
-    `WITH last AS (
-       SELECT DISTINCT ON (b.ac_unit_id) b.ac_unit_id, b.jadwal_mulai AS terakhir, s.interval_maintenance_hari AS interval_hari, s.nama_layanan
+    `WITH ranked AS (
+       SELECT b.ac_unit_id, b.jadwal_mulai AS terakhir, s.interval_maintenance_hari AS interval_hari, s.nama_layanan,
+              ROW_NUMBER() OVER (PARTITION BY b.ac_unit_id ORDER BY b.jadwal_mulai DESC, b.id DESC) AS rn
        FROM bookings b JOIN service_catalog s ON s.id=b.layanan_id
        WHERE b.status='done' AND b.ac_unit_id IS NOT NULL AND s.interval_maintenance_hari IS NOT NULL
-       ORDER BY b.ac_unit_id, b.jadwal_mulai DESC)
+       ), last AS (SELECT * FROM ranked WHERE rn=1)
      SELECT u.id, u.brand, u.model, u.lokasi, c.id AS customer_id, c.nama AS customer, c.kontak,
-            l.terakhir, l.nama_layanan, (l.terakhir + l.interval_hari * interval '1 day') AS jatuh_tempo
+            l.terakhir, l.nama_layanan, (DATE_ADD(l.terakhir, INTERVAL l.interval_hari DAY)) AS jatuh_tempo
      FROM last l JOIN ac_units u ON u.id=l.ac_unit_id AND u.aktif JOIN customers c ON c.id=u.customer_id
-     WHERE l.terakhir + l.interval_hari * interval '1 day' <= now() + ($1::int * interval '1 day')
+     WHERE DATE_ADD(l.terakhir, INTERVAL l.interval_hari DAY) <= DATE_ADD(now(), INTERVAL $1 DAY)
        AND NOT EXISTS (SELECT 1 FROM bookings x WHERE x.ac_unit_id=u.id AND x.status IN ${ACTIVE})
      ORDER BY jatuh_tempo LIMIT $2`, [days, safeLimit])).rows;
 }
@@ -61,36 +63,38 @@ async function summary({ hari = 30 } = {}, now = new Date()) {
     inventory, [rating], ratingDist, lowRatings, [rem], [komplain], [perf], [prevCount], [curCount], conf, due, byHour,
   ] = await Promise.all([
     q(`SELECT
-         COUNT(*) FILTER (WHERE jadwal_mulai>=$1 AND jadwal_mulai<$2 AND status<>'cancelled')::int AS booking_hari_ini,
-         COUNT(*) FILTER (WHERE status='on process')::int AS sedang_berjalan,
-         COUNT(*) FILTER (WHERE status='done' AND COALESCE(selesai_aktual, jadwal_mulai)>=$1 AND COALESCE(selesai_aktual, jadwal_mulai)<$2)::int AS selesai_hari_ini,
-         COUNT(*) FILTER (WHERE teknisi_id IS NULL AND status IN ('scheduled','rescheduled','delayed'))::int AS menunggu_assignment,
-         COUNT(*) FILTER (WHERE status='delayed' OR (status IN ('scheduled','rescheduled') AND jadwal_mulai<now()) OR (status='on process' AND jadwal_selesai<now()))::int AS terlambat,
-         COUNT(*) FILTER (WHERE status IN ('scheduled','rescheduled','delayed') AND jadwal_mulai>=$2 AND jadwal_mulai<$3)::int AS booking_mendatang
+         COUNT(CASE WHEN jadwal_mulai>=$1 AND jadwal_mulai<$2 AND status<>'cancelled' THEN 1 END) AS booking_hari_ini,
+         COUNT(CASE WHEN status='on process' THEN 1 END) AS sedang_berjalan,
+         COUNT(CASE WHEN status='done' AND COALESCE(selesai_aktual, jadwal_mulai)>=$1 AND COALESCE(selesai_aktual, jadwal_mulai)<$2 THEN 1 END) AS selesai_hari_ini,
+         COUNT(CASE WHEN teknisi_id IS NULL AND status IN ('scheduled','rescheduled','delayed') THEN 1 END) AS menunggu_assignment,
+         COUNT(CASE WHEN status='delayed' OR (status IN ('scheduled','rescheduled') AND jadwal_mulai<now()) OR (status='on process' AND jadwal_selesai<now()) THEN 1 END) AS terlambat,
+         COUNT(CASE WHEN status IN ('scheduled','rescheduled','delayed') AND jadwal_mulai>=$2 AND jadwal_mulai<$3 THEN 1 END) AS booking_mendatang
        FROM bookings`, [ds, de, next7]),
-    q(`SELECT to_char(d::date,'YYYY-MM-DD') AS tanggal,
-         COUNT(b.id) FILTER (WHERE b.status<>'cancelled')::int AS jumlah,
-         COUNT(b.id) FILTER (WHERE b.status='done')::int AS selesai,
-         COUNT(b.id) FILTER (WHERE b.status='cancelled')::int AS batal
-       FROM generate_series($1::date, $2::date, interval '1 day') d
-       LEFT JOIN bookings b ON (b.jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::date = d::date
+    q(`WITH RECURSIVE dates AS (
+         SELECT DATE($1) AS d UNION ALL SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM dates WHERE d < DATE($2)
+       ) SELECT DATE_FORMAT(d,'%Y-%m-%d') AS tanggal,
+         COUNT(CASE WHEN b.status<>'cancelled' THEN b.id END) AS jumlah,
+         COUNT(CASE WHEN b.status='done' THEN b.id END) AS selesai,
+         COUNT(CASE WHEN b.status='cancelled' THEN b.id END) AS batal
+       FROM dates
+       LEFT JOIN bookings b ON DATE(DATE_ADD(b.jadwal_mulai, INTERVAL 7 HOUR)) = d
        GROUP BY d ORDER BY d`, [addDaysWibString(today, -(hari - 1)), today]),
-    q('SELECT status, COUNT(*)::int AS jumlah FROM bookings WHERE jadwal_mulai>=$1 AND jadwal_mulai<$2 GROUP BY status', [rangeFrom, de]),
-    q(`SELECT s.id, s.nama_layanan AS nama, COUNT(b.id)::int AS jumlah
+    q('SELECT status, COUNT(*) AS jumlah FROM bookings WHERE jadwal_mulai>=$1 AND jadwal_mulai<$2 GROUP BY status', [rangeFrom, de]),
+    q(`SELECT s.id, s.nama_layanan AS nama, COUNT(b.id) AS jumlah
        FROM service_catalog s JOIN bookings b ON b.layanan_id=s.id AND b.status<>'cancelled' AND b.jadwal_mulai>=$1 AND b.jadwal_mulai<$2
        GROUP BY s.id ORDER BY jumlah DESC, s.nama_layanan LIMIT 8`, [rangeFrom, de]),
     q(`SELECT t.id, t.nama, t.aktif,
-         COUNT(b.id) FILTER (WHERE b.status IN ('scheduled','rescheduled'))::int AS dijadwalkan,
-         COUNT(b.id) FILTER (WHERE b.status='on process')::int AS berjalan,
-         COUNT(b.id) FILTER (WHERE b.status='done')::int AS selesai,
-         COUNT(b.id) FILTER (WHERE b.status='delayed')::int AS tertunda,
-         COUNT(b.id) FILTER (WHERE b.jadwal_mulai>=$3 AND b.jadwal_mulai<$4 AND b.status<>'cancelled')::int AS hari_ini,
-         COUNT(b.id) FILTER (WHERE b.status<>'cancelled')::int AS total
+         COUNT(CASE WHEN b.status IN ('scheduled','rescheduled') THEN b.id END) AS dijadwalkan,
+         COUNT(CASE WHEN b.status='on process' THEN b.id END) AS berjalan,
+         COUNT(CASE WHEN b.status='done' THEN b.id END) AS selesai,
+         COUNT(CASE WHEN b.status='delayed' THEN b.id END) AS tertunda,
+         COUNT(CASE WHEN b.jadwal_mulai>=$3 AND b.jadwal_mulai<$4 AND b.status<>'cancelled' THEN b.id END) AS hari_ini,
+         COUNT(CASE WHEN b.status<>'cancelled' THEN b.id END) AS total
        FROM technicians t LEFT JOIN bookings b ON b.teknisi_id=t.id AND b.jadwal_mulai>=$1 AND b.jadwal_mulai<$2
        WHERE t.aktif GROUP BY t.id ORDER BY total DESC, t.nama`, [rangeFrom, de, ds, de]),
     q(`SELECT t.id, t.nama, COALESCE(ta.status,'available') AS status, ta.catatan,
          (SELECT b.kode_booking FROM bookings b WHERE b.teknisi_id=t.id AND b.status='on process' LIMIT 1) AS pekerjaan_berjalan
-       FROM technicians t LEFT JOIN technician_availability ta ON ta.teknisi_id=t.id AND ta.tanggal=$1::date
+       FROM technicians t LEFT JOIN technician_availability ta ON ta.teknisi_id=t.id AND ta.tanggal=$1
        WHERE t.aktif ORDER BY t.nama`, [today]),
     q(`SELECT b.id, b.kode_booking, b.jadwal_mulai, b.jadwal_selesai, b.status, b.alamat, c.nama AS customer,
               s.nama_layanan AS layanan, t.id AS teknisi_id, t.nama AS teknisi
@@ -102,27 +106,27 @@ async function summary({ hari = 30 } = {}, now = new Date()) {
        LEFT JOIN technicians t ON t.id=b.teknisi_id
        WHERE b.jadwal_mulai>=$1 AND b.status IN ('scheduled','rescheduled','delayed') ORDER BY b.jadwal_mulai LIMIT 8`, [de]),
     q('SELECT id, actor, role, action, entity, entity_id, metadata, created_at FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 8'),
-    q(`SELECT id, nama, kategori, stok::float, satuan, min_stok::float,
+    q(`SELECT id, nama, kategori, stok, satuan, min_stok,
          CASE WHEN stok<=0 THEN 'out' WHEN stok<=min_stok THEN 'low' ELSE 'ok' END AS status
-       FROM inventory WHERE aktif AND stok<=min_stok ORDER BY stok/NULLIF(min_stok,0) NULLS FIRST, nama LIMIT 10`),
-    q(`SELECT COALESCE(ROUND(AVG(f.rating)::numeric,2),0)::float AS rata, COUNT(f.id)::int AS jumlah
+       FROM inventory WHERE aktif AND stok<=min_stok ORDER BY stok/NULLIF(min_stok,0), nama LIMIT 10`),
+    q(`SELECT COALESCE(ROUND(AVG(f.rating),2),0) AS rata, COUNT(f.id) AS jumlah
        FROM feedback f JOIN bookings b ON b.id=f.booking_id WHERE b.jadwal_mulai>=$1 AND b.jadwal_mulai<$2`, [rangeFrom, de]),
-    q(`SELECT f.rating, COUNT(*)::int AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id
+    q(`SELECT f.rating, COUNT(*) AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id
        WHERE b.jadwal_mulai>=$1 AND b.jadwal_mulai<$2 GROUP BY f.rating ORDER BY f.rating`, [rangeFrom, de]),
     q(`SELECT f.id, f.rating, f.komentar, f.waktu, b.kode_booking, c.nama AS customer, t.nama AS teknisi
        FROM feedback f JOIN bookings b ON b.id=f.booking_id JOIN customers c ON c.id=b.customer_id LEFT JOIN technicians t ON t.id=b.teknisi_id
-       WHERE f.rating<=2 AND f.waktu>=now()-interval '30 days' ORDER BY f.waktu DESC LIMIT 5`),
-    q("SELECT COUNT(*) FILTER (WHERE status='failed')::int AS gagal, COUNT(*) FILTER (WHERE status='pending')::int AS pending, COUNT(*) FILTER (WHERE status='sent')::int AS terkirim FROM reminder_log"),
-    q("SELECT COUNT(*) FILTER (WHERE status='open')::int AS terbuka FROM complaint_tickets"),
-    q(`SELECT COUNT(*) FILTER (WHERE status='done')::int AS selesai,
-              COUNT(*) FILTER (WHERE status='delayed')::int AS tertunda,
-              COUNT(*) FILTER (WHERE status='cancelled')::int AS batal, COUNT(*)::int AS total
+       WHERE f.rating<=2 AND f.waktu>=now()-INTERVAL 30 DAY ORDER BY f.waktu DESC LIMIT 5`),
+    q("SELECT COUNT(CASE WHEN status='failed' THEN 1 END) AS gagal, COUNT(CASE WHEN status='pending' THEN 1 END) AS pending, COUNT(CASE WHEN status='sent' THEN 1 END) AS terkirim FROM reminder_log"),
+    q("SELECT COUNT(CASE WHEN status='open' THEN 1 END) AS terbuka FROM complaint_tickets"),
+    q(`SELECT COUNT(CASE WHEN status='done' THEN 1 END) AS selesai,
+              COUNT(CASE WHEN status='delayed' THEN 1 END) AS tertunda,
+              COUNT(CASE WHEN status='cancelled' THEN 1 END) AS batal, COUNT(*) AS total
        FROM bookings WHERE jadwal_mulai>=$1 AND jadwal_mulai<$2`, [rangeFrom, de]),
-    q("SELECT COUNT(*)::int AS n FROM bookings WHERE status<>'cancelled' AND jadwal_mulai>=$1 AND jadwal_mulai<$2", [prevFrom, rangeFrom]),
-    q("SELECT COUNT(*)::int AS n FROM bookings WHERE status<>'cancelled' AND jadwal_mulai>=$1 AND jadwal_mulai<$2", [rangeFrom, de]),
+    q("SELECT COUNT(*) AS n FROM bookings WHERE status<>'cancelled' AND jadwal_mulai>=$1 AND jadwal_mulai<$2", [prevFrom, rangeFrom]),
+    q("SELECT COUNT(*) AS n FROM bookings WHERE status<>'cancelled' AND jadwal_mulai>=$1 AND jadwal_mulai<$2", [rangeFrom, de]),
     conflicts(),
     maintenanceDue(14, 20),
-    q(`SELECT EXTRACT(HOUR FROM jadwal_mulai AT TIME ZONE 'Asia/Jakarta')::int AS jam, COUNT(*)::int AS jumlah
+    q(`SELECT EXTRACT(HOUR FROM DATE_ADD(jadwal_mulai, INTERVAL 7 HOUR)) AS jam, COUNT(*) AS jumlah
        FROM bookings WHERE status<>'cancelled' AND jadwal_mulai>=$1 AND jadwal_mulai<$2 GROUP BY 1 ORDER BY 1`, [rangeFrom, de]),
   ]);
 
@@ -156,7 +160,7 @@ async function summary({ hari = 30 } = {}, now = new Date()) {
   let prediksi = null;
   try { prediksi = await analytics.latestPredictions(); } catch { prediksi = null; }
 
-  const [{ sintetis, total }] = await q('SELECT COUNT(*) FILTER (WHERE is_synthetic)::int AS sintetis, COUNT(*)::int AS total FROM bookings');
+  const [{ sintetis, total }] = await q('SELECT COUNT(CASE WHEN is_synthetic THEN 1 END) AS sintetis, COUNT(*) AS total FROM bookings');
 
   return {
     dibuat_pada: now.toISOString(),
@@ -185,4 +189,43 @@ async function summary({ hari = 30 } = {}, now = new Date()) {
   };
 }
 
-module.exports = { summary, conflicts, maintenanceDue };
+async function businessReports({
+  months = 12,
+  technicianServiceId,
+  technicianCustomerId,
+  bookingServiceId,
+  bookingCustomerId,
+} = {}) {
+  const readSnapshot = async (reportKey, serviceId = 0, customerId = 0) => {
+    const result = await query(
+      `SELECT payload, generated_at, source_max_updated_at
+       FROM ds_dashboard_snapshots
+       WHERE report_key=$1 AND period_months=$2 AND service_id=$3 AND customer_id=$4
+       LIMIT 1`,
+      [reportKey, reportKey === 'filter_options' ? 0 : months, serviceId || 0, customerId || 0]
+    );
+    return result.rows[0] || null;
+  };
+  const [overview, technicians, scheduled, options] = await Promise.all([
+    readSnapshot('overview'),
+    readSnapshot('technicians', technicianServiceId, technicianCustomerId),
+    readSnapshot('scheduled_bookings', bookingServiceId, bookingCustomerId),
+    readSnapshot('filter_options'),
+  ]);
+  if (!overview) {
+    throw E.unavailable('Laporan DS belum tersedia. Jalankan pipeline business_report_pipeline.py.');
+  }
+  const emptyScheduled = (overview.payload.revenueMonthly || []).map(({ bulan }) => ({
+    bulan, jumlah_booking: 0, pelanggan_unik: 0, jumlah_unit: 0,
+  }));
+  return {
+    ...overview.payload,
+    dibuat_pada: overview.generated_at instanceof Date ? overview.generated_at.toISOString() : overview.generated_at,
+    source_max_updated_at: overview.source_max_updated_at,
+    topTechnicians: technicians?.payload || [],
+    scheduledBookingsMonthly: scheduled?.payload || emptyScheduled,
+    filterOptions: options?.payload || { services: [], customers: [] },
+  };
+}
+
+module.exports = { summary, businessReports, conflicts, maintenanceDue };

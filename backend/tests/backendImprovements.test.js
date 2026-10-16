@@ -13,7 +13,7 @@ const { TRANSITIONS, changeStatus, addInventoryUsage } = require('../src/service
 
 describe('Backend Improvements - Phase 3', () => {
   describe('BE-001: Advisory Lock Race Condition Prevention', () => {
-    test('pg_advisory_xact_lock is used in createBooking', () => {
+    test('scheduling_locks is used in createBooking', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -21,11 +21,11 @@ describe('Backend Improvements - Phase 3', () => {
         'utf-8'
       );
       
-      expect(bookingService).toContain('pg_advisory_xact_lock');
+      expect(bookingService).toContain('scheduling_locks');
       expect(bookingService).toContain('booking-slots');
     });
 
-    test('pg_advisory_xact_lock is used in workflowService assign', () => {
+    test('scheduling_locks is used in workflowService assign', () => {
       const fs = require('fs');
       const path = require('path');
       const workflowService = fs.readFileSync(
@@ -33,11 +33,11 @@ describe('Backend Improvements - Phase 3', () => {
         'utf-8'
       );
       
-      expect(workflowService).toContain('pg_advisory_xact_lock');
+      expect(workflowService).toContain('scheduling_locks');
       expect(workflowService).toContain('booking-slots');
     });
 
-    test('pg_advisory_xact_lock is used in reschedule', () => {
+    test('scheduling_locks is used in reschedule', () => {
       const fs = require('fs');
       const path = require('path');
       const bookingService = fs.readFileSync(
@@ -132,7 +132,7 @@ describe('Backend Improvements - Phase 3', () => {
       expect(migration).toContain('UNIQUE (booking_id, target, untuk_tanggal)');
     });
 
-    test('Reminder service uses ON CONFLICT DO NOTHING', () => {
+    test('Reminder service uses ON DUPLICATE KEY UPDATE', () => {
       const fs = require('fs');
       const path = require('path');
       const reminderService = fs.readFileSync(
@@ -140,8 +140,8 @@ describe('Backend Improvements - Phase 3', () => {
         'utf-8'
       );
       
-      expect(reminderService).toContain('ON CONFLICT');
-      expect(reminderService).toContain('DO NOTHING');
+      expect(reminderService).toContain('ON DUPLICATE KEY UPDATE');
+      expect(reminderService).toContain('booking_id=booking_id');
     });
 
     test('Reminder service filters out cancelled bookings', () => {
@@ -330,7 +330,7 @@ describe('Backend Improvements - Phase 3', () => {
       
       // Verify that only 'scheduled' bookings are selected
       expect(reminderService).toContain("b.status='scheduled'");
-      expect(reminderService).toContain("ON CONFLICT");
+      expect(reminderService).toContain("ON DUPLICATE KEY UPDATE");
     });
   });
 

@@ -36,11 +36,12 @@ import {
 } from 'lucide-react';
 
 export default function LoginPage() {
-  const [activeTab, setActiveTab] = useState('otp'); // 'otp' | 'password'
+  const [activeTab, setActiveTab] = useState('password'); // 'otp' | 'password'
 
   // WhatsApp OTP states
   const [otpPhone, setOtpPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [otpStep, setOtpStep] = useState('phone'); // 'phone' | 'code'
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpSuccessMsg, setOtpSuccessMsg] = useState('');
@@ -98,13 +99,14 @@ export default function LoginPage() {
     try {
       const res = await requestCustomerOtp(otpPhone.trim());
       setOtpSuccessMsg(res?.message || 'Kode OTP telah dikirimkan ke WhatsApp Anda.');
+      setDevOtp(import.meta.env.DEV ? res?._dev_otp || '' : '');
       setOtpStep('code');
       setResendTimer(60);
     } catch (err) {
-      const respData = err?.response?.data;
+      const respData = err?.response?.data || err;
       const errMsg = respData?.error?.message || err?.message || 'Gagal mengirimkan kode OTP WhatsApp.';
       setOtpError(errMsg);
-      if (respData?.error?.code === 'NOT_FOUND' || respData?.error?.details?.not_registered) {
+      if (respData?.error?.code === 'NOT_FOUND' || respData?.error?.detail?.not_registered) {
         setNotRegistered(true);
       }
     } finally {
@@ -130,7 +132,7 @@ export default function LoginPage() {
         navigate('/customer/dashboard');
       }, 350);
     } catch (err) {
-      const errMsg = err?.response?.data?.error?.message || err?.message || 'Kode OTP salah atau kedaluwarsa.';
+      const errMsg = err?.response?.data?.error?.message || err?.error?.message || err?.message || 'Kode OTP salah atau kedaluwarsa.';
       setOtpError(errMsg);
       setOtpLoading(false);
     }
@@ -187,7 +189,7 @@ export default function LoginPage() {
         setShowResetFields(true);
       }
     } catch (err) {
-      setForgotErr(err?.response?.data?.error?.message || err?.message || 'Gagal memproses permintaan reset.');
+      setForgotErr(err?.response?.data?.error?.message || err?.error?.message || err?.message || 'Gagal memproses permintaan reset.');
     } finally {
       setForgotLoading(false);
     }
@@ -222,7 +224,7 @@ export default function LoginPage() {
         setForgotMsg('');
       }, 2500);
     } catch (err) {
-      setForgotErr(err?.response?.data?.error?.message || err?.message || 'Gagal mereset password.');
+      setForgotErr(err?.response?.data?.error?.message || err?.error?.message || err?.message || 'Gagal mereset password.');
     } finally {
       setForgotLoading(false);
     }
@@ -450,6 +452,8 @@ export default function LoginPage() {
                   )}
 
                   {/* Step 1: Input Phone */}
+                  {devOtp && <p role="status" className="text-sm text-blue-800 bg-blue-50 rounded-lg p-3">Mode lokal: kode OTP Anda <strong>{devOtp}</strong>. Gateway WhatsApp belum diperlukan.</p>}
+
                   {otpStep === 'phone' ? (
                     <form onSubmit={handleRequestOtp} className="space-y-4">
                       <div className="space-y-1.5">
@@ -589,13 +593,13 @@ export default function LoginPage() {
                   )}
 
                   <div className="space-y-1.5">
-                    <label htmlFor="cust-email" className="text-xs font-bold text-slate-700 block">
+                    <label htmlFor="login-email" className="text-xs font-bold text-slate-700 block">
                       Email Akun Member
                     </label>
                     <div className="relative">
                       <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <Input
-                        id="cust-email"
+                        id="login-email"
                         type="email"
                         placeholder="nama@email.com"
                         value={email}
@@ -610,7 +614,7 @@ export default function LoginPage() {
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label htmlFor="cust-password" className="text-xs font-bold text-slate-700">
+                      <label htmlFor="login-password" className="text-xs font-bold text-slate-700">
                         Kata Sandi
                       </label>
                       <div className="flex items-center gap-2">
@@ -642,7 +646,7 @@ export default function LoginPage() {
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <Input
-                        id="cust-password"
+                        id="login-password"
                         type={showPassword ? 'text' : 'password'}
                         placeholder="••••••••"
                         value={password}

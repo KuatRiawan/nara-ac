@@ -22,10 +22,10 @@ function paged(table, searchCols, orderBy) {
     const { q, aktif, page = 1, limit = 50 } = req.valid.query;
     const { limit: safeLimit, offset: safeOffset } = sanitizeLimitOffset(limit, (page - 1) * limit);
     const where = []; const params = [];
-    if (q) { params.push(`%${q}%`); where.push(`(${searchCols.map((c) => `${c} ILIKE $${params.length}`).join(' OR ')})`); }
+    if (q) { params.push(`%${q}%`); where.push(`(${searchCols.map((c) => `${c} LIKE $${params.length}`).join(' OR ')})`); }
     if (aktif !== undefined) { params.push(aktif); where.push(`aktif = $${params.length}`); }
     const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const total = (await query(`SELECT COUNT(*)::int n FROM ${table} ${w}`, params)).rows[0].n;
+    const total = (await query(`SELECT COUNT(*) n FROM ${table} ${w}`, params)).rows[0].n;
     const rows = (await query(`SELECT * FROM ${table} ${w} ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, safeLimit, safeOffset])).rows;
     res.json({ data: rows, meta: { total, page: page, limit: safeLimit } });
   });
@@ -55,7 +55,7 @@ router.post('/customers', requireAuth(['admin']), validate(custCreate), wrap(asy
       [req.body.nama, req.body.kontak, req.body.alamat || null, req.body.catatan_umum || null]);
     res.status(201).json(r.rows[0]);
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nomor kontak sudah terdaftar pada customer lain.', { kontak: 'Kontak sudah digunakan.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nomor kontak sudah terdaftar pada customer lain.', { kontak: 'Kontak sudah digunakan.' });
     throw e;
   }
 }));
@@ -68,7 +68,7 @@ async function patchTable(table, id, body, cols) {
 }
 router.patch('/customers/:id', requireAuth(['admin']), validate(idParam, 'params'), validate(custPatch), wrap(async (req, res) => {
   try { res.json(await patchTable('customers', req.params.id, req.body, ['nama', 'kontak', 'alamat', 'catatan_umum', 'aktif'])); } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nomor kontak sudah terdaftar pada customer lain.', { kontak: 'Kontak sudah digunakan.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nomor kontak sudah terdaftar pada customer lain.', { kontak: 'Kontak sudah digunakan.' });
     throw e;
   }
 }));
@@ -97,7 +97,7 @@ router.post('/technicians', requireAuth(['admin']), validate(techCreate), wrap(a
         await c.query("INSERT INTO users (nama,email,password_hash,role,technician_id) VALUES ($1,$2,$3,'technician',$4)",
           [req.body.nama, req.body.email, await bcrypt.hash(req.body.password, 10), t.id]);
       } catch (e) {
-        if (e.code === '23505') throw E.conflict('Email login sudah dipakai.', { email: 'Email sudah terdaftar.' });
+        if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Email login sudah dipakai.', { email: 'Email sudah terdaftar.' });
         throw e;
       }
     }
@@ -107,7 +107,7 @@ router.post('/technicians', requireAuth(['admin']), validate(techCreate), wrap(a
 }));
 router.patch('/technicians/:id', requireAuth(['admin']), validate(idParam, 'params'), validate(techPatch), wrap(async (req, res) => {
   if (req.body.aktif === false) {
-    const n = (await query("SELECT COUNT(*)::int n FROM bookings WHERE teknisi_id=$1 AND status IN ('scheduled','on process')", [req.params.id])).rows[0].n;
+    const n = (await query("SELECT COUNT(*) n FROM bookings WHERE teknisi_id=$1 AND status IN ('scheduled','on process')", [req.params.id])).rows[0].n;
     if (n > 0) throw E.business(`Teknisi masih memiliki ${n} pekerjaan aktif. Pindahkan/selesaikan dulu sebelum menonaktifkan.`);
   }
   const out = await patchTable('technicians', req.params.id, req.body, ['nama', 'kontak', 'catatan', 'telegram_chat_id', 'aktif']);
@@ -154,13 +154,13 @@ router.post('/inventory', requireAuth(['admin']), validate(invCreate), wrap(asyn
       [req.body.nama, req.body.kategori, req.body.stok, req.body.satuan, req.body.min_stok]);
     res.status(201).json(r.rows[0]);
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nama item sudah ada.', { nama: 'Nama item sudah digunakan.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nama item sudah ada.', { nama: 'Nama item sudah digunakan.' });
     throw e;
   }
 }));
 router.patch('/inventory/:id', requireAuth(['admin']), validate(idParam, 'params'), validate(invPatch), wrap(async (req, res) => {
   try { res.json(await patchTable('inventory', req.params.id, { ...req.body }, ['nama', 'kategori', 'stok', 'satuan', 'min_stok', 'aktif'])); } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nama item sudah ada.', { nama: 'Nama item sudah digunakan.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nama item sudah ada.', { nama: 'Nama item sudah digunakan.' });
     throw e;
   }
 }));
@@ -190,7 +190,7 @@ router.get('/service-catalog', validate(Joi.object({
   const where = [];
   if (aktif !== undefined) { params.push(aktif); where.push(`aktif = $${params.length}`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const total = (await query(`SELECT COUNT(*)::int n FROM service_catalog ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n FROM service_catalog ${w}`, params)).rows[0].n;
   const rows = (await query(`SELECT * FROM service_catalog ${w} ORDER BY id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, safeLimit, safeOffset])).rows;
   res.json({ data: rows, meta: { total, page: page, limit: safeLimit } });
 }));
@@ -201,7 +201,7 @@ router.post('/service-catalog', requireAuth(['admin']), validate(svcCreate), wra
       VALUES ($1,$2,$3,$4,$5,$6,false) RETURNING *`, [b.kode, b.nama_layanan, b.kategori, b.deskripsi, b.harga, b.durasi_menit]);
     res.status(201).json(r.rows[0]);
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Kode layanan sudah ada.', { kode: 'Kode sudah digunakan.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Kode layanan sudah ada.', { kode: 'Kode sudah digunakan.' });
     throw e;
   }
 }));
@@ -227,8 +227,8 @@ router.get('/settings/operating-hours', validate(Joi.object({}), 'query'), wrap(
 }));
 router.put('/settings/operating-hours', requireAuth(['admin']), validate(opsSchema), wrap(async (req, res) => {
   if (req.body.open >= req.body.close) throw E.validation('Jam operasional tidak valid.', { close: 'Jam tutup harus setelah jam buka.' });
-  await query(`INSERT INTO settings (key,value) VALUES ('operating_hours',$1)
-    ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`, [JSON.stringify(req.body)]);
+  await query(`INSERT INTO settings (setting_key,value) VALUES ('operating_hours',$1)
+    ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=now()`, [JSON.stringify(req.body)]);
   res.json(req.body);
 }));
 
@@ -254,14 +254,14 @@ const paymentSettingsSchema = Joi.object({
 });
 
 router.get('/settings/payment-accounts', validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
-  const r = await query("SELECT value FROM settings WHERE key = 'payment_accounts'");
+  const r = await query("SELECT value FROM settings WHERE setting_key= 'payment_accounts'");
   if (!r.rows[0]) return res.json(defaultPaymentSettings);
   res.json({ ...defaultPaymentSettings, ...r.rows[0].value });
 }));
 
 router.put('/settings/payment-accounts', requireAuth(['admin']), validate(paymentSettingsSchema), wrap(async (req, res) => {
-  await query(`INSERT INTO settings (key, value) VALUES ('payment_accounts', $1)
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, [JSON.stringify(req.body)]);
+  await query(`INSERT INTO settings (setting_key, value) VALUES ('payment_accounts', $1)
+    ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = now()`, [JSON.stringify(req.body)]);
   res.json(req.body);
 }));
 
@@ -285,14 +285,14 @@ const businessProfileSchema = Joi.object({
 });
 
 router.get('/settings/business-profile', validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
-  const r = await query("SELECT value FROM settings WHERE key = 'business_profile'");
+  const r = await query("SELECT value FROM settings WHERE setting_key= 'business_profile'");
   if (!r.rows[0]) return res.json(defaultBusinessProfile);
   res.json({ ...defaultBusinessProfile, ...r.rows[0].value });
 }));
 
 router.put('/settings/business-profile', requireAuth(['admin']), validate(businessProfileSchema), wrap(async (req, res) => {
-  await query(`INSERT INTO settings (key, value) VALUES ('business_profile', $1)
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`, [JSON.stringify(req.body)]);
+  await query(`INSERT INTO settings (setting_key, value) VALUES ('business_profile', $1)
+    ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = now()`, [JSON.stringify(req.body)]);
   res.json(req.body);
 }));
 

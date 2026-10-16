@@ -162,7 +162,7 @@ describe('Booking P0 Regression Tests', () => {
           nama: 'Scheduled Status Test',
           kontak,
           layanan_id: 1,
-          jadwal_mulai: '2026-10-24T10:00:00+07:00',
+          jadwal_mulai: '2026-11-03T10:00:00+07:00',
           alamat: 'Jl. Scheduled Test',
           keluhan: 'Test scheduled status',
           jumlah_unit: 1,
@@ -284,7 +284,7 @@ describe('Booking P0 Regression Tests', () => {
         .send({
           nama: 'Core Service Test',
           kontak: nextContact(),
-          layanan_id: 4, // Cuci AC Core (Deep Clean)
+          layanan_id: (await query("SELECT id FROM service_catalog WHERE kode='SRV-CUCI-CORE'")).rows[0].id, // Cuci AC Core
           jadwal_mulai: '2026-10-28T10:00:00+07:00',
           alamat: 'Jl. Core Test',
           keluhan: 'Core test',
@@ -303,7 +303,7 @@ describe('Booking P0 Regression Tests', () => {
         .send({
           nama: 'Freon Core Test',
           kontak: nextContact(),
-          layanan_id: 5, // Paket Core + Isi Freon
+          layanan_id: (await query("SELECT id FROM service_catalog WHERE kode='SRV-CUCI-FREON'")).rows[0].id, // Core + Freon
           jadwal_mulai: '2026-10-29T10:00:00+07:00',
           alamat: 'Jl. Freon Test',
           keluhan: 'Freon test',

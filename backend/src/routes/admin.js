@@ -8,6 +8,7 @@ const { E } = require('../errors');
 const { normalizePhone } = require('../utils/ids');
 const { audit, notify } = require('../services/common');
 const wf = require('../services/workflowService');
+const bs = require('../services/bookingService');
 
 const dash = require('../services/dashboardService');
 const { wibDateString, startOfWibDay, parseDateTimeInput, DAY_MS } = require('../utils/time');
@@ -34,6 +35,22 @@ router.get('/dashboard/summary', validate(Joi.object({ hari: Joi.number().valid(
   res.json(await dash.summary({ hari: req.valid.query.hari }));
 }));
 
+router.get('/dashboard/reports', validate(Joi.object({
+  months: Joi.number().integer().valid(3, 6, 12).default(12),
+  technician_service_id: Joi.number().integer().positive(),
+  technician_customer_id: Joi.number().integer().positive(),
+  booking_service_id: Joi.number().integer().positive(),
+  booking_customer_id: Joi.number().integer().positive(),
+}), 'query'), wrap(async (req, res) => {
+  res.json(await dash.businessReports({
+    months: req.valid.query.months,
+    technicianServiceId: req.valid.query.technician_service_id,
+    technicianCustomerId: req.valid.query.technician_customer_id,
+    bookingServiceId: req.valid.query.booking_service_id,
+    bookingCustomerId: req.valid.query.booking_customer_id,
+  }));
+}));
+
 router.get('/dashboard/kpi', validate(Joi.object({}), 'query'), wrap(async (_req, res) => {
   const s = await dash.summary({ hari: 30 });
   res.json({
@@ -47,22 +64,43 @@ router.get('/dashboard/kpi', validate(Joi.object({}), 'query'), wrap(async (_req
 }));
 
 // ---------- Pelanggan ----------
-router.get('/customers', validate(Joi.object({ q: Joi.string().trim().max(80).allow(''), aktif: Joi.boolean(), ...pageQ }), 'query'), wrap(async (req, res) => {
-  const { q, aktif } = req.valid.query;
+router.get('/customers', validate(Joi.object({ q: Joi.string().trim().max(80).allow(''), aktif: Joi.boolean(), has_ac: Joi.boolean(), ...pageQ }), 'query'), wrap(async (req, res) => {
+  const { q, aktif, has_ac: hasAc } = req.valid.query;
   const { page, limit, offset } = paging(req.valid.query);
   const params = []; const where = [];
-  if (q) { params.push(`%${q}%`); where.push(`(c.nama ILIKE $${params.length} OR c.kontak ILIKE $${params.length} OR c.alamat ILIKE $${params.length})`); }
+  if (q) { params.push(`%${q}%`); where.push(`(c.nama LIKE $${params.length} OR c.kontak LIKE $${params.length} OR c.alamat LIKE $${params.length})`); }
   if (aktif !== undefined) { params.push(aktif); where.push(`c.aktif = $${params.length}`); }
+  if (hasAc === true) where.push('EXISTS (SELECT 1 FROM ac_units u WHERE u.customer_id=c.id AND u.aktif)');
+  if (hasAc === false) where.push('NOT EXISTS (SELECT 1 FROM ac_units u WHERE u.customer_id=c.id AND u.aktif)');
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const total = (await query(`SELECT COUNT(*)::int n FROM customers c ${w}`, params)).rows[0].n;
-  const rows = (await query(
-    `SELECT c.id, c.nama, c.kontak, c.alamat, c.aktif, c.created_at,
-       (SELECT COUNT(*)::int FROM bookings b WHERE b.customer_id=c.id) AS total_booking,
-       (SELECT COUNT(*)::int FROM ac_units u WHERE u.customer_id=c.id AND u.aktif) AS total_unit,
+  const [totalResult, summaryResult, rowsResult] = await Promise.all([
+    query(`SELECT COUNT(*) n FROM customers c ${w}`, params),
+    query(`SELECT COUNT(*) AS total_customers, COALESCE(SUM(unit_counts.total_unit), 0) AS total_units
+      FROM customers c
+      LEFT JOIN (
+        SELECT customer_id, COUNT(*) AS total_unit
+        FROM ac_units
+        WHERE aktif
+        GROUP BY customer_id
+      ) unit_counts ON unit_counts.customer_id=c.id`),
+    query(`SELECT c.id, c.nama, c.kontak, c.alamat, c.aktif, c.created_at,
+       (SELECT COUNT(*) AS count FROM bookings b WHERE b.customer_id=c.id) AS total_booking,
+       (SELECT COUNT(*) AS count FROM ac_units u WHERE u.customer_id=c.id AND u.aktif) AS total_unit,
        (SELECT MAX(b.jadwal_mulai) FROM bookings b WHERE b.customer_id=c.id) AS booking_terakhir,
        EXISTS (SELECT 1 FROM users u WHERE u.customer_id=c.id) AS punya_akun
-     FROM customers c ${w} ORDER BY c.created_at DESC, c.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
-  res.json({ data: rows, meta: { total, page, limit } });
+     FROM customers c ${w} ORDER BY c.created_at DESC, c.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]),
+  ]);
+  const summary = summaryResult.rows[0];
+  res.json({
+    data: rowsResult.rows,
+    meta: {
+      total: totalResult.rows[0].n,
+      page,
+      limit,
+      total_customers: summary.total_customers,
+      total_units: summary.total_units,
+    },
+  });
 }));
 
 router.get('/customers/:id', validate(idParam, 'params'), wrap(async (req, res) => {
@@ -111,7 +149,7 @@ router.patch('/customers/:id', validate(idParam, 'params'), validate(Joi.object(
     const patch = { ...req.body };
     if (patch.kontak) patch.kontak = normalizePhone(patch.kontak);
     if (patch.aktif === false) {
-      const n = (await c.query("SELECT COUNT(*)::int n FROM bookings WHERE customer_id=$1 AND status IN ('scheduled','rescheduled','delayed','on process')", [id])).rows[0].n;
+      const n = (await c.query("SELECT COUNT(*) n FROM bookings WHERE customer_id=$1 AND status IN ('scheduled','rescheduled','delayed','on process')", [id])).rows[0].n;
       if (n) throw E.business(`Pelanggan masih memiliki ${n} booking aktif. Selesaikan/batalkan dulu sebelum menonaktifkan.`);
     }
     // Whitelist kolom yang boleh diupdate untuk mencegah SQL injection
@@ -125,7 +163,7 @@ router.patch('/customers/:id', validate(idParam, 'params'), validate(Joi.object(
       await audit(c, req.user, 'customer_updated', 'customer', id, { before: { nama: before.nama, kontak: before.kontak, aktif: before.aktif }, after: patch });
       return r;
     } catch (e) {
-      if (e.code === '23505') throw E.conflict('Kontak sudah digunakan pelanggan lain.', { kontak: 'Kontak sudah digunakan.' });
+      if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Kontak sudah digunakan pelanggan lain.', { kontak: 'Kontak sudah digunakan.' });
       throw e;
     }
   });
@@ -149,17 +187,18 @@ router.get('/ac-units', validate(Joi.object({ q: Joi.string().trim().max(80).all
   const { q, customer_id: cid } = req.valid.query;
   const { page, limit, offset } = paging(req.valid.query);
   const params = []; const where = [];
-  if (q) { params.push(`%${q}%`); where.push(`(a.brand ILIKE $${params.length} OR a.model ILIKE $${params.length} OR c.nama ILIKE $${params.length} OR a.lokasi ILIKE $${params.length} OR a.nomor_seri ILIKE $${params.length})`); }
+  if (q) { params.push(`%${q}%`); where.push(`(a.brand LIKE $${params.length} OR a.model LIKE $${params.length} OR c.nama LIKE $${params.length} OR a.lokasi LIKE $${params.length} OR a.nomor_seri LIKE $${params.length})`); }
   if (cid) { params.push(cid); where.push(`a.customer_id=$${params.length}`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const total = (await query(`SELECT COUNT(*)::int n FROM ac_units a JOIN customers c ON c.id=a.customer_id ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n FROM ac_units a JOIN customers c ON c.id=a.customer_id ${w}`, params)).rows[0].n;
   const rows = (await query(
     `SELECT a.*, c.nama AS nama_customer, c.kontak AS kontak_customer,
        ls.terakhir AS servis_terakhir, ls.layanan AS layanan_terakhir,
-       CASE WHEN ls.interval_hari IS NOT NULL THEN ls.terakhir + ls.interval_hari * interval '1 day' END AS maintenance_berikutnya
+       CASE WHEN ls.interval_hari IS NOT NULL THEN DATE_ADD(ls.terakhir, INTERVAL ls.interval_hari DAY) END AS maintenance_berikutnya
      FROM ac_units a JOIN customers c ON c.id=a.customer_id
-     LEFT JOIN LATERAL (SELECT b.jadwal_mulai AS terakhir, s.nama_layanan AS layanan, s.interval_maintenance_hari AS interval_hari
-        FROM bookings b JOIN service_catalog s ON s.id=b.layanan_id WHERE b.ac_unit_id=a.id AND b.status='done' ORDER BY b.jadwal_mulai DESC LIMIT 1) ls ON TRUE
+     LEFT JOIN (SELECT b.ac_unit_id, b.jadwal_mulai AS terakhir, s.nama_layanan AS layanan, s.interval_maintenance_hari AS interval_hari,
+         ROW_NUMBER() OVER (PARTITION BY b.ac_unit_id ORDER BY b.jadwal_mulai DESC, b.id DESC) AS rn
+        FROM bookings b JOIN service_catalog s ON s.id=b.layanan_id WHERE b.status='done') ls ON ls.ac_unit_id=a.id AND ls.rn=1
      ${w} ORDER BY a.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
   res.json({ data: rows, meta: { total, page, limit } });
 }));
@@ -216,17 +255,17 @@ router.get('/technicians/:id', validate(idParam, 'params'), wrap(async (req, res
   const today = wibDateString(new Date());
   const ds = startOfWibDay(today);
   const [perf, rating, cal, current, completed, delayed, avail, user] = await Promise.all([
-    query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='done')::int AS selesai, COUNT(*) FILTER (WHERE status='delayed')::int AS tertunda,
-                  COUNT(*) FILTER (WHERE status='cancelled')::int AS batal,
-                  ROUND(AVG(EXTRACT(EPOCH FROM (selesai_aktual - mulai_aktual))/60) FILTER (WHERE status='done' AND mulai_aktual IS NOT NULL AND selesai_aktual IS NOT NULL))::int AS rata_durasi_menit
+    query(`SELECT COUNT(*) AS total, COUNT(CASE WHEN status='done' THEN 1 END) AS selesai, COUNT(CASE WHEN status='delayed' THEN 1 END) AS tertunda,
+                  COUNT(CASE WHEN status='cancelled' THEN 1 END) AS batal,
+                  ROUND(AVG(CASE WHEN status='done' THEN TIMESTAMPDIFF(SECOND, mulai_aktual, selesai_aktual)/60 END)) AS rata_durasi_menit
            FROM bookings WHERE teknisi_id=$1`, [id]),
-    query('SELECT COALESCE(ROUND(AVG(f.rating)::numeric,2),0)::float AS rata, COUNT(f.id)::int AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id WHERE b.teknisi_id=$1', [id]),
+    query('SELECT COALESCE(ROUND(AVG(f.rating),2),0) AS rata, COUNT(f.id) AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id WHERE b.teknisi_id=$1', [id]),
     query(`SELECT b.id, b.kode_booking, b.jadwal_mulai, b.jadwal_selesai, b.status, c.nama AS customer, s.nama_layanan FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN service_catalog s ON s.id=b.layanan_id
            WHERE b.teknisi_id=$1 AND b.status<>'cancelled' AND b.jadwal_mulai>=$2 AND b.jadwal_mulai<$3 ORDER BY b.jadwal_mulai`, [id, ds, new Date(ds.getTime() + 14 * DAY_MS)]),
     query(`SELECT b.id, b.kode_booking, b.jadwal_mulai, b.status, c.nama AS customer FROM bookings b JOIN customers c ON c.id=b.customer_id WHERE b.teknisi_id=$1 AND b.status IN ('on process','delayed') ORDER BY b.jadwal_mulai`, [id]),
     query(`SELECT b.id, b.kode_booking, b.jadwal_mulai, c.nama AS customer, s.nama_layanan FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN service_catalog s ON s.id=b.layanan_id WHERE b.teknisi_id=$1 AND b.status='done' ORDER BY b.jadwal_mulai DESC LIMIT 10`, [id]),
     query(`SELECT b.id, b.kode_booking, b.jadwal_mulai, b.alasan_tunda FROM bookings b WHERE b.teknisi_id=$1 AND b.status='delayed' ORDER BY b.jadwal_mulai DESC LIMIT 10`, [id]),
-    query('SELECT tanggal::text AS tanggal, status, catatan FROM technician_availability WHERE teknisi_id=$1 AND tanggal>=$2 ORDER BY tanggal LIMIT 30', [id, today]),
+    query('SELECT tanggal AS tanggal, status, catatan FROM technician_availability WHERE teknisi_id=$1 AND tanggal>=$2 ORDER BY tanggal LIMIT 30', [id, today]),
     query('SELECT email, aktif FROM users WHERE technician_id=$1', [id]),
   ]);
   res.json({
@@ -261,7 +300,7 @@ router.post('/technicians/:id/availability', validate(idParam, 'params'), valida
     if (!(await c.query('SELECT 1 FROM technicians WHERE id=$1', [req.params.id])).rows.length) throw E.notFound('Teknisi tidak ditemukan.');
     const r = await c.query(
       `INSERT INTO technician_availability (teknisi_id, tanggal, status, catatan, updated_at) VALUES ($1,$2,$3,$4,now())
-       ON CONFLICT (teknisi_id, tanggal) DO UPDATE SET status=$3, catatan=$4, updated_at=now() RETURNING tanggal::text AS tanggal, status, catatan`,
+       ON DUPLICATE KEY UPDATE status=$3, catatan=$4, updated_at=now() RETURNING tanggal AS tanggal, status, catatan`,
       [req.params.id, tanggal, status, catatan || null]);
     await audit(c, req.user, 'availability_changed', 'technician', Number(req.params.id), { after: { tanggal, status } });
     return r.rows[0];
@@ -404,9 +443,9 @@ const invStatus = (r) => (Number(r.stok) <= 0 ? 'out' : Number(r.stok) <= Number
 router.get('/inventory', validate(Joi.object({ q: Joi.string().trim().max(60).allow(''), status: Joi.string().valid('ok', 'low', 'out') }), 'query'), wrap(async (req, res) => {
   const { q, status } = req.valid.query;
   const params = []; const where = [];
-  if (q) { params.push(`%${q}%`); where.push(`(nama ILIKE $${params.length} OR kategori ILIKE $${params.length})`); }
+  if (q) { params.push(`%${q}%`); where.push(`(nama LIKE $${params.length} OR kategori LIKE $${params.length})`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  let rows = (await query(`SELECT i.*, (SELECT COALESCE(SUM(u.jumlah),0)::float FROM inventory_usage u WHERE u.item_id=i.id AND u.waktu>=now()-interval '30 days') AS pemakaian_30_hari FROM inventory i ${w} ORDER BY kategori, nama`, params)).rows;
+  let rows = (await query(`SELECT i.*, (SELECT COALESCE(SUM(u.jumlah),0) FROM inventory_usage u WHERE u.item_id=i.id AND u.waktu>=now()-INTERVAL 30 DAY) AS pemakaian_30_hari FROM inventory i ${w} ORDER BY kategori, nama`, params)).rows;
   rows = rows.map((r) => ({ ...r, stok: Number(r.stok), min_stok: Number(r.min_stok), status_stok: invStatus(r) }));
   if (status) rows = rows.filter((r) => r.status_stok === status);
   res.json({ data: rows });
@@ -418,9 +457,9 @@ router.get('/inventory/movements', validate(Joi.object({ item_id: Joi.number().i
   if (f.item_id) { params.push(f.item_id); where.push(`m.item_id=$${params.length}`); }
   if (f.jenis) { params.push(f.jenis); where.push(`m.jenis=$${params.length}`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const total = (await query(`SELECT COUNT(*)::int n FROM inventory_adjustments m ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n FROM inventory_adjustments m ${w}`, params)).rows[0].n;
   const rows = (await query(
-    `SELECT m.id, m.item_id, i.nama, i.satuan, m.jenis, m.jumlah::float, m.stok_sebelum::float, m.stok_sesudah::float, m.catatan, m.oleh, m.created_at, b.kode_booking
+    `SELECT m.id, m.item_id, i.nama, i.satuan, m.jenis, m.jumlah, m.stok_sebelum, m.stok_sesudah, m.catatan, m.oleh, m.created_at, b.kode_booking
      FROM inventory_adjustments m JOIN inventory i ON i.id=m.item_id LEFT JOIN bookings b ON b.id=m.booking_id ${w} ORDER BY m.created_at DESC, m.id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
   res.json({ data: rows, meta: { total, page, limit } });
 }));
@@ -478,7 +517,7 @@ router.post('/inventory', validate(invCreateAdmin), wrap(async (req, res) => {
     });
     res.status(201).json({ data: out });
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nama item sudah ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nama item sudah ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
     throw e;
   }
 }));
@@ -505,7 +544,7 @@ router.patch('/inventory/:id', validate(idParam, 'params'), validate(Joi.object(
     if (!r) throw E.notFound('Item tidak ditemukan.');
     res.json({ data: { ...r, stok: Number(r.stok), min_stok: Number(r.min_stok), status_stok: invStatus(r) } });
   } catch (e) {
-    if (e.code === '23505') throw E.conflict('Nama item sudah baru ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
+    if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Nama item sudah baru ada.', { nama: 'Nama barang sudah terdaftar di sistem.' });
     throw e;
   }
 }));
@@ -518,13 +557,13 @@ router.get('/audit-logs', validate(Joi.object({
 }), 'query'), wrap(async (req, res) => {
   const f = req.valid.query; const { page, limit, offset } = paging(f);
   const params = []; const where = [];
-  if (f.q) { params.push(`%${f.q}%`); where.push(`(actor ILIKE $${params.length} OR action ILIKE $${params.length} OR entity ILIKE $${params.length})`); }
+  if (f.q) { params.push(`%${f.q}%`); where.push(`(actor LIKE $${params.length} OR action LIKE $${params.length} OR entity LIKE $${params.length})`); }
   if (f.action) { params.push(f.action); where.push(`action=$${params.length}`); }
   if (f.role) { params.push(f.role); where.push(`role=$${params.length}`); }
   if (f.dari) { params.push(startOfWibDay(f.dari)); where.push(`created_at>=$${params.length}`); }
   if (f.sampai) { params.push(new Date(startOfWibDay(f.sampai).getTime() + DAY_MS)); where.push(`created_at<$${params.length}`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const total = (await query(`SELECT COUNT(*)::int n FROM audit_logs ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n FROM audit_logs ${w}`, params)).rows[0].n;
   const rows = (await query(`SELECT id, actor, role, action, entity, entity_id, metadata, sebelum, sesudah, created_at FROM audit_logs ${w} ORDER BY created_at DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
   res.json({ data: rows, meta: { total, page, limit } });
 }));
@@ -540,7 +579,7 @@ router.get('/notifications', validate(Joi.object({ unread: Joi.boolean(), ...pag
     where.push(`is_read=$${params.length}`);
   }
   const w = where.join(' AND ');
-  const total = (await query(`SELECT COUNT(*)::int n FROM notifications WHERE ${w}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n FROM notifications WHERE ${w}`, params)).rows[0].n;
   const rows = (await query(
     `SELECT id, title, message, type, is_read, booking_id, tautan, created_at
      FROM notifications WHERE ${w} ORDER BY created_at DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -570,11 +609,11 @@ router.get('/feedback', validate(Joi.object({
   if (f.teknisi_id) { params.push(f.teknisi_id); where.push(`b.teknisi_id=$${params.length}`); }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const from = `FROM feedback f JOIN bookings b ON b.id=f.booking_id JOIN customers c ON c.id=b.customer_id JOIN service_catalog s ON s.id=b.layanan_id LEFT JOIN technicians t ON t.id=b.teknisi_id ${w}`;
-  const total = (await query(`SELECT COUNT(*)::int n ${from}`, params)).rows[0].n;
+  const total = (await query(`SELECT COUNT(*) n ${from}`, params)).rows[0].n;
   const rows = (await query(`SELECT f.id, f.rating, f.komentar, f.waktu, b.id AS booking_id, b.kode_booking, c.nama AS customer, s.nama_layanan, t.nama AS teknisi ${from} ORDER BY f.waktu DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
-  const [sum] = (await query(`SELECT COALESCE(ROUND(AVG(rating)::numeric,2),0)::float AS rata, COUNT(*)::int AS jumlah, COUNT(*) FILTER (WHERE rating<=2)::int AS rendah FROM feedback`)).rows;
-  const dist = (await query('SELECT rating, COUNT(*)::int AS jumlah FROM feedback GROUP BY rating ORDER BY rating')).rows;
-  const perTeknisi = (await query(`SELECT t.id, t.nama, ROUND(AVG(f.rating)::numeric,2)::float AS rata, COUNT(*)::int AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id JOIN technicians t ON t.id=b.teknisi_id GROUP BY t.id ORDER BY rata DESC`)).rows;
+  const [sum] = (await query(`SELECT COALESCE(ROUND(AVG(rating),2),0) AS rata, COUNT(*) AS jumlah, COUNT(CASE WHEN rating<=2 THEN 1 END) AS rendah FROM feedback`)).rows;
+  const dist = (await query('SELECT rating, COUNT(*) AS jumlah FROM feedback GROUP BY rating ORDER BY rating')).rows;
+  const perTeknisi = (await query(`SELECT t.id, t.nama, ROUND(AVG(f.rating),2) AS rata, COUNT(*) AS jumlah FROM feedback f JOIN bookings b ON b.id=f.booking_id JOIN technicians t ON t.id=b.teknisi_id GROUP BY t.id ORDER BY rata DESC`)).rows;
   res.json({ data: rows, meta: { total, page, limit }, ringkasan: { ...sum, distribusi: [1, 2, 3, 4, 5].map((r) => ({ rating: r, jumlah: (dist.find((d) => d.rating === r) || {}).jumlah || 0 })), per_teknisi: perTeknisi } });
 }));
 
@@ -588,7 +627,7 @@ router.post('/customers/:id/account', validate(idParam, 'params'), validate(Joi.
     try {
       await c.query("INSERT INTO users (nama,email,password_hash,role,customer_id) VALUES ($1,$2,$3,'customer',$4)", [cu.nama, req.body.email, await bcrypt.hash(req.body.password, 10), cu.id]);
     } catch (e) {
-      if (e.code === '23505') throw E.conflict('Email atau akun pelanggan sudah ada.', { email: 'Sudah terdaftar.' });
+      if (e.code === 'ER_DUP_ENTRY') throw E.conflict('Email atau akun pelanggan sudah ada.', { email: 'Sudah terdaftar.' });
       throw e;
     }
     await audit(c, req.user, 'customer_account_created', 'customer', cu.id, { metadata: { email: req.body.email } });

@@ -14,6 +14,8 @@ import { Badge } from '../components/ui/badge';
 import { Search, Clock, Wrench, CheckCircle2, ArrowLeft, Loader2, Printer, ShieldCheck, FileText, Check, CalendarCheck, XCircle, AlertCircle, Copy, X, AlertTriangle, MessageSquare, Sparkles, CalendarDays, Ticket, Star, CreditCard, Upload, Send, DollarSign, Wallet } from 'lucide-react';
 
 export default function StatusPage({ initialInvoiceOpen = false }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, []);
   const { kode } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -322,9 +324,10 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
     setIsSendingWhatsApp(true);
     try {
       const res = await api.post(`/payments/bookings/${booking.id}/send-whatsapp`, {
-        tipe_invoice: booking.status === 'done' ? 'final' : 'proforma',
+        tipe_invoice: booking.status === 'done' ? 'final' : 'initial',
       });
-      showSuccess(res.data?.message || 'Invoice berhasil dikirim ke WhatsApp pemesan.');
+      if (!res.success) { showError(res.message || 'Invoice belum terkirim. Hubungi admin.'); return; }
+      showSuccess(res.message || 'Invoice berhasil dikirim ke WhatsApp pemesan.');
     } catch (err) {
       // Fallback: buka link WhatsApp langsung jika admin belum setup gateway
       const waUrl = buildWhatsAppUrl(whatsappNumber, `Halo Admin NARA AC, mohon kirimkan salinan invoice resmi untuk kode booking ${booking.kode_booking}. Terima kasih.`);
@@ -1299,7 +1302,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
               </div>
 
               {/* Policy BR-08: Pembatalan minimal 24 jam sebelum jadwal */}
-              {booking.jadwal_mulai && (new Date(booking.jadwal_mulai).getTime() - Date.now()) < 24 * 3600 * 1000 ? (
+              {booking.jadwal_mulai && (new Date(booking.jadwal_mulai).getTime() - now) < 24 * 3600 * 1000 ? (
                 <div className="p-3.5 mb-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed">
                   <p className="font-bold mb-1 flex items-center gap-1.5 text-amber-800">
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -1362,7 +1365,7 @@ export default function StatusPage({ initialInvoiceOpen = false }) {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={actionLoading || (booking.jadwal_mulai && (new Date(booking.jadwal_mulai).getTime() - Date.now()) < 24 * 3600 * 1000)}
+                    disabled={actionLoading || (booking.jadwal_mulai && (new Date(booking.jadwal_mulai).getTime() - now) < 24 * 3600 * 1000)}
                     className="h-10 px-5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs"
                   >
                     {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Ya, Batalkan Jadwal'}

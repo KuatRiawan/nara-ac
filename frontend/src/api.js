@@ -39,7 +39,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
+  async (error) => {
     // If request was canceled by AbortController, propagate the cancel error
     if (axios.isCancel(error)) {
       return Promise.reject(error);
@@ -54,6 +54,16 @@ api.interceptors.response.use(
       // Jika CSRF token ditolak, clear agar di-fetch ulang
       if (error.response.status === 403 && error.response.data?.error?.code?.startsWith('CSRF_')) {
         csrfTokenValue = null;
+        if (error.config && !error.config._csrfRetried) {
+          error.config._csrfRetried = true;
+          try {
+            const tokenResponse = await api.get('/auth/csrf-token');
+            csrfTokenValue = tokenResponse.csrfToken;
+            return api.request(error.config);
+          } catch (refreshError) {
+            return Promise.reject(refreshError);
+          }
+        }
       }
       return Promise.reject(error.response.data);
     }

@@ -52,7 +52,7 @@ async function assertTechnicianAssignable(db, teknisiId, start, end, excludeBook
   const c = (await db.query(
     `SELECT id, kode_booking, jadwal_mulai, jadwal_selesai FROM bookings
      WHERE teknisi_id=$1 AND status NOT IN ('cancelled','done') AND jadwal_mulai < $3 AND jadwal_selesai > $2
-       AND ($4::int IS NULL OR id <> $4) ORDER BY jadwal_mulai LIMIT 1`,
+       AND ($4 IS NULL OR id <> $4) ORDER BY jadwal_mulai LIMIT 1`,
     [teknisiId, start, end, excludeBookingId || null],
   )).rows[0];
   if (c) {
@@ -73,9 +73,9 @@ async function recommendTechnicians(start, end, excludeBookingId = null) {
     `SELECT t.id, t.nama, t.aktif,
        (SELECT ta.status FROM technician_availability ta WHERE ta.teknisi_id=t.id AND ta.tanggal=$1) AS status_harian,
        (SELECT json_agg(json_build_object('kode', b.kode_booking, 'mulai', b.jadwal_mulai, 'selesai', b.jadwal_selesai) ORDER BY b.jadwal_mulai)
-          FROM bookings b WHERE b.teknisi_id=t.id AND b.status NOT IN ('cancelled','done') AND ($4::int IS NULL OR b.id<>$4)
+          FROM bookings b WHERE b.teknisi_id=t.id AND b.status NOT IN ('cancelled','done') AND ($4 IS NULL OR b.id<>$4)
            AND b.jadwal_mulai < $3 AND b.jadwal_selesai > $2) AS bentrok,
-       (SELECT COUNT(*)::int FROM bookings b WHERE b.teknisi_id=t.id AND b.status<>'cancelled'
+       (SELECT COUNT(*) AS count FROM bookings b WHERE b.teknisi_id=t.id AND b.status<>'cancelled'
            AND b.jadwal_mulai >= $5 AND b.jadwal_mulai < $6) AS pekerjaan_hari_ini,
        (SELECT json_build_object('kode', b.kode_booking, 'selesai', b.jadwal_selesai) FROM bookings b
           WHERE b.teknisi_id=t.id AND b.status='on process' LIMIT 1) AS pekerjaan_berjalan,
@@ -105,7 +105,7 @@ async function recommendTechnicians(start, end, excludeBookingId = null) {
 
 async function assign(id, teknisiId, user) {
   return await withTx(async (client) => {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('booking-slots'))");
+    await client.query("SELECT name FROM scheduling_locks WHERE name='booking-slots' FOR UPDATE");
     const b = await lockBooking(client, id);
     if (!EDITABLE.includes(b.status)) throw E.business(`Teknisi tidak dapat ditugaskan pada status "${b.status}".`);
     const t = await assertTechnicianAssignable(client, teknisiId, b.jadwal_mulai, b.jadwal_selesai, id);
@@ -133,7 +133,7 @@ async function adminReschedule(id, { jadwal_mulai: input, teknisi_id: newTech, a
   const start = parseDateTimeInput(input);
   if (!start) throw E.validation('Jadwal tidak valid.', { jadwal_mulai: 'Format jadwal tidak valid.' });
   return await withTx(async (client) => {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('booking-slots'))");
+    await client.query("SELECT name FROM scheduling_locks WHERE name='booking-slots' FOR UPDATE");
     const b = await lockBooking(client, id);
     if (!EDITABLE.includes(b.status)) throw E.business(`Jadwal tidak dapat diubah pada status "${b.status}".`);
     const svc = (await client.query('SELECT * FROM service_catalog WHERE id=$1', [b.layanan_id])).rows[0];
@@ -190,7 +190,7 @@ async function reportDelay(id, { kategori, alasan, durasi_tunggu_menit: durasiTu
 }
 
 async function ensureWorkOrder(client, id, user) {
-  await client.query('INSERT INTO work_orders (booking_id, updated_by) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, user.nama]);
+  await client.query('INSERT INTO work_orders (booking_id, updated_by) VALUES ($1,$2) ON DUPLICATE KEY UPDATE booking_id=booking_id', [id, user.nama]);
 }
 
 async function startJob(id, user) {
@@ -249,7 +249,7 @@ async function saveWorkOrder(id, { diagnosis, rekomendasi, catatan }, user) {
     if (['cancelled'].includes(b.status)) throw E.business('Pekerjaan sudah dibatalkan.');
     const r = await client.query(
       `INSERT INTO work_orders (booking_id, diagnosis, rekomendasi, catatan, updated_by) VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (booking_id) DO UPDATE SET
+       ON DUPLICATE KEY UPDATE
          diagnosis = COALESCE($2, work_orders.diagnosis), rekomendasi = COALESCE($3, work_orders.rekomendasi),
          catatan = COALESCE($4, work_orders.catatan), updated_by = $5, updated_at = now() RETURNING *`,
       [id, diagnosis ?? null, rekomendasi ?? null, catatan ?? null, user.nama],
@@ -325,7 +325,7 @@ async function completeJob(id, { override_alasan: overrideAlasan } = {}, user) {
 
     // BR-18 & BR-19: Wajib melampirkan minimal 1 foto kondisi sebelum (before) dan 1 foto sesudah pengerjaan (after)
     const photoCounts = (await client.query(
-      `SELECT tipe, COUNT(*)::int AS total FROM work_order_photos WHERE booking_id = $1 GROUP BY tipe`, [id]
+      `SELECT tipe, COUNT(*) AS total FROM work_order_photos WHERE booking_id = $1 GROUP BY tipe`, [id]
     )).rows;
     const beforeCount = (photoCounts.find((p) => p.tipe === 'before')?.total) || 0;
     const afterCount = (photoCounts.find((p) => p.tipe === 'after')?.total) || 0;
@@ -345,7 +345,7 @@ async function completeJob(id, { override_alasan: overrideAlasan } = {}, user) {
     const report = await buildServiceReport(client, id);
     await client.query(
       `INSERT INTO service_reports (booking_id, data) VALUES ($1,$2)
-       ON CONFLICT (booking_id) DO UPDATE SET data=$2, dibuat_pada=now()`, [id, JSON.stringify(report)]);
+       ON DUPLICATE KEY UPDATE data=$2, dibuat_pada=now()`, [id, JSON.stringify(report)]);
     await audit(client, user, 'job_completed', 'booking', id, { before: { status: 'on process' }, after: { status: 'done' }, metadata: { kode: label(b), override: pending.length ? overrideAlasan : null } });
     await notify(client, { role: 'customer', id: b.customer_id, title: 'Service selesai', message: `Booking ${label(b)} telah selesai. Berikan penilaian Anda.`, type: 'booking', bookingId: id, tautan: `/feedback/${label(b)}` });
     await notify(client, { role: 'admin', title: 'Pekerjaan selesai', message: `${label(b)} diselesaikan oleh ${user.nama}.`, type: 'booking', bookingId: id, tautan: '/admin/bookings' });

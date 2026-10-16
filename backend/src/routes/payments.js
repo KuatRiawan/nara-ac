@@ -89,6 +89,10 @@ router.post('/bookings/:id/send-whatsapp', requireAuth(['admin', 'customer']), v
   tipe_invoice: Joi.string().valid('initial', 'final', 'auto').default('auto').label('Tipe Invoice'),
   simulatedFailure: Joi.boolean().default(false).optional().label('Simulasi Gagal'),
 })), wrap(async (req, res) => {
+  const { query } = require('../db/pool');
+  const booking = (await query('SELECT * FROM bookings WHERE id=$1', [Number(req.params.id)])).rows[0];
+  if (!booking) throw require('../errors').E.notFound('Booking tidak ditemukan.');
+  paymentService.assertPaymentOwner(booking, req.user);
   const result = await paymentService.queueAndDispatchWhatsAppInvoice(
     Number(req.params.id),
     req.body

@@ -98,7 +98,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
 
   describe('Section 4: konflik & kapasitas', () => {
     test('menolak booking ketika kapasitas slot penuh (409)', async () => {
-      const cap = (await query('SELECT COUNT(*)::int AS n FROM technicians WHERE aktif = true')).rows[0].n;
+      const cap = (await query('SELECT COUNT(*) AS n FROM technicians WHERE aktif = true')).rows[0].n;
       expect(cap).toBeGreaterThan(0);
       const slot = '2026-11-23T09:00:00+07:00'; // Senin
       for (let i = 0; i < cap; i++) {
@@ -155,7 +155,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
       expect(detail.body.status).toBe('on process');
       expect(detail.body.riwayat_status.some((r) => r.status_baru === 'on process')).toBe(true);
 
-      const log = (await query('SELECT COUNT(*)::int AS n FROM status_log WHERE booking_id = $1', [booking.id])).rows[0].n;
+      const log = (await query('SELECT COUNT(*) AS n FROM status_log WHERE booking_id = $1', [booking.id])).rows[0].n;
       expect(log).toBeGreaterThan(0);
     });
 
@@ -251,7 +251,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
         alamat: 'Jl. Multi Layanan No. 5',
         items: [
           { layanan_id: 1, jumlah_unit: 2, catatan: 'AC Ruang Tamu & Kamar Utama' },
-          { layanan_id: 2, jumlah_unit: 1, catatan: 'AC Ruang Kerja' },
+          { layanan_id: 4, jumlah_unit: 1, catatan: 'AC Ruang Kerja' },
         ],
       });
       expect(res.status).toBe(201);
@@ -259,7 +259,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
       expect(res.body.jumlah_unit).toBe(3);
       expect(res.body.items).toHaveLength(2);
       expect(res.body.items[0]).toMatchObject({ layanan_id: 1, jumlah_unit: 2, harga_satuan: 75000, subtotal: 150000 });
-      expect(res.body.items[1]).toMatchObject({ layanan_id: 2, jumlah_unit: 1, harga_satuan: 350000, subtotal: 350000 });
+      expect(res.body.items[1]).toMatchObject({ layanan_id: 4, jumlah_unit: 1, harga_satuan: 350000, subtotal: 350000 });
 
       // Verifikasi invoice publik
       const invRes = await request(app).get(`/api/v1/public/bookings/${res.body.kode_booking}/invoice`);
@@ -284,7 +284,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
         alamat: 'Jl. Durasi Akumulatif No. 10',
         items: [
           { layanan_id: 1, jumlah_unit: 2 },
-          { layanan_id: 2, jumlah_unit: 1 },
+          { layanan_id: 4, jumlah_unit: 1 },
         ],
       });
       expect(res.status).toBe(201);
@@ -299,21 +299,21 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
     const count = async (sql) => (await query(sql)).rows[0].n;
 
     test('tidak ada booking yatim (customer, layanan, teknisi)', async () => {
-      expect(await count('SELECT COUNT(*)::int n FROM bookings b LEFT JOIN customers c ON c.id=b.customer_id WHERE c.id IS NULL')).toBe(0);
-      expect(await count('SELECT COUNT(*)::int n FROM bookings b LEFT JOIN service_catalog s ON s.id=b.layanan_id WHERE s.id IS NULL')).toBe(0);
-      expect(await count('SELECT COUNT(*)::int n FROM bookings b LEFT JOIN technicians t ON t.id=b.teknisi_id WHERE b.teknisi_id IS NOT NULL AND t.id IS NULL')).toBe(0);
+      expect(await count('SELECT COUNT(*) n FROM bookings b LEFT JOIN customers c ON c.id=b.customer_id WHERE c.id IS NULL')).toBe(0);
+      expect(await count('SELECT COUNT(*) n FROM bookings b LEFT JOIN service_catalog s ON s.id=b.layanan_id WHERE s.id IS NULL')).toBe(0);
+      expect(await count('SELECT COUNT(*) n FROM bookings b LEFT JOIN technicians t ON t.id=b.teknisi_id WHERE b.teknisi_id IS NOT NULL AND t.id IS NULL')).toBe(0);
     });
 
     test('semua booking memiliki status dan status_pembayaran valid', async () => {
-      expect(await count("SELECT COUNT(*)::int n FROM bookings WHERE status NOT IN ('scheduled','on process','done','cancelled','rescheduled','delayed')")).toBe(0);
-      expect(await count("SELECT COUNT(*)::int n FROM bookings WHERE status_pembayaran NOT IN ('pending','paid')")).toBe(0);
+      expect(await count("SELECT COUNT(*) n FROM bookings WHERE status NOT IN ('scheduled','on process','done','cancelled','rescheduled','delayed')")).toBe(0);
+      expect(await count("SELECT COUNT(*) n FROM bookings WHERE status_pembayaran NOT IN ('pending','paid')")).toBe(0);
     });
 
     test('foreign key dan index kunci terdefinisi', async () => {
       const fks = (await query(
-        "SELECT conname FROM pg_constraint WHERE contype='f' AND conrelid='bookings'::regclass")).rows;
+        "SELECT constraint_name AS conname FROM information_schema.table_constraints WHERE constraint_schema=DATABASE() AND table_name='bookings' AND constraint_type='FOREIGN KEY'")).rows;
       expect(fks.length).toBeGreaterThanOrEqual(3);
-      const idx = (await query("SELECT indexname FROM pg_indexes WHERE tablename='bookings'")).rows;
+      const idx = (await query("SELECT index_name AS indexname FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='bookings'")).rows;
       expect(idx.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -322,7 +322,7 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
     });
 
     test('kode_booking unik', async () => {
-      expect(await count('SELECT COUNT(*)::int n FROM (SELECT kode_booking FROM bookings GROUP BY 1 HAVING COUNT(*)>1) d')).toBe(0);
+      expect(await count('SELECT COUNT(*) n FROM (SELECT kode_booking FROM bookings GROUP BY 1 HAVING COUNT(*)>1) d')).toBe(0);
     });
   });
 });

@@ -5,6 +5,8 @@ const { signToken } = require('../src/middleware/auth');
 const { generateCsrfToken } = require('../src/middleware/csrf');
 const paymentService = require('../src/services/paymentService');
 const bookingService = require('../src/services/bookingService');
+// Mock external delivery while exercising the actual MySQL invoice/log flow.
+jest.spyOn(require('../src/services/reminderService'), 'whatsappSend').mockResolvedValue(undefined);
 
 describe('Phase 5: Payments & Invoices (BR-34 s/d BR-43)', () => {
   let app;
@@ -48,7 +50,7 @@ describe('Phase 5: Payments & Invoices (BR-34 s/d BR-43)', () => {
         kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai,
         alamat, kontak, keluhan, status, status_pembayaran, skema_pembayaran, metode_pembayaran
       ) VALUES (
-        $1, $2, 1, now() + interval '2 days', now() + interval '2 days' + interval '60 minutes',
+        $1, $2, 1, now() + INTERVAL 2 DAY, now() + INTERVAL 2 DAY + INTERVAL 60 MINUTE,
         'Jl. Pembayaran No. 88 Jakarta', $3, 'Cuci AC berkala', 'scheduled', 'pending', 'pay_after_service', 'transfer'
       ) RETURNING id, kode_booking
     `, [`NARA-PAY-TEST-${testSuffix}`, customerId, testPhone]);
@@ -216,7 +218,7 @@ describe('Phase 5: Payments & Invoices (BR-34 s/d BR-43)', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.status).toBe('sent');
     expect(res.body.log.pesan).toMatch(/INVOICE FINAL/);
-    expect(res.body.log.tautan_invoice).toMatch(/nara-ac.com/);
+    expect(res.body.log.tautan_invoice).toContain('/invoice/');
   });
 
   test('BR-43: Jika pengiriman WhatsApp gagal, sistem mencatat status gagal dan mendukung pengiriman ulang otomatis', async () => {

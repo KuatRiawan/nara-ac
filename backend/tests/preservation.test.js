@@ -496,16 +496,16 @@ describe('PRESERVATION-7 — JWT invalid/expired → 401 dengan pesan spesifik',
 // ===========================================================================
 /**
  * Observasi (pada unfixed code):
- *   Memanggil notify() dua kali dengan dedup_key yang sama → ON CONFLICT DO NOTHING →
+ *   Memanggil notify() dua kali dengan dedup_key yang sama → ON DUPLICATE KEY UPDATE →
  *   hanya satu INSERT yang berhasil (idempotent)
  *
- * CATATAN: Test ini memverifikasi bahwa SQL notify() mengandung ON CONFLICT DO NOTHING,
+ * CATATAN: Test ini memverifikasi bahwa SQL notify() mengandung ON DUPLICATE KEY UPDATE,
  *          memastikan idempotency tetap terjaga setelah fix BUG-006.
  *
  * Validates: Requirements 3.15
  */
 describe('PRESERVATION-8 — notify() idempotency dengan dedup_key yang sama', () => {
-  test('Observasi: SQL notify() mengandung ON CONFLICT DO NOTHING untuk idempotency', () => {
+  test('Observasi: SQL notify() mengandung ON DUPLICATE KEY UPDATE untuk idempotency', () => {
     const fs = require('fs');
     const path = require('path');
     const commonJs = fs.readFileSync(
@@ -513,12 +513,12 @@ describe('PRESERVATION-8 — notify() idempotency dengan dedup_key yang sama', (
       'utf-8'
     );
 
-    // Verifikasi ON CONFLICT DO NOTHING ada di fungsi notify
+    // Verifikasi ON DUPLICATE KEY UPDATE ada di fungsi notify
     const notifyFnMatch = commonJs.match(/async function notify[\s\S]+?\n\}/);
     expect(notifyFnMatch).not.toBeNull();
     const notifyFnBody = notifyFnMatch[0];
 
-    expect(notifyFnBody).toContain('ON CONFLICT DO NOTHING');
+    expect(notifyFnBody).toContain('ON DUPLICATE KEY UPDATE');
   });
 
   test('Observasi: dua pemanggilan notify() dengan dedup yang sama → db.query dipanggil dua kali (SQL idempotent menangani)', () => {
@@ -544,7 +544,7 @@ describe('PRESERVATION-8 — notify() idempotency dengan dedup_key yang sama', (
     return notify(mockDb, notifParams)
       .then(() => notify(mockDb, notifParams))
       .then(() => {
-        // Kedua panggilan mengeksekusi SQL (database yang handle idempotency via ON CONFLICT)
+        // Kedua panggilan mengeksekusi SQL (database yang handle idempotency via ON DUPLICATE KEY UPDATE)
         expect(callLog).toHaveLength(2);
 
         // Kedua panggilan menggunakan dedup_key yang sama
@@ -553,15 +553,15 @@ describe('PRESERVATION-8 — notify() idempotency dengan dedup_key yang sama', (
         expect(callLog[0].params[callLog[0].params.length - 1]).toBe(dedupKey);
         expect(callLog[1].params[callLog[1].params.length - 1]).toBe(dedupKey);
 
-        // SQL mengandung ON CONFLICT DO NOTHING
-        expect(callLog[0].sql).toContain('ON CONFLICT DO NOTHING');
+        // SQL mengandung ON DUPLICATE KEY UPDATE
+        expect(callLog[0].sql).toContain('ON DUPLICATE KEY UPDATE');
       });
   });
 
   test('Property: dedup_key selalu ada di params notify() untuk berbagai input', async () => {
     /**
      * Validates: Requirements 3.15
-     * Property: ∀ pemanggilan notify() → ON CONFLICT DO NOTHING selalu ada di SQL
+     * Property: ∀ pemanggilan notify() → ON DUPLICATE KEY UPDATE selalu ada di SQL
      *           → database menjamin hanya satu baris per dedup_key
      */
     await fc.assert(
@@ -590,8 +590,8 @@ describe('PRESERVATION-8 — notify() idempotency dengan dedup_key yang sama', (
             dedup: dedupKey,
           });
 
-          // SQL selalu mengandung ON CONFLICT DO NOTHING
-          const hasIdempotency = capturedSql.includes('ON CONFLICT DO NOTHING');
+          // SQL selalu mengandung ON DUPLICATE KEY UPDATE
+          const hasIdempotency = capturedSql.includes('ON DUPLICATE KEY UPDATE');
           // dedup_key selalu ada di array params
           const hasDedupInParams = capturedParams.includes(dedupKey);
           return hasIdempotency && hasDedupInParams;

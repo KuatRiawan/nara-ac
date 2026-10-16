@@ -26,11 +26,11 @@ const TRANSITIONS = {
 };
 
 async function getOps(db = { query }) {
-  const r = await db.query("SELECT value FROM settings WHERE key = 'operating_hours'");
+  const r = await db.query("SELECT value FROM settings WHERE setting_key= 'operating_hours'");
   return { ...DEFAULT_OPS, ...(r.rows[0] ? r.rows[0].value : {}) };
 }
 
-const lockSlots = (client) => client.query("SELECT pg_advisory_xact_lock(hashtext('booking-slots'))");
+const lockSlots = (client) => client.query("SELECT name FROM scheduling_locks WHERE name='booking-slots' FOR UPDATE");
 
 function computeEnd(start, durasiMenit, slot) {
   const slots = Math.max(1, Math.ceil(durasiMenit / slot));
@@ -67,15 +67,15 @@ function assertSlotAllowed(start, end, ops, now = new Date(), isAdmin = false) {
 
 async function countOverlap(db, start, end, excludeId) {
   const r = await db.query(
-    `SELECT COUNT(*)::int AS n FROM bookings
-     WHERE status <> 'cancelled' AND jadwal_mulai < $2 AND jadwal_selesai > $1 AND ($3::int IS NULL OR id <> $3)`,
+    `SELECT COUNT(*) AS n FROM bookings
+     WHERE status <> 'cancelled' AND jadwal_mulai < $2 AND jadwal_selesai > $1 AND ($3 IS NULL OR id <> $3)`,
     [start, end, excludeId || null],
   );
   return r.rows[0].n;
 }
 
 async function activeTechnicianCount(db) {
-  const r = await db.query('SELECT COUNT(*)::int AS n FROM technicians WHERE aktif');
+  const r = await db.query('SELECT COUNT(*) AS n FROM technicians WHERE aktif');
   return r.rows[0].n;
 }
 
@@ -93,7 +93,7 @@ async function assertCapacity(db, start, end, excludeId) {
 async function assertTechnicianFree(db, teknisiId, start, end, excludeId) {
   const r = await db.query(
     `SELECT kode_booking FROM bookings
-     WHERE teknisi_id = $1 AND status NOT IN ('cancelled','done') AND jadwal_mulai < $3 AND jadwal_selesai > $2 AND ($4::int IS NULL OR id <> $4) LIMIT 1`,
+     WHERE teknisi_id = $1 AND status NOT IN ('cancelled','done') AND jadwal_mulai < $3 AND jadwal_selesai > $2 AND ($4 IS NULL OR id <> $4) LIMIT 1`,
     [teknisiId, start, end, excludeId || null],
   );
   if (r.rows.length) {
@@ -183,7 +183,7 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
     }
 
     const svcIds = [...new Set(rawItems.map((it) => it.layanan_id))];
-    const svcsResult = await client.query('SELECT * FROM service_catalog WHERE id = ANY($1::int[]) AND aktif', [svcIds]);
+    const svcsResult = await client.query('SELECT * FROM service_catalog WHERE id IN ($1) AND aktif', [svcIds]);
     const svcMap = new Map(svcsResult.rows.map((s) => [s.id, s]));
 
     let totalDurationMinutes = 0;
@@ -241,7 +241,6 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
     const end = computeEnd(start, totalDurationMinutes, ops.slot_minutes);
     const isAdmin = typeof actor?.label === 'string' && (actor.label.startsWith('admin') || actor.label === 'admin');
     assertSlotAllowed(start, end, ops, now, isAdmin);
-    await assertCapacity(client, start, end, null);
 
     let cust = (await client.query('SELECT * FROM customers WHERE kontak = $1', [kontak])).rows[0];
     if (!cust) {
@@ -257,7 +256,7 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
       `SELECT id, kode_booking, status FROM bookings 
        WHERE customer_id = $1 AND jadwal_mulai = $2 AND layanan_id = $3 
          AND status != 'cancelled' 
-         AND created_at >= NOW() - INTERVAL '30 seconds'
+         AND created_at >= NOW() - INTERVAL 30 SECOND
        ORDER BY id DESC LIMIT 1`,
       [cust.id, start, primarySvc.id]
     )).rows[0];
@@ -273,6 +272,8 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
       return bMapped;
     }
 
+    await assertCapacity(client, start, end, null);
+
     let booking;
     for (let i = 0; i < 8 && !booking; i += 1) {
       const code = generateBookingCode(undefined, i);
@@ -281,7 +282,7 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
       const ins = await client.query(
         `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, created_by, jumlah_unit, idempotency_key, feedback_token, skema_pembayaran, metode_pembayaran)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-         ON CONFLICT (kode_booking) DO NOTHING RETURNING id`,
+         ON DUPLICATE KEY UPDATE kode_booking=kode_booking RETURNING id`,
         [code, cust.id, primarySvc.id, start, end, input.alamat, input.keluhan || '', kontak, actor.label, totalUnits, input.idempotency_key || null, feedbackToken, input.skema_pembayaran || 'pay_after_service', input.metode_pembayaran || 'transfer'],
       );
       if (ins.rows.length) {
@@ -338,12 +339,12 @@ async function listBookings(filters, user) {
   if (filters.q) {
     params.push(`%${filters.q}%`);
     const i = params.length;
-    where.push(`(b.kode_booking ILIKE $${i} OR c.nama ILIKE $${i} OR b.kontak ILIKE $${i} OR b.alamat ILIKE $${i})`);
+    where.push(`(b.kode_booking LIKE $${i} OR c.nama LIKE $${i} OR b.kontak LIKE $${i} OR b.alamat LIKE $${i})`);
   }
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const order = filters.urut === 'terdekat' ? 'b.jadwal_mulai ASC' : 'b.created_at DESC, b.id DESC';
   const total = (await query(
-    `SELECT COUNT(*)::int AS n FROM bookings b JOIN customers c ON c.id = b.customer_id ${whereSql}`, params,
+    `SELECT COUNT(*) AS n FROM bookings b JOIN customers c ON c.id = b.customer_id ${whereSql}`, params,
   )).rows[0].n;
   const { sanitizeLimitOffset } = require('../db/pool');
   const { limit: safeLimit, offset: safeOffset } = sanitizeLimitOffset(filters.limit || 20, ((filters.page || 1) - 1) * (filters.limit || 20));

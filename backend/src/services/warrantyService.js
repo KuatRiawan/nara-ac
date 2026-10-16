@@ -2,14 +2,14 @@ const { query, withTx, withTransaction } = require('../db/pool');
 const { E } = require('../errors');
 const { notify } = require('./common');
 
-async function createNotification({ target_role, target_id, judul, pesan, tipe, booking_id, tautan, dedup_key }) {
+async function createNotification({ target_role, target_id, judul, pesan, tipe, booking_id, tautan, dedup_key }, db = { query }) {
   try {
-    await notify({ query }, {
+    await notify(db, {
       role: target_role,
       id: target_id,
       title: judul,
       message: pesan,
-      type: tipe,
+      type: ['warning', 'success', 'info'].includes(tipe) ? 'system' : tipe,
       bookingId: booking_id,
       tautan,
       dedup: dedup_key,
@@ -231,7 +231,7 @@ async function submitClaim({ booking_id, keluhan, rating, review_komentar, user,
       booking_id,
       tautan: `/admin/claims`,
       dedup_key: `claim_submitted_${claim.id}`,
-    });
+    }, client);
 
     return claim;
   });
@@ -387,7 +387,7 @@ async function convertToPaidBooking(claimId, { layanan_id, jadwal_mulai }, user)
       INSERT INTO bookings (
         kode_booking, customer_id, ac_unit_id, layanan_id, jadwal_mulai, jadwal_selesai,
         alamat, kontak, keluhan, status, status_pembayaran, jumlah_unit
-      ) VALUES ($1, $2, $3, $4, $5, $5::timestamptz + interval '90 minutes', $6, $7, $8, 'scheduled', 'pending', 1)
+      ) VALUES ($1, $2, $3, $4, $5, $5 + INTERVAL 90 MINUTE, $6, $7, $8, 'scheduled', 'pending', 1)
       RETURNING *
     `, [
       kodeBooking,
@@ -450,7 +450,7 @@ async function listClaims({ status, customer_id, page = 1, limit = 20 }) {
   `;
 
   const totalQuery = `
-    SELECT COUNT(*)::int AS total
+    SELECT COUNT(*) AS total
     FROM warranty_claims c
     ${whereClause}
   `;

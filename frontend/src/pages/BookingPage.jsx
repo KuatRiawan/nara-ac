@@ -1038,7 +1038,7 @@ export default function BookingPage() {
                             Jumlah Unit AC yang Diservis
                           </label>
                           <p className="text-xs text-slate-500">
-                            {Boolean(user && user.role === 'customer') ? 'Diskon 10% membership aktif otomatis' : 'Daftar / Masuk Member untuk hemat 10%'}
+                            {user && user.role === 'customer' ? 'Diskon 10% membership aktif otomatis' : 'Daftar / Masuk Member untuk hemat 10%'}
                           </p>
                         </div>
                         <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">

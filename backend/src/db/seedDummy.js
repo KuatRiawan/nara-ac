@@ -28,15 +28,9 @@ async function seedDummyData() {
 
     // 2. Bersihkan seluruh transaksi booking lama
     console.log('🧹 Membersihkan transaksi booking & riwayat lama...');
-    await client.query(`
-      DELETE FROM inventory_usage;
-      DELETE FROM status_log;
-      DELETE FROM feedback;
-      DELETE FROM booking_items;
-      DELETE FROM reminder_log;
-      DELETE FROM complaint_tickets;
-      DELETE FROM bookings;
-    `);
+    for (const table of ['inventory_usage','status_log','feedback','booking_items','reminder_log','complaint_tickets','bookings']) {
+      await client.query(`DELETE FROM ${table}`);
+    }
 
     // 3. Pastikan Master Teknisi (8 Orang Berbeda Tanpa Duplikat)
     console.log('📦 Menyiapkan master teknisi...');
@@ -73,14 +67,14 @@ async function seedDummyData() {
       await client.query(`
         INSERT INTO users (nama, email, password_hash, role, technician_id)
         VALUES ($1, $2, $3, 'technician', $4)
-        ON CONFLICT (email) DO UPDATE SET nama = EXCLUDED.nama, password_hash = EXCLUDED.password_hash, technician_id = EXCLUDED.technician_id;
+        ON DUPLICATE KEY UPDATE nama = VALUES(nama), password_hash = VALUES(password_hash), technician_id = VALUES(technician_id);
       `, [t.nama, email, passwordHash, techId]);
     }
 
     // Bersihkan teknisi orphan yang tidak ada dalam daftar aktif dan tidak memiliki booking
     await client.query(`
-      DELETE FROM technicians 
-      WHERE id <> ALL($1::int[]) 
+      DELETE FROM technicians
+      WHERE id NOT IN ($1)
         AND id NOT IN (SELECT DISTINCT teknisi_id FROM bookings WHERE teknisi_id IS NOT NULL);
     `, [techIds]);
 
@@ -88,7 +82,7 @@ async function seedDummyData() {
     await client.query(`
       INSERT INTO users (nama, email, password_hash, role)
       VALUES ('Admin Utama', 'admin@nara-ac.local', $1, 'admin')
-      ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash);
     `, [passwordHash]);
 
     // 4. Pastikan Master Inventaris
@@ -111,7 +105,7 @@ async function seedDummyData() {
       await client.query(`
         INSERT INTO inventory (nama, kategori, stok, satuan, min_stok, aktif, is_synthetic)
         VALUES ($1, $2, $3, $4, $5, true, true)
-        ON CONFLICT (nama) DO UPDATE SET stok = EXCLUDED.stok;
+        ON DUPLICATE KEY UPDATE stok = VALUES(stok);
       `, [inv.nama, inv.kategori, inv.stok, inv.satuan, inv.min]);
       const res = await client.query('SELECT id FROM inventory WHERE nama = $1', [inv.nama]);
       invMap[inv.nama] = res.rows[0].id;
@@ -220,7 +214,7 @@ async function seedDummyData() {
 
     // 7. Loop Harian dari 1 Januari 2026 s/d 30 November 2026
     console.log('📦 Membuat ~4.000 transaksi realistis (1 Jan 2026 - 30 Nov 2026)...');
-    
+
     const startDate = new Date(2026, 0, 1); // 1 Jan 2026
     const endDate = new Date(2026, 10, 30); // 30 Nov 2026
     const todayDate = new Date(2026, 9, 15); // 15 Okt 2026
@@ -239,21 +233,22 @@ async function seedDummyData() {
 
     for (let dayOffset = 0; dayOffset < totalDays; dayOffset++) {
       const curDate = new Date(startDate.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+      const curDateStr = curDate.toISOString().slice(0, 10);
       const isPast = curDate < todayDate;
-      const isToday = curDate.getFullYear() === todayDate.getFullYear() && 
-                      curDate.getMonth() === todayDate.getMonth() && 
+      const isToday = curDate.getFullYear() === todayDate.getFullYear() &&
+                      curDate.getMonth() === todayDate.getMonth() &&
                       curDate.getDate() === todayDate.getDate();
 
       const dayOfWeek = curDate.getDay(); // 0 = Sun, 6 = Sat
       const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-      
+
       // Skip dates reserved for backend unit test capacity suites (2026-11-23 s/d 2026-11-30)
       if (curDateStr >= '2026-11-23' && curDateStr <= '2026-11-30') {
         continue;
       }
-      
+
       // Rata-rata 12 transaksi per hari (weekend 13-16, weekday 10-13)
-      const countToday = isWeekend 
+      const countToday = isWeekend
         ? Math.floor(13 + Math.random() * 4) // 13 - 16
         : Math.floor(10 + Math.random() * 4); // 10 - 13
 
@@ -413,11 +408,12 @@ async function seedDummyData() {
           alasan_batal, alasan_tunda
         )
         VALUES ${valueClauses.join(',\n')}
-        RETURNING id, kode_booking, status, status_pembayaran, jadwal_mulai, layanan_id, jumlah_unit, teknisi_id;
+        ;
       `;
 
-      const res = await client.query(insertSql, params);
-      const insertedRows = res.rows;
+      await client.query(insertSql, params);
+      const rows = (await client.query('SELECT * FROM bookings WHERE kode_booking IN ($1)', [chunk.map(b => b.kode_booking)])).rows;
+      const insertedRows = chunk.map(b => rows.find(row => row.kode_booking === b.kode_booking));
       totalBookingsCreated += insertedRows.length;
 
       // Update status_pembayaran & items
@@ -436,14 +432,14 @@ async function seedDummyData() {
         await client.query(`
           INSERT INTO booking_items (booking_id, layanan_id, jumlah_unit, harga_satuan, subtotal, catatan)
           VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT DO NOTHING;
+          ON DUPLICATE KEY UPDATE booking_id=booking_id;
         `, [row.id, original.service.id, original.jumlah_unit, harga, subtotal, original.keluhan]);
 
         // Status log
         await client.query(`
           INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan, waktu)
           VALUES ($1, NULL, $2, 'sistem', $3, $4)
-          ON CONFLICT DO NOTHING;
+          ON DUPLICATE KEY UPDATE booking_id=booking_id;
         `, [row.id, original.status, `Booking ${original.status}`, original.bookingTime]);
 
         // Feedback jika done
@@ -453,7 +449,7 @@ async function seedDummyData() {
           await client.query(`
             INSERT INTO feedback (booking_id, rating, komentar, sentimen, waktu)
             VALUES ($1, $2, $3, 'positif', $4)
-            ON CONFLICT DO NOTHING;
+            ON DUPLICATE KEY UPDATE booking_id=booking_id;
           `, [row.id, rating, komentar, new Date(new Date(original.jadwal_mulai).getTime() + 7200000)]);
         }
 
@@ -465,7 +461,7 @@ async function seedDummyData() {
             await client.query(`
               INSERT INTO inventory_usage (booking_id, item_id, jumlah, teknisi_id, catatan, waktu)
               VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT DO NOTHING;
+              ON DUPLICATE KEY UPDATE booking_id=booking_id;
             `, [row.id, invId, 1, original.teknisi_id, `Pemakaian ${invKey} untuk tiket ${original.kode_booking}`, original.jadwal_mulai]);
           }
         }

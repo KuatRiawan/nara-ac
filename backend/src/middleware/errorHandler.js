@@ -12,11 +12,14 @@ function errorHandler(err, req, res, _next) {
   if (err && err.type === 'entity.too.large') {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Body request terlalu besar.' } });
   }
-  if (err && err.code === 'ECONNREFUSED' && /5432|5433/.test(String(err.message))) {
+  if (err && ['ECONNREFUSED', 'ER_ACCESS_DENIED_ERROR', 'ER_BAD_DB_ERROR'].includes(err.code)) {
     return res.status(503).json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Database tidak dapat dihubungi. Coba lagi beberapa saat.' } });
   }
-  if (err && err.code === '23514') {
+  if (err && ['ER_CHECK_CONSTRAINT_VIOLATED', 'ER_CONSTRAINT_FAILED', 'ER_NO_REFERENCED_ROW_2', 'ER_ROW_IS_REFERENCED_2'].includes(err.code)) {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: err.detail || 'Nilai yang dimasukkan tidak valid untuk field ini.' } });
+  }
+  if (err?.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({ error: { code: 'CONFLICT', message: 'Data sudah terdaftar. Gunakan data yang berbeda.' } });
   }
 
   // Structured error logging (BE-050)

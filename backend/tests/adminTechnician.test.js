@@ -67,6 +67,74 @@ describe('Admin management & technician workflow', () => {
       const custId = (await query('SELECT id FROM customers LIMIT 1')).rows[0].id;
       expect((await request(app).get(`/api/v1/admin/customers/${custId}`).set(adminHeaders)).status).toBe(200);
     });
+
+    test('pagination pelanggan mengembalikan total database, bukan jumlah baris halaman', async () => {
+      const expectedTotal = Number((await query('SELECT COUNT(*) AS n FROM customers')).rows[0].n);
+      const response = await request(app)
+        .get('/api/v1/admin/customers?page=1&limit=1')
+        .set(adminHeaders);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveLength(1);
+      expect(Number(response.body.meta.total)).toBe(expectedTotal);
+      expect(Number(response.body.meta.total_customers)).toBe(expectedTotal);
+    });
+
+    test('dashboard laporan bisnis menyediakan lima dataset dengan definisi yang stabil', async () => {
+      const publish = (reportKey, months, payload, serviceId = 0, customerId = 0) => query(
+        `INSERT INTO ds_dashboard_snapshots
+           (report_key, period_months, service_id, customer_id, payload, generated_at)
+         VALUES ($1,$2,$3,$4,$5,now())
+         ON DUPLICATE KEY UPDATE payload=VALUES(payload), generated_at=VALUES(generated_at)`,
+        [reportKey, months, serviceId, customerId, JSON.stringify(payload)]
+      );
+      const definitions = {
+        transaksi_customer: 'Booking valid', service: 'Layanan valid', teknisi: 'Teknisi valid',
+        revenue: 'Revenue selesai', booking_terjadwal: 'Jadwal valid',
+      };
+      const monthly = (size) => Array.from({ length: size }, (_, index) => ({
+        bulan: `2026-${String(index + 1).padStart(2, '0')}`, revenue: index * 1000,
+        jumlah_transaksi: index, jumlah_booking: index, pelanggan_unik: index, jumlah_unit: index,
+      }));
+      await Promise.all([
+        publish('filter_options', 0, { services: [{ id: 1, nama: 'Cuci' }], customers: [{ id: 1, nama: 'Uji' }] }),
+        publish('overview', 12, { periode: { months: 12 }, definisi: definitions, topCustomers: [], topServices: [], revenueMonthly: monthly(12), sumber_data: { jenis: 'snapshot_ds_mysql', booking_total: 0 } }),
+        publish('technicians', 12, []), publish('scheduled_bookings', 12, monthly(12)),
+        publish('overview', 3, { periode: { months: 3 }, definisi: definitions, topCustomers: [], topServices: [], revenueMonthly: monthly(3), sumber_data: { jenis: 'snapshot_ds_mysql', booking_total: 0 } }),
+        publish('technicians', 3, [], 1), publish('scheduled_bookings', 3, monthly(3), 1),
+      ]);
+      const response = await request(app)
+        .get('/api/v1/admin/dashboard/reports?months=12')
+        .set(adminHeaders);
+
+      expect(response.status).toBe(200);
+      expect(response.body.topCustomers).toBeInstanceOf(Array);
+      expect(response.body.topServices).toBeInstanceOf(Array);
+      expect(response.body.topTechnicians).toBeInstanceOf(Array);
+      expect(response.body.revenueMonthly).toHaveLength(12);
+      expect(response.body.scheduledBookingsMonthly).toHaveLength(12);
+      expect(response.body.filterOptions.services).toBeInstanceOf(Array);
+      expect(response.body.filterOptions.customers).toBeInstanceOf(Array);
+      expect(response.body.definisi).toEqual(expect.objectContaining({
+        transaksi_customer: expect.any(String),
+        service: expect.any(String),
+        teknisi: expect.any(String),
+        revenue: expect.any(String),
+        booking_terjadwal: expect.any(String),
+      }));
+      expect(response.body.sumber_data).toEqual(expect.objectContaining({
+        booking_total: expect.any(Number),
+        jenis: 'snapshot_ds_mysql',
+      }));
+      expect(response.body.dibuat_pada).toEqual(expect.any(String));
+
+      const filtered = await request(app)
+        .get('/api/v1/admin/dashboard/reports?months=3&technician_service_id=1&booking_service_id=1')
+        .set(adminHeaders);
+      expect(filtered.status).toBe(200);
+      expect(filtered.body.revenueMonthly).toHaveLength(3);
+      expect(filtered.body.scheduledBookingsMonthly).toHaveLength(3);
+    });
   });
 
   describe('Section 11: technician', () => {
@@ -157,7 +225,7 @@ describe('Admin management & technician workflow', () => {
       expect(res.status).toBe(200);
       const row = (await query('SELECT status FROM bookings WHERE id=$1', [booking.id])).rows[0];
       expect(row.status).toBe('done');
-      const log = (await query("SELECT COUNT(*)::int n FROM status_log WHERE booking_id=$1 AND status_baru='done'", [booking.id])).rows[0].n;
+      const log = (await query("SELECT COUNT(*) n FROM status_log WHERE booking_id=$1 AND status_baru='done'", [booking.id])).rows[0].n;
       expect(log).toBe(1);
     });
   });

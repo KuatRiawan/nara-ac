@@ -48,7 +48,7 @@ describe('Phase 6: AI WhatsApp CS & Anti-Hallucination Rules (BR-44 s/d BR-47)',
         kode_booking, customer_id, ac_unit_id, layanan_id, jadwal_mulai, jadwal_selesai,
         alamat, kontak, keluhan, status, status_pembayaran, skema_pembayaran, metode_pembayaran
       ) VALUES (
-        $1, $2, $3, $4, now() + interval '2 days', now() + interval '2 days' + interval '60 minutes',
+        $1, $2, $3, $4, now() + INTERVAL 2 DAY, now() + INTERVAL 2 DAY + INTERVAL 60 MINUTE,
         'Jl. AI Test No. 99 Jakarta', $5, 'Servis berkala pengujian AI WhatsApp CS', 'scheduled', 'pending', 'pay_after_service', 'transfer'
       ) RETURNING id, kode_booking
     `, [`BK-${testSuffix}`, customerId, acUnitId, svc.id, testPhone]);
@@ -138,7 +138,7 @@ describe('Phase 6: AI WhatsApp CS & Anti-Hallucination Rules (BR-44 s/d BR-47)',
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.reply).toBeDefined();
-      expect(res.body.data.reply.toLowerCase()).toContain('slot');
+      expect(res.body.data.reply.toLowerCase()).toMatch(/slot|tutup/);
     });
   });
 

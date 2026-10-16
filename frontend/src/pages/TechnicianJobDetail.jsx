@@ -87,6 +87,7 @@ export default function TechnicianJobDetail() {
       await api.patch(`/technician/jobs/${id}/${endpoint}`);
       await fetchJob();
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      // eslint-disable-next-line react-hooks/purity -- Runs after the user's awaited API action.
       localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       const pendingList = err.response?.data?.error?.details?.checklist_pending;
@@ -106,6 +107,7 @@ export default function TechnicianJobDetail() {
       await api.patch(`/technician/jobs/${id}/checklist/${checklistItem.id}`, { status: next });
       await fetchJob();
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      // eslint-disable-next-line react-hooks/purity -- Runs after the user's awaited API action.
       localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
     } catch (err) {
       showError(err.response?.data?.error?.message || err.error?.message || 'Gagal mengubah status checklist');

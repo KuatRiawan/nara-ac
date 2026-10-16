@@ -34,7 +34,7 @@ router.get('/ac-units', validate(Joi.object({
   const offset = (page - 1) * limit;
   const result = await query('SELECT * FROM ac_units WHERE customer_id = $1 AND aktif = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4', 
     [customerId, aktif, limit, offset]);
-  const total = (await query('SELECT COUNT(*)::int FROM ac_units WHERE customer_id = $1 AND aktif = $2', [customerId, aktif])).rows[0].count;
+  const total = (await query('SELECT COUNT(*) AS count FROM ac_units WHERE customer_id = $1 AND aktif = $2', [customerId, aktif])).rows[0].count;
 
   // Enrich unit dengan riwayat servis & jadwal perawatan berkala (BR-15, BR-16, BR-17)
   const enriched = await Promise.all(result.rows.map(async (u) => {
@@ -103,7 +103,7 @@ router.get('/history', validate(Joi.object({
     ORDER BY b.jadwal_mulai DESC LIMIT $2 OFFSET $3
   `;
   const result = await query(q, [req.user.customer_id, limit, offset]);
-  const total = (await query('SELECT COUNT(*)::int FROM bookings WHERE customer_id = $1', [req.user.customer_id])).rows[0].count;
+  const total = (await query('SELECT COUNT(*) AS count FROM bookings WHERE customer_id = $1', [req.user.customer_id])).rows[0].count;
   res.json({ data: result.rows, meta: { total: Number(total), page, limit } });
 }));
 
@@ -122,7 +122,7 @@ router.get('/notifications', validate(Joi.object({
     where += ` AND is_read = $${params.length}`;
   }
   const result = await query(`SELECT * FROM notifications WHERE ${where} ORDER BY created_at DESC LIMIT $3 OFFSET $4`, [...params, limit, offset]);
-  const total = (await query(`SELECT COUNT(*)::int FROM notifications WHERE ${where}`, params)).rows[0].count;
+  const total = (await query(`SELECT COUNT(*) AS count FROM notifications WHERE ${where}`, params)).rows[0].count;
   res.json({ data: result.rows, meta: { total: Number(total), page, limit } });
 }));
 

@@ -142,6 +142,7 @@ router.post('/customer/request-otp', otpLimiter, validate(requestOtpSchema), wra
       kontak: phone,
     });
   }
+  if ((existingUser && !existingUser.aktif) || (existingCustomer && !existingCustomer.aktif)) throw E.unauthorized('Akun member dinonaktifkan.');
 
   // Generate 6-digit cryptographic OTP
   const rawOtp = crypto.randomInt(100000, 999999).toString();
@@ -149,6 +150,7 @@ router.post('/customer/request-otp', otpLimiter, validate(requestOtpSchema), wra
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 menit
 
   // Simpan OTP ke tabel whatsapp_otps
+  await query('UPDATE whatsapp_otps SET is_used=true WHERE kontak=$1 AND is_used=false', [phone]);
   await query(
     'INSERT INTO whatsapp_otps (kontak, otp_hash, expires_at) VALUES ($1, $2, $3)',
     [phone, otpHash, expiresAt],
@@ -160,10 +162,13 @@ router.post('/customer/request-otp', otpLimiter, validate(requestOtpSchema), wra
   const textMessage = `Halo Bapak/Ibu *${namaTujuan}*,\n\nKode OTP masuk Portal Pelanggan NARA AC Anda adalah:\n\n🔐 *${rawOtp}*\n\nKode ini berlaku selama 5 menit. Demi keamanan akun Anda, jangan berikan kode ini kepada siapapun termasuk petugas NARA AC.\n\nTerima kasih.`;
 
   // Kirim WhatsApp jika nomor valid
+  let delivered = false;
   try {
     await whatsappSend(phone, textMessage);
+    delivered = true;
   } catch (err) {
     // Log error gateway tapi tetap izinkan alur testing jika gateway eksternal belum di-bind
+    if (process.env.NODE_ENV === 'production') throw E.unavailable('Kode OTP belum dapat dikirim. Hubungi admin.');
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[auth-otp] Gagal kirim WA via gateway:', err?.message);
     }
@@ -171,9 +176,9 @@ router.post('/customer/request-otp', otpLimiter, validate(requestOtpSchema), wra
 
   res.json({
     success: true,
-    message: `Kode OTP verifikasi telah dikirimkan ke nomor WhatsApp ${phone.slice(0, 4)}****${phone.slice(-2)}.`,
+    message: delivered ? `Kode OTP verifikasi telah dikirimkan ke nomor WhatsApp ${phone.slice(0, 4)}****${phone.slice(-2)}.` : 'Mode lokal: gunakan kode OTP yang ditampilkan untuk masuk.',
     kontak: phone,
-    ...(process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_OTP === 'true' ? { _dev_otp: rawOtp } : {}),
+    ...(process.env.NODE_ENV !== 'production' && process.env.ENABLE_DEV_OTP === 'true' ? { _dev_otp: rawOtp } : {}),
   });
 }));
 
@@ -212,16 +217,16 @@ router.post('/customer/verify-otp', validate(verifyOtpSchema), wrap(async (req, 
 
     if (otpRow.attempts >= 3) {
       await client.query('UPDATE whatsapp_otps SET is_used = true WHERE id = $1', [otpRow.id]);
-      throw E.validation('Percobaan verifikasi telah melebihi batas. Silakan minta kode OTP baru.', {
+      return { authError: E.validation('Percobaan verifikasi telah melebihi batas. Silakan minta kode OTP baru.', {
         otp: 'Melebihi batas percobaan.',
-      });
+      }) };
     }
 
     if (otpRow.otp_hash !== tokenHash) {
       await client.query('UPDATE whatsapp_otps SET attempts = attempts + 1 WHERE id = $1', [otpRow.id]);
-      throw E.validation('Kode OTP yang Anda masukkan salah. Periksa kembali WhatsApp Anda.', {
+      return { authError: E.validation('Kode OTP yang Anda masukkan salah. Periksa kembali WhatsApp Anda.', {
         otp: 'Kode OTP salah.',
-      });
+      }) };
     }
 
     // Tandai OTP telah digunakan
@@ -262,6 +267,7 @@ router.post('/customer/verify-otp', validate(verifyOtpSchema), wrap(async (req, 
     return u;
   });
 
+  if (user.authError) throw user.authError;
   const token = signToken(user);
   const userPayload = {
     id: user.id,
@@ -455,7 +461,7 @@ router.post('/forgot-password', resetPasswordLimiter, validate(forgotPasswordSch
     });
 
     // In test environment only, return token for test verification
-    if (process.env.NODE_ENV === 'test' || process.env.ENABLE_DEV_RESET_TOKEN === 'true') {
+    if (process.env.NODE_ENV !== 'production' && (process.env.NODE_ENV === 'test' || process.env.ENABLE_DEV_RESET_TOKEN === 'true')) {
       return res.json({
         success: true,
         message: genericMessage,

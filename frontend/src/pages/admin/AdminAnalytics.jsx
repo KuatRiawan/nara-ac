@@ -6,12 +6,12 @@ import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { Bot, BrainCircuit, Sparkles, TrendingUp, Users, Wrench, Star, CheckCircle2, AlertTriangle, ExternalLink, X, Calendar, Terminal } from 'lucide-react';
 
 export default function AdminAnalytics() {
-  const { error: showError, success: showSuccess } = useToast();
+  const { error: showError } = useToast();
   
-  const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
   const [inferenceLogs, setInferenceLogs] = useState([]);
+  const [predictionData, setPredictionData] = useState(null);
   const [showStreamlitModal, setShowStreamlitModal] = useState(false);
   const [streamlitError, setStreamlitError] = useState(false);
 
@@ -30,12 +30,12 @@ export default function AdminAnalytics() {
 
   // Fetch all analytics data
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
-      const [sumRes, statRes, infRes] = await Promise.allSettled([
+      const [sumRes, statRes, infRes, predRes] = await Promise.allSettled([
         api.get('/analytics/summary'),
         api.get('/ai/status'),
-        api.get('/inference-logs?limit=15')
+        api.get('/inference-logs?limit=15'),
+        api.get('/predictions/latest')
       ]);
 
       if (sumRes.status === 'fulfilled') {
@@ -48,10 +48,13 @@ export default function AdminAnalytics() {
         const rawInf = infRes.value?.data?.data || infRes.value?.data || [];
         setInferenceLogs(Array.isArray(rawInf) ? rawInf : []);
       }
+      if (predRes.status === 'fulfilled') {
+        setPredictionData(predRes.value?.data || null);
+      } else {
+        setPredictionData(null);
+      }
     } catch (err) {
       showError('Gagal memuat analitik AI: ' + (err?.response?.data?.error?.message || err?.message));
-    } finally {
-      setLoading(false);
     }
   }, [showError]);
 
@@ -97,6 +100,24 @@ export default function AdminAnalytics() {
     }
     return summaryData.insight;
   }, [summaryData]);
+
+  const forecastData = useMemo(() => {
+    if (!Array.isArray(predictionData?.prediksi)) return [];
+    return predictionData.prediksi.map(item => ({
+      tanggal: new Date(`${item.periode}T00:00:00`).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short'
+      }),
+      nilai: Number(item.nilai) || 0,
+      bawah: Number(item.batas_bawah) || 0,
+      atas: Number(item.batas_atas) || 0,
+    }));
+  }, [predictionData]);
+
+  const forecastMetrics = predictionData?.metrik || {};
+  const forecastPeak = forecastData.reduce((max, item) => Math.max(max, item.nilai), 0);
+  const technicianCapacity = Math.max(1, Number(forecastMetrics.capacity_per_technician) || 3);
+  const recommendedTechnicians = Math.max(1, Math.ceil(forecastPeak / technicianCapacity));
 
   // Average confidence from recent inference logs
   const avgConfidence = useMemo(() => {
@@ -278,6 +299,81 @@ export default function AdminAnalytics() {
             })
           )}
         </div>
+      </div>
+
+      {/* Demand Forecast published by the Data Science pipeline */}
+      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div>
+            <h3 className="font-black text-sm text-slate-900">Prediksi Permintaan Servis</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Hasil pipeline Data Science yang dipublikasikan melalui backend NARA AC.
+            </p>
+          </div>
+          {predictionData && (
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              <span className="px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                Model v{predictionData.model_version}
+              </span>
+              <span className={`px-2.5 py-1 rounded-full border ${predictionData.is_synthetic ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                {predictionData.is_synthetic ? 'Data sample' : 'Data operasional'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {!predictionData || forecastData.length === 0 ? (
+          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900">
+            <p className="text-sm font-bold">Prediksi belum tersedia</p>
+            <p className="text-xs mt-1">
+              Tim DS perlu menjalankan <code className="font-mono">python demand_pipeline.py --horizon 14</code> dari folder data-science.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-xs font-bold text-slate-500">MAE</p>
+                <p className="text-lg font-black text-slate-900">{Number(forecastMetrics.MAE || 0).toFixed(2)}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-xs font-bold text-slate-500">RMSE</p>
+                <p className="text-lg font-black text-slate-900">{Number(forecastMetrics.RMSE || 0).toFixed(2)}</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                <p className="text-xs font-bold text-slate-500">WAPE</p>
+                <p className="text-lg font-black text-slate-900">{(Number(forecastMetrics.WAPE || 0) * 100).toFixed(1)}%</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
+                <p className="text-xs font-bold text-blue-600">Puncak Prediksi</p>
+                <p className="text-lg font-black text-blue-800">{Math.round(forecastPeak)} booking</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-teal-50 border border-teal-200 col-span-2 lg:col-span-1">
+                <p className="text-xs font-bold text-teal-600">Saran Teknisi</p>
+                <p className="text-lg font-black text-teal-800">{recommendedTechnicians} orang</p>
+              </div>
+            </div>
+
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="tanggal" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '11px' }} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Area type="monotone" dataKey="atas" name="Batas atas" stroke="#c4b5fd" fill="#ede9fe" fillOpacity={0.5} />
+                  <Area type="monotone" dataKey="nilai" name="Prediksi" stroke="#7c3aed" strokeWidth={3} fill="#ddd6fe" fillOpacity={0.35} />
+                  <Area type="monotone" dataKey="bawah" name="Batas bawah" stroke="#a78bfa" fill="transparent" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Diperbarui {new Date(predictionData.dibuat_pada).toLocaleString('id-ID')} · Kapasitas asumsi {technicianCapacity} booking per teknisi per hari.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Visual Charts Grid (Recharts) */}
@@ -541,9 +637,8 @@ export default function AdminAnalytics() {
                   </p>
                   <div className="bg-slate-900 text-slate-200 p-4 rounded-2xl text-left text-xs w-full max-w-md font-mono shadow-inner space-y-1">
                     <p className="text-slate-500 text-xs"># Perintah menjalankan Streamlit Lab:</p>
-                    <p className="text-emerald-400">cd data-science && streamlit run app.py</p>
-                    <p className="text-slate-500 text-xs mt-2"># Atau gunakan script helper:</p>
-                    <p className="text-emerald-400">./data-science/run_app.sh</p>
+                    <p className="text-emerald-400">cd data-science</p>
+                    <p className="text-emerald-400">streamlit run dashboard.py --server.port 8501</p>
                   </div>
                   <Button
                     onClick={() => setStreamlitError(false)}

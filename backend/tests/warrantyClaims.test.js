@@ -68,8 +68,8 @@ describe('Phase 4: Warranty Claims & AC Unit Maintenance (BR-15 s/d BR-33)', () 
         kode_booking, customer_id, ac_unit_id, layanan_id, jadwal_mulai, jadwal_selesai,
         selesai_aktual, alamat, kontak, keluhan, status, status_pembayaran
       ) VALUES (
-        $1, $2, $3, 4, now() - interval '3 days', now() - interval '3 days' + interval '90 minutes',
-        now() - interval '3 days', 'Jl. Garansi No. 123', $4, 'AC bocor air', 'done', 'paid'
+        $1, $2, $3, 4, now() - INTERVAL 3 DAY, now() - INTERVAL 3 DAY + INTERVAL 90 MINUTE,
+        now() - INTERVAL 3 DAY, 'Jl. Garansi No. 123', $4, 'AC bocor air', 'done', 'paid'
       ) RETURNING id
     `, [`NARA-AC-GARANSI-AKTIF-${testSuffix}`, customerId, unitId, testPhone]);
     doneBookingId = bDone.rows[0].id;
@@ -80,8 +80,8 @@ describe('Phase 4: Warranty Claims & AC Unit Maintenance (BR-15 s/d BR-33)', () 
         kode_booking, customer_id, ac_unit_id, layanan_id, jadwal_mulai, jadwal_selesai,
         selesai_aktual, alamat, kontak, keluhan, status, status_pembayaran
       ) VALUES (
-        $1, $2, $3, 1, now() - interval '60 days', now() - interval '60 days' + interval '60 minutes',
-        now() - interval '60 days', 'Jl. Garansi No. 123', $4, 'AC bau apek', 'done', 'paid'
+        $1, $2, $3, 1, now() - INTERVAL 60 DAY, now() - INTERVAL 60 DAY + INTERVAL 60 MINUTE,
+        now() - INTERVAL 60 DAY, 'Jl. Garansi No. 123', $4, 'AC bau apek', 'done', 'paid'
       ) RETURNING id
     `, [`NARA-AC-GARANSI-EXPIRED-${testSuffix}`, customerId, unitId, testPhone]);
     expiredBookingId = bExpired.rows[0].id;
@@ -265,7 +265,7 @@ describe('Phase 4: Warranty Claims & AC Unit Maintenance (BR-15 s/d BR-33)', () 
         kode_booking, customer_id, ac_unit_id, layanan_id, jadwal_mulai, jadwal_selesai,
         alamat, kontak, keluhan, status, status_pembayaran
       ) VALUES (
-        'NARA-AC-BATAL', $1, $2, 1, now() - interval '1 days', now() - interval '1 days' + interval '60 minutes',
+        'NARA-AC-BATAL', $1, $2, 1, now() - INTERVAL 1 DAY, now() - INTERVAL 1 DAY + INTERVAL 60 MINUTE,
         'Jl. Garansi No. 123', '081299887766', 'AC berisik', 'cancelled', 'pending'
       ) RETURNING id
     `, [customerId, unitId]);

@@ -65,6 +65,8 @@ ai-service/models/*.joblib
 # ML Model Artifacts (Pickle files)
 *.pkl
 data-science/data/*.csv
+data-science/models/*.metadata.json
+data-science/output/
 
 # Uploaded Media (Preserve directory via .gitkeep)
 backend/uploads/*

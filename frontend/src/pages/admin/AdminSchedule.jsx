@@ -148,8 +148,9 @@ export default function AdminSchedule({ onBookingAssigned }) {
         onBookingAssigned();
       }
       try {
-        localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
-      } catch (_) {}
+        // eslint-disable-next-line react-hooks/purity -- Runs after the user's awaited API action.
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
+      } catch (_) { /* Storage is unavailable in private browser sessions. */ }
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
@@ -257,8 +258,9 @@ export default function AdminSchedule({ onBookingAssigned }) {
       setRescheduleBooking(null);
       fetchMonthSchedule();
       try {
-        localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
-      } catch (_) {}
+        // eslint-disable-next-line react-hooks/purity -- Runs after the user's awaited API action.
+      localStorage.setItem('nara_booking_sync_timestamp', Date.now().toString());
+      } catch (_) { /* Storage is unavailable in private browser sessions. */ }
       window.dispatchEvent(new CustomEvent('nara-booking-updated'));
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal mengubah tanggal jadwal');

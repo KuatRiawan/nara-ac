@@ -127,7 +127,7 @@ router.get('/conversations', requireAuth(['admin']), validate(Joi.object({
 
 // GET /api/v1/whatsapp/config - Konfigurasi AI WhatsApp CS
 router.get('/config', wrap(async (_req, res) => {
-  const row = (await query("SELECT value FROM settings WHERE key='ai_whatsapp_config'")).rows[0];
+  const row = (await query("SELECT value FROM settings WHERE setting_key='ai_whatsapp_config'")).rows[0];
   res.json({
     success: true,
     data: row ? row.value : null,
@@ -136,8 +136,8 @@ router.get('/config', wrap(async (_req, res) => {
 
 // GET /api/v1/whatsapp/gateway-config - Ambil Konfigurasi Gateway WhatsApp (Admin)
 router.get('/gateway-config', requireAuth(['admin']), wrap(async (_req, res) => {
-  const row = (await query("SELECT value FROM settings WHERE key='whatsapp_gateway_config'")).rows[0];
-  const aiRow = (await query("SELECT value FROM settings WHERE key='ai_whatsapp_config'")).rows[0];
+  const row = (await query("SELECT value FROM settings WHERE setting_key='whatsapp_gateway_config'")).rows[0];
+  const aiRow = (await query("SELECT value FROM settings WHERE setting_key='ai_whatsapp_config'")).rows[0];
   
   const defaultConfig = {
     provider: 'fonnte',
@@ -182,20 +182,20 @@ router.put('/gateway-config', requireAuth(['admin']), validate(Joi.object({
   }
 
   await query(`
-    INSERT INTO settings (key, value)
+    INSERT INTO settings (setting_key, value)
     VALUES ('whatsapp_gateway_config', $1)
-    ON CONFLICT (key) DO UPDATE SET value = $1
+    ON DUPLICATE KEY UPDATE value = $1
   `, [JSON.stringify(val)]);
 
   // Sync admin_whatsapp and ai_bot_enabled to ai_whatsapp_config
-  const aiRow = (await query("SELECT value FROM settings WHERE key='ai_whatsapp_config'")).rows[0];
+  const aiRow = (await query("SELECT value FROM settings WHERE setting_key='ai_whatsapp_config'")).rows[0];
   const aiVal = aiRow?.value || {};
   aiVal.admin_whatsapp = val.admin_whatsapp;
   aiVal.enabled = val.ai_bot_enabled;
   await query(`
-    INSERT INTO settings (key, value)
+    INSERT INTO settings (setting_key, value)
     VALUES ('ai_whatsapp_config', $1)
-    ON CONFLICT (key) DO UPDATE SET value = $1
+    ON DUPLICATE KEY UPDATE value = $1
   `, [JSON.stringify(aiVal)]);
 
   res.json({
@@ -214,7 +214,7 @@ router.post('/test-connection', requireAuth(['admin']), validate(Joi.object({
   api_token: Joi.string().allow('', null).optional(),
 })), wrap(async (req, res) => {
   const { phone, message, provider, api_url, api_token } = req.body;
-  const row = (await query("SELECT value FROM settings WHERE key='whatsapp_gateway_config'")).rows[0];
+  const row = (await query("SELECT value FROM settings WHERE setting_key='whatsapp_gateway_config'")).rows[0];
   const cfg = row?.value || {};
 
   const effectiveToken = (api_token && api_token.trim()) || cfg.api_token;
@@ -303,9 +303,9 @@ router.post('/test-connection', requireAuth(['admin']), validate(Joi.object({
         enabled: true,
       };
       await query(`
-        INSERT INTO settings (key, value)
+        INSERT INTO settings (setting_key, value)
         VALUES ('whatsapp_gateway_config', $1)
-        ON CONFLICT (key) DO UPDATE SET value = $1
+        ON DUPLICATE KEY UPDATE value = $1
       `, [JSON.stringify(updatedConfig)]);
     }
 

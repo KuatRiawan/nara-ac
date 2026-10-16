@@ -14,7 +14,7 @@ import CustomerProfile from './CustomerProfile';
 import LogoutConfirmationDialog from '../../components/ui/LogoutConfirmation';
 
 export default function CustomerPortal() {
-  const { user, loading: authLoading, confirmLogout, cancelLogout, executeLogout, showLogoutConfirm, isLoggingOut } = useContext(AuthContext);
+  const { user, loading: authLoading, confirmLogout, cancelLogout, executeLogout, showLogoutConfirm, isLoggingOut, logoutError } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -231,8 +231,8 @@ export default function CustomerPortal() {
       <LogoutConfirmationDialog
         isOpen={showLogoutConfirm}
         onConfirm={executeLogout}
+        message={logoutError || 'Apakah Anda yakin ingin mengakhiri sesi sekarang?'}
         onCancel={cancelLogout}
-        message="Apakah Anda yakin ingin mengakhiri sesi sekarang?"
       />
     </>
   );

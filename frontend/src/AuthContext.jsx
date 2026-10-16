@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   useEffect(() => {
     // Ambil user fresh dari server via HttpOnly cookie (AUD-005)
@@ -111,6 +112,7 @@ export function AuthProvider({ children }) {
    * Confirm logout - tampilkan dialog konfirmasi
    */
   const confirmLogout = useCallback(() => {
+    setLogoutError('');
     setShowLogoutConfirm(true);
   }, []);
 
@@ -127,22 +129,19 @@ export function AuthProvider({ children }) {
   const executeLogout = useCallback(async () => {
     setIsLoggingOut(true);
     try {
-      // Panggil endpoint logout backend jika tersedia
-      try {
-        await api.post('/auth/logout');
-      } catch (err) {
-        // Jika logout endpoint gagal, tetap lanjut dengan logout lokal
-        console.warn('Logout endpoint gagal, melanjutkan logout lokal:', err);
-      }
+      // Keep the UI signed in if the server could not clear its HttpOnly cookie.
+      await api.post('/auth/logout');
       setToken(null);
       setUser(null);
       setCsrfToken(null);       // clear module-level token di api.js
       setCsrfTokenState(null);  // clear state lokal
       // Kirim event untuk memberitahu komponen lain
       window.dispatchEvent(new Event('auth-logout'));
+      setShowLogoutConfirm(false);
+    } catch (error) {
+      setLogoutError(error?.error?.message || 'Gagal keluar. Periksa koneksi lalu coba lagi.');
     } finally {
       setIsLoggingOut(false);
-      setShowLogoutConfirm(false);
     }
   }, []);
 
@@ -187,6 +186,7 @@ export function AuthProvider({ children }) {
     updateUser,
     isLoggingOut,
     showLogoutConfirm,
+    logoutError,
   };
 
   return (
