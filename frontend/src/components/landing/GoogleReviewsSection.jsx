@@ -89,7 +89,7 @@ export default function GoogleReviewsSection() {
       <div className="absolute bottom-10 -right-20 w-96 h-96 bg-amber-100/30 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
+
         {/* Header with Google Rating Badge */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <motion.div
@@ -177,9 +177,8 @@ export default function GoogleReviewsSection() {
               viewport={{ once: true, margin: '-40px' }}
               transition={{ delay: index * 0.08, duration: 0.55, ease: easeOutCubic }}
               whileHover={{ y: -6, transition: { duration: 0.25, ease: easeOutCubic } }}
-              className={`relative bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300 flex flex-col justify-between ${
-                index === 0 ? 'md:col-span-2 lg:col-span-1 border-blue-100 bg-gradient-to-b from-sky-50/40 via-white to-white' : ''
-              }`}
+              className={`relative bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300 flex flex-col justify-between ${index === 0 ? 'md:col-span-2 lg:col-span-1 border-blue-100 bg-gradient-to-b from-sky-50/40 via-white to-white' : ''
+                }`}
             >
               {/* Quote watermark */}
               <Quote className="absolute top-5 right-5 w-8 h-8 text-sky-100 -rotate-12 pointer-events-none" />

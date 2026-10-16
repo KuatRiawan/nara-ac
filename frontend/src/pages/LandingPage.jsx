@@ -125,82 +125,62 @@ export default function LandingPage() {
       {
         id: std?.id || 1,
         tier: 'standard',
-        nama_layanan: std?.nama_layanan || 'Cuci AC Standar',
-        subtitle: 'Perawatan Rutin 2-3 Bulan',
-        badge: 'Perawatan Rutin',
+        nama_layanan: 'Cuci Standar',
+        subtitle: 'PERAWATAN RUTIN',
+        badge: 'Rutin',
         isPopular: false,
-        deskripsi: std?.deskripsi || 'Pembersihan debu permukaan untuk AC yang masih dingin normal dan rutin dirawat.',
+        deskripsi: 'Pembersihan filter dan evaporator untuk unit yang masih dingin normal dan rutin diservis 2-3 bulan sekali.',
         harga: std?.harga !== undefined ? Number(std.harga) : 75000,
         durasi_menit: std?.durasi_menit !== undefined ? Number(std.durasi_menit) : 60,
-        garansi: '14 Hari',
-        scopeIncluded: [
-          'Cuci filter udara & casing cover indoor',
-          'Cuci evaporator indoor (permukaan luar)',
-          'Semprot saluran pembuangan air (drain pipe)',
-          'Semprot kisi-kisi kondensor unit outdoor',
-          'Pengecekan suhu dingin & arus listrik (Ampere)',
-          'Garansi pengerjaan 14 hari'
+        garansi: 'Garansi 14 Hari',
+        highlights: [
+          'Cuci filter & casing cover',
+          'Cuci permukaan evaporator',
+          'Semprot kondensor outdoor',
+          'Cek suhu & arus listrik'
         ],
-        scopeExcluded: [
-          'Bongkar total rotor blower fan & talang air',
-          'Chemical wash anti-bakteri & bau apek',
-          'Vakum sedot kuras pipa drainase lendir',
-          'Pengisian / penambahan freon murni pabrikan',
-          'Deteksi kebocoran pipa & pengencangan flaring'
-        ],
-        ctaText: 'Pilih Paket Standar',
+        ctaText: 'Pilih Standar',
         bookingUrl: `/booking?layanan=${std?.id || 1}&paket=standard`
       },
       {
         id: cr?.id || 4,
         tier: 'core',
-        nama_layanan: cr?.nama_layanan || 'Cuci AC Core (Deep Clean)',
-        subtitle: 'Bongkar Total & Overhaul Lengkap',
-        badge: 'Deep Clean & Overhaul',
+        nama_layanan: 'Cuci Core (Deep Clean)',
+        subtitle: 'OVERHAUL LENGKAP',
+        badge: 'PALING DIREKOMENDASIKAN',
         isPopular: true,
-        deskripsi: cr?.deskripsi || 'Pembersihan total tuntas dengan membongkar komponen. Solusi tuntas untuk AC bau apek, bocor air, atau hembusan angin pelan.',
+        deskripsi: 'Bongkar total rotor blower & talang air. Solusi mutlak untuk AC bocor, bau apek, dan hembusan angin lemah.',
         harga: cr?.harga !== undefined ? Number(cr.harga) : 120000,
         durasi_menit: cr?.durasi_menit !== undefined ? Number(cr.durasi_menit) : 90,
-        garansi: '30 Hari Penuh',
-        scopeIncluded: [
-          'SEMUA cakupan Paket Standar lengkap',
-          'Bongkar total rotor blower fan & talang air indoor',
-          'Deep wash evaporator & kondensor outdoor tekanan tinggi',
-          'Chemical treatment anti-bakteri & pembasmi bau apek',
-          'Vakum sedot kuras saluran drainase (bebas sumbat lendir 100%)',
-          'Pengecekan tekanan freon digital & arus kompresor',
-          'Garansi pengerjaan nyata 30 hari penuh'
+        garansi: 'Garansi Nyata 30 Hari',
+        highlights: [
+          'SEMUA cakupan Paket Standar',
+          'Bongkar total rotor fan & talang',
+          'Chemical treatment anti-bakteri',
+          'Vakum sedot pipa drainase lendir',
+          'Cek tekanan freon & kompresor'
         ],
-        scopeExcluded: [
-          'Pengisian / penambahan freon murni pabrikan',
-          'Deteksi kebocoran pipa & pengencangan flaring'
-        ],
-        benefitNote: '💡 Mengapa Memilih Core? Menuntaskan 95% keluhan AC bocor air menetes dan bau apek. Hembusan angin jadi kencang, dingin merata, dan hemat listrik hingga 30%!',
-        ctaText: 'Pilih Paket Core (Rekomendasi)',
+        ctaText: 'Pilih Core (Pro)',
         bookingUrl: `/booking?layanan=${cr?.id || 4}&paket=core`
       },
       {
         id: cf?.id || 5,
         tier: 'core_freon',
-        nama_layanan: cf?.nama_layanan || 'Paket Core + Isi Freon',
-        subtitle: 'Solusi AC Kurang / Tidak Dingin',
-        badge: 'Paket Komplit + Freon',
+        nama_layanan: 'Core + Isi Freon',
+        subtitle: 'RESTORASI KOMPLIT',
+        badge: 'Komplit',
         isPopular: false,
-        deskripsi: cf?.deskripsi || 'Kombinasi cuci Deep Clean total plus pengisian ulang freon murni presisi pabrikan agar performa AC kembali menggigil seperti baru.',
+        deskripsi: 'Kombinasi cuci bongkar total ditambah pengisian ulang freon murni presisi tinggi agar kembali menggigil.',
         harga: cf?.harga !== undefined ? Number(cf.harga) : 220000,
         durasi_menit: cf?.durasi_menit !== undefined ? Number(cf.durasi_menit) : 105,
-        garansi: '45 Hari Garansi Dingin',
-        scopeIncluded: [
-          'SEMUA layanan Paket Core (Deep Clean bongkar total)',
-          'Pengisian freon murni R32 / R410A / R22 presisi pabrikan',
-          'Deteksi titik kebocoran pipa & pengencangan sambungan flaring',
-          'Pengujian tekanan manifold digital & kalibrasi thermostat',
-          'Pengujian performa kompresor & stabilitas suhu dingin',
-          'Prioritas jadwal teknisi & garansi dingin 45 hari'
+        garansi: 'Garansi Dingin 45 Hari',
+        highlights: [
+          'SEMUA cakupan Paket Core lengkap',
+          'Isi freon R32 / R410A murni',
+          'Deteksi kebocoran flaring pipa',
+          'Kalibrasi thermostat suhu'
         ],
-        scopeExcluded: [],
-        benefitNote: '❄️ Solusi Total: Mengembalikan performa AC yang tidak dingin / pipa bersalju. AC langsung dingin maksimal & kompresor bekerja lebih tenang.',
-        ctaText: 'Pilih Paket Core + Freon',
+        ctaText: 'Pilih Core + Freon',
         bookingUrl: `/booking?layanan=${cf?.id || 5}&paket=core_freon`
       }
     ];
@@ -468,16 +448,16 @@ export default function LandingPage() {
         <section id="layanan" className="py-24 bg-white relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-            {/* Header */}
+            {/* Header ala Apple Compare Matrix */}
             <div className="text-center max-w-3xl mx-auto mb-16">
               <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-                <Wind className="w-3.5 h-3.5" /> Pilihan Paket & Cakupan Layanan
+                BANDINGKAN MODEL
               </span>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                Perbandingan Paket Servis AC
+                Pilih paket yang tepat untuk Anda.
               </h2>
               <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-                Bandingkan cakupan pengerjaan antara <strong>Paket Standar</strong>, <strong>Core (Deep Clean)</strong>, dan <strong>Core + Freon</strong> agar Anda mendapatkan hasil perawatan AC yang paling optimal sesuai kondisi unit.
+                Transparan tanpa biaya tersembunyi. Termasuk garansi resmi purna-servis.
               </p>
             </div>
 
@@ -504,108 +484,61 @@ export default function LandingPage() {
                   >
                     {/* Popular Highlight Badge */}
                     {isCore && (
-                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-sky-600 text-white text-xs font-black uppercase tracking-wider px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                        ⭐ Paling Direkomendasikan (Best Value)
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] font-extrabold uppercase tracking-widest px-4 py-1 rounded-full shadow-md whitespace-nowrap">
+                        PALING DIREKOMENDASIKAN
                       </div>
                     )}
 
                     <div>
-                      {/* Top Tier Info */}
-                      <div className="flex items-center justify-between gap-2 mb-3 pt-1 min-h-[28px]">
-                        <Badge className={`font-bold uppercase text-xs tracking-wider border-0 shrink-0 ${isCore
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-sky-100 text-sky-800'
-                          }`}>
-                          {pkg.badge}
-                        </Badge>
-                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                          <Clock className="w-3.5 h-3.5 text-blue-500" />
-                          ± {pkg.durasi_menit} Menit
-                        </span>
-                      </div>
+                      {/* Top Category / Subtitle */}
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-500 block mb-1">
+                        {pkg.subtitle}
+                      </span>
 
-                      {/* Title */}
-                      <h3 className="text-2xl font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
+                      {/* Service Name */}
+                      <h3 className="text-2xl font-black text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
                         {pkg.nama_layanan}
                       </h3>
-                      <p className="text-xs font-bold text-blue-600 mb-3 min-h-[18px]">
-                        {pkg.subtitle}
-                      </p>
 
-                      {/* Description */}
-                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 min-h-[48px]">
+                      {/* Brief 2-line Description */}
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 min-h-[44px]">
                         {pkg.deskripsi}
                       </p>
 
-                      {/* Price Block */}
+                      {/* Price & Warranty Block */}
                       <div className="mb-6 pb-6 border-b border-sky-100">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Estimasi Biaya Jasa</span>
-                        <div className="mt-1 flex items-baseline gap-1.5">
+                        <div className="flex items-baseline gap-1.5">
                           <span className="text-3xl sm:text-4xl font-black text-slate-900">
                             Rp {pkg.harga.toLocaleString('id-ID')}
                           </span>
                           <span className="text-xs text-slate-500 font-semibold">/ unit</span>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-2">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Garansi Servis {pkg.garansi}
-                        </span>
-                      </div>
-
-                      {/* Scope Checklist: Unified Included (Check) & Excluded (Coret) */}
-                      <div className="space-y-3 mb-6">
-                        <p className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span>Cakupan Layanan:</span>
+                        <p className={`text-xs font-bold mt-1.5 ${isCore ? 'text-emerald-600' : 'text-blue-600'}`}>
+                          {pkg.garansi}
                         </p>
-                        <div className="space-y-2">
-                          {/* Yang Didapat (Ceklis Hijau / Biru) */}
-                          {pkg.scopeIncluded.map((task, tIdx) => (
-                            <div key={`inc-${tIdx}`} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700">
-                              <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCore ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'
-                                }`}>
-                                <Check className="w-2.5 h-2.5 stroke-[3]" />
-                              </span>
-                              <span className={isCore && tIdx > 0 && tIdx < 5 ? 'font-bold text-slate-900' : ''}>
-                                {task}
-                              </span>
-                            </div>
-                          ))}
-
-                          {/* Yang Tidak Didapat (Coret dengan tanda silang) */}
-                          {pkg.scopeExcluded && pkg.scopeExcluded.length > 0 && (
-                            <>
-                              {pkg.scopeExcluded.map((ex, exIdx) => (
-                                <div key={`exc-${exIdx}`} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-400">
-                                  <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 mt-0.5">
-                                    <X className="w-2.5 h-2.5 stroke-[2.5]" />
-                                  </span>
-                                  <span className="line-through decoration-slate-300">
-                                    {ex}
-                                  </span>
-                                </div>
-                              ))}
-                            </>
-                          )}
-                        </div>
                       </div>
 
-                      {/* Benefit Callout Note */}
-                      {pkg.benefitNote && (
-                        <div className="mb-6 p-3.5 rounded-2xl bg-sky-50 border border-sky-100 text-xs text-blue-950 font-medium leading-relaxed">
-                          {pkg.benefitNote}
-                        </div>
-                      )}
+                      {/* Checklist Features */}
+                      <div className="space-y-3 mb-6">
+                        {(pkg.highlights || []).map((task, tIdx) => (
+                          <div key={`hl-${tIdx}`} className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-700">
+                            <Check className={`w-4 h-4 shrink-0 stroke-[2.5] ${isCore ? 'text-blue-600' : 'text-slate-700'}`} />
+                            <span className={isCore && (tIdx === 0 || tIdx === 1 || tIdx === 4) ? 'font-bold text-slate-900' : ''}>
+                              {task}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Booking CTA Button */}
                     <Link to={pkg.bookingUrl} className="block w-full pt-4">
                       <Button
-                        className={`w-full h-12 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${isCore
+                        className={`w-full h-11 rounded-full font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${isCore
                           ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25'
-                          : 'bg-sky-100 hover:bg-sky-200 text-blue-700 border border-sky-200'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
                           }`}
                       >
-                        <CalendarCheck className="w-4 h-4" />
                         <span>{pkg.ctaText}</span>
                       </Button>
                     </Link>
@@ -1077,8 +1010,8 @@ export default function LandingPage() {
                         </span>
                       </div>
 
-                      <Link 
-                        to="/status" 
+                      <Link
+                        to="/status"
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
                       >
                         <span>Coba Lacak Tiket Nyata di Halaman Cek Status</span>
@@ -1120,35 +1053,32 @@ export default function LandingPage() {
                         { title: '6. Pengecekan Tekanan Freon & Arus Ampere', desc: 'Pengukuran manifold gauge (PSI) & tang ampere sesuai standar pabrik.', done: false, status: 'Antrean SOP' },
                         { title: '7. Running Test Akhir & Verifikasi Suhu Dingin', desc: 'Uji kestabilan hembusan angin & pengujian suhu dingin presisi (16°C-20°C).', done: false, status: 'Antrean SOP' }
                       ].map((item, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${
-                            item.done 
-                              ? 'bg-emerald-50/50 border-emerald-200/80 text-slate-800' 
-                              : item.active 
-                                ? 'bg-blue-50/80 border-blue-300 shadow-xs text-blue-950' 
+                        <div
+                          key={idx}
+                          className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${item.done
+                              ? 'bg-emerald-50/50 border-emerald-200/80 text-slate-800'
+                              : item.active
+                                ? 'bg-blue-50/80 border-blue-300 shadow-xs text-blue-950'
                                 : 'bg-slate-50/70 border-slate-200/70 text-slate-600'
-                          }`}
+                            }`}
                         >
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
-                            item.done 
-                              ? 'bg-emerald-600 text-white' 
-                              : item.active 
-                                ? 'bg-blue-600 text-white animate-pulse' 
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${item.done
+                              ? 'bg-emerald-600 text-white'
+                              : item.active
+                                ? 'bg-blue-600 text-white animate-pulse'
                                 : 'bg-slate-200 text-slate-400'
-                          }`}>
+                            }`}>
                             {item.done ? '✓' : item.active ? <Wrench className="w-3 h-3" /> : idx + 1}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <h5 className="text-xs sm:text-sm font-bold truncate">{item.title}</h5>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                                item.done 
-                                  ? 'bg-emerald-100 text-emerald-800' 
-                                  : item.active 
-                                    ? 'bg-blue-100 text-blue-800 font-bold' 
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${item.done
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : item.active
+                                    ? 'bg-blue-100 text-blue-800 font-bold'
                                     : 'bg-slate-200 text-slate-600'
-                              }`}>
+                                }`}>
                                 {item.status}
                               </span>
                             </div>
@@ -1194,7 +1124,7 @@ export default function LandingPage() {
                           Setiap unit AC pelanggan memiliki identitas digital: tipe unit, riwayat pencucian, data suhu, dan estimasi waktu servis berkala.
                         </p>
                       </div>
-                      <Link 
+                      <Link
                         to="/login"
                         className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
                       >
