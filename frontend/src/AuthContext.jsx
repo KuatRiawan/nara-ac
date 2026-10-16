@@ -81,6 +81,32 @@ export function AuthProvider({ children }) {
     return res;
   }, [fetchCsrfToken]);
 
+  const staffLogin = useCallback(async (email, password) => {
+    const res = await api.post('/auth/staff/login', { email, password });
+    setUser(res.user);
+    await fetchCsrfToken();
+    return res;
+  }, [fetchCsrfToken]);
+
+  const requestCustomerOtp = useCallback(async (kontak) => {
+    const res = await api.post('/auth/customer/request-otp', { kontak });
+    return res;
+  }, []);
+
+  const verifyCustomerOtp = useCallback(async (kontak, otp) => {
+    const res = await api.post('/auth/customer/verify-otp', { kontak, otp });
+    setUser(res.user);
+    await fetchCsrfToken();
+    return res;
+  }, [fetchCsrfToken]);
+
+  const registerMember = useCallback(async (formData) => {
+    const res = await api.post('/auth/register', formData);
+    setUser(res.user);
+    await fetchCsrfToken();
+    return res;
+  }, [fetchCsrfToken]);
+
   /**
    * Confirm logout - tampilkan dialog konfirmasi
    */
@@ -148,6 +174,10 @@ export function AuthProvider({ children }) {
     csrfToken,
     loading,
     login,
+    staffLogin,
+    requestCustomerOtp,
+    verifyCustomerOtp,
+    registerMember,
     logout,
     confirmLogout,
     cancelLogout,

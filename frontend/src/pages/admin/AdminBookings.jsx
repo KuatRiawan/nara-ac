@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api';
-import { Calendar as CalendarIcon, Clock, Wrench, Plus, Search, CheckCircle2, AlertCircle, AlertTriangle, Phone, MapPin, ExternalLink, Copy, Check, ChevronDown, RefreshCw, X, Eye, MessageSquare, UserCheck, UserPlus, ArrowUpDown, CalendarClock, Printer, Receipt } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Wrench, Plus, Search, CheckCircle2, AlertCircle, AlertTriangle, Phone, MapPin, ExternalLink, Copy, Check, ChevronDown, RefreshCw, X, Eye, MessageSquare, UserCheck, UserPlus, ArrowUpDown, CalendarClock, Printer, Receipt, CreditCard, Send, CheckSquare, XSquare, DollarSign, Upload } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -33,6 +33,13 @@ export default function AdminBookings({
   // Modal Invoice State
   const [selectedInvoiceBooking, setSelectedInvoiceBooking] = useState(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
+  // Payment Verification State (BR-37, BR-41, BR-42)
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [rejectCatatan, setRejectCatatan] = useState('');
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   // Escape key to close invoice modal
   useEffect(() => {
@@ -160,6 +167,72 @@ export default function AdminBookings({
       showError(msg);
     } finally {
       setIsSubmittingReschedule(false);
+    }
+  };
+
+  // Payment Verification Handlers (BR-37)
+  const handleVerifyPayment = async (bookingId, status, catatan = '') => {
+    setIsVerifyingPayment(true);
+    try {
+      const res = await api.patch(`/payments/bookings/${bookingId}/verify`, {
+        status,
+        catatan: catatan || (status === 'diverifikasi' ? 'Pembayaran telah diverifikasi admin' : 'Bukti pembayaran ditolak'),
+      });
+      showSuccess(res.data?.message || `Status pembayaran berhasil diubah ke ${status}.`);
+      setIsRejectDialogOpen(false);
+      setRejectCatatan('');
+      if (selectedBookingForDetail?.id === bookingId) {
+        setSelectedBookingForDetail(prev => prev ? {
+          ...prev,
+          status_verifikasi_pembayaran: status,
+          status_pembayaran: status === 'diverifikasi' ? 'paid' : prev.status_pembayaran,
+          catatan_verifikasi: catatan || (status === 'diverifikasi' ? 'Pembayaran telah diverifikasi admin' : 'Bukti pembayaran ditolak'),
+        } : null);
+      }
+      if (onBookingCreated) onBookingCreated();
+    } catch (err) {
+      showError(getErrorMessage(err, 'Gagal memverifikasi pembayaran'));
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
+  // Refund Handler (BR-41)
+  const handleRefundPayment = async (bookingId, nominal, catatan = '') => {
+    setIsProcessingRefund(true);
+    try {
+      const res = await api.post(`/payments/bookings/${bookingId}/refund`, {
+        nominal: nominal ? Number(nominal) : undefined,
+        catatan: catatan || 'Pengembalian selisih biaya servis',
+      });
+      showSuccess(res.data?.message || 'Pengembalian dana berhasil diproses.');
+      if (selectedBookingForDetail?.id === bookingId) {
+        setSelectedBookingForDetail(prev => prev ? {
+          ...prev,
+          refund_status: 'processed',
+          refund_nominal: nominal || prev.refund_nominal,
+        } : null);
+      }
+      if (onBookingCreated) onBookingCreated();
+    } catch (err) {
+      showError(getErrorMessage(err, 'Gagal memproses refund'));
+    } finally {
+      setIsProcessingRefund(false);
+    }
+  };
+
+  // Send WhatsApp Invoice Handler (BR-42, BR-43)
+  const handleSendWhatsAppInvoice = async (bookingId, tipeInvoice = 'final') => {
+    setIsSendingWhatsApp(true);
+    try {
+      const res = await api.post(`/payments/bookings/${bookingId}/send-whatsapp`, {
+        tipe_invoice: tipeInvoice,
+      });
+      showSuccess(res.data?.message || 'Invoice berhasil dikirim ke WhatsApp pemesan.');
+    } catch (err) {
+      showError(getErrorMessage(err, 'Gagal mengirim invoice WhatsApp'));
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -1215,7 +1288,7 @@ export default function AdminBookings({
               </div>
 
               {/* Teknisi Bertugas */}
-              <div className="space-y-2">
+              <div className="space-y-2 border-b border-slate-100 pb-4">
                 <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-500">Penugasan Teknisi</h4>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Teknisi:</span>
@@ -1226,27 +1299,166 @@ export default function AdminBookings({
                   </span>
                 </div>
               </div>
+
+              {/* Status & Verifikasi Pembayaran (BR-34 s/d BR-43) */}
+              <div className="space-y-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                      Pembayaran &amp; Tagihan
+                    </h4>
+                  </div>
+                  <Badge className={cn(
+                    "text-2xs font-bold uppercase",
+                    selectedBookingForDetail.status_pembayaran === 'paid' ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                  )}>
+                    {selectedBookingForDetail.status_pembayaran === 'paid' ? 'LUNAS (PAID)' : 'BELUM LUNAS'}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-2xs">Skema Pembayaran:</span>
+                    <span className="font-bold text-slate-800">
+                      {selectedBookingForDetail.skema_pembayaran === 'full_upfront' ? 'Bayar Lunas Awal' :
+                        selectedBookingForDetail.skema_pembayaran === 'dp_50' ? 'Uang Muka (DP 50%)' :
+                          'Bayar Setelah Servis'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-2xs">Metode Pembayaran:</span>
+                    <span className="font-bold text-slate-800">
+                      {selectedBookingForDetail.metode_pembayaran === 'transfer' ? 'Transfer Bank' :
+                        selectedBookingForDetail.metode_pembayaran === 'qris' ? 'QRIS' : 'Tunai'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bukti Transfer & Verifikasi Manual (BR-37) */}
+                {selectedBookingForDetail.metode_pembayaran === 'transfer' && (
+                  <div className="pt-2 border-t border-slate-200 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-600 font-semibold">Status Bukti Transfer:</span>
+                      <span className={cn(
+                        "font-bold px-2 py-0.5 rounded text-2xs uppercase",
+                        selectedBookingForDetail.status_verifikasi_pembayaran === 'diverifikasi' ? "bg-emerald-100 text-emerald-800" :
+                          selectedBookingForDetail.status_verifikasi_pembayaran === 'ditolak' ? "bg-rose-100 text-rose-800" :
+                            "bg-amber-100 text-amber-800"
+                      )}>
+                        {selectedBookingForDetail.status_verifikasi_pembayaran || 'menunggu_verifikasi'}
+                      </span>
+                    </div>
+
+                    {selectedBookingForDetail.bukti_pembayaran_url && (
+                      <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+                        <span className="text-2xs text-slate-500 truncate max-w-[200px]">
+                          {selectedBookingForDetail.bukti_pembayaran_url}
+                        </span>
+                        <a
+                          href={selectedBookingForDetail.bukti_pembayaran_url}
+                          target="_blank" rel="noopener noreferrer"
+                          className="text-2xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" /> Lihat Bukti
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Tombol Aksi Verifikasi Admin */}
+                    {selectedBookingForDetail.status_verifikasi_pembayaran !== 'diverifikasi' && (
+                      <div className="pt-1 flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          disabled={isVerifyingPayment}
+                          onClick={() => handleVerifyPayment(selectedBookingForDetail.id, 'diverifikasi', 'Disetujui dan diverifikasi oleh admin')}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold h-7 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5" />
+                          <span>Setujui Pembayaran</span>
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isVerifyingPayment}
+                          onClick={() => {
+                            const reason = window.prompt('Masukkan alasan penolakan bukti pembayaran:');
+                            if (reason !== null && reason.trim()) {
+                              handleVerifyPayment(selectedBookingForDetail.id, 'ditolak', reason.trim());
+                            }
+                          }}
+                          className="border-rose-200 text-rose-700 hover:bg-rose-50 text-2xs font-bold h-7 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                        >
+                          <XSquare className="w-3.5 h-3.5" />
+                          <span>Tolak Bukti</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Refund Kelebihan Bayar (BR-41) */}
+                {selectedBookingForDetail.status === 'done' && Number(selectedBookingForDetail.refund_nominal || 0) > 0 && (
+                  <div className="pt-2 border-t border-slate-200 text-xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-emerald-700 font-bold">Kelebihan Pembayaran (Refund):</span>
+                      <span className="font-mono font-bold text-emerald-800">
+                        {formatRupiah(selectedBookingForDetail.refund_nominal)}
+                      </span>
+                    </div>
+                    {selectedBookingForDetail.refund_status !== 'processed' ? (
+                      <Button
+                        size="sm"
+                        disabled={isProcessingRefund}
+                        onClick={() => handleRefundPayment(selectedBookingForDetail.id, selectedBookingForDetail.refund_nominal)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold h-7 rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <DollarSign className="w-3.5 h-3.5" />
+                        <span>Proses Pengembalian Dana</span>
+                      </Button>
+                    ) : (
+                      <span className="text-2xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded block text-center">
+                        ✓ Refund Telah Diproses Selesai
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Modal Footer */}
             <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   onClick={() => openInvoiceModal(selectedBookingForDetail)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-4 h-9 flex items-center gap-1.5 cursor-pointer shadow-sm shadow-emerald-600/20"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl px-3.5 h-9 flex items-center gap-1.5 cursor-pointer shadow-sm shadow-emerald-600/20"
                 >
                   <Receipt className="w-4 h-4" />
                   <span>Cetak E-Invoice</span>
                 </Button>
 
+                {/* Kirim Invoice via WhatsApp (BR-42) */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isSendingWhatsApp}
+                  onClick={() => handleSendWhatsAppInvoice(selectedBookingForDetail.id, selectedBookingForDetail.status === 'done' ? 'final' : 'proforma')}
+                  className="border-emerald-500 text-emerald-800 hover:bg-emerald-50 text-xs font-bold rounded-xl px-3 h-9 flex items-center gap-1.5 cursor-pointer"
+                  title="Kirim Invoice ke WhatsApp Pelanggan"
+                >
+                  <Send className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Kirim WA</span>
+                </Button>
+
                 <a
                   href={`/status/${selectedBookingForDetail.kode_booking}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline"
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline ml-1"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Buka Status Publik</span>
+                  <span>Status Publik</span>
                   <span className="sr-only"> (buka di tab baru)</span>
                 </a>
               </div>

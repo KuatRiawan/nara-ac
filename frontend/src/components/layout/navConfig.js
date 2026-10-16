@@ -4,7 +4,7 @@
  * Used by both BottomNavigation (mobile) and Sidebar (desktop)
  */
 
-import { LayoutDashboard, Calendar as CalendarIcon, CalendarCheck, User, Users, Wrench, Settings, MoreHorizontal, ClipboardList, History, Package, Bot, AirVent, Receipt, Star, Tag } from 'lucide-react';
+import { LayoutDashboard, Calendar as CalendarIcon, CalendarCheck, User, Users, Wrench, Settings, MoreHorizontal, ClipboardList, History, Package, Bot, AirVent, Receipt, Star, Tag, ShieldCheck } from 'lucide-react';
 
 // Admin Navigation Items
 export const adminNavItems = [
@@ -61,6 +61,14 @@ export const adminNavItems = [
     shortName: 'E-Invoice',
     path: '/admin/invoices',
     icon: Receipt,
+    priority: 'secondary',
+    group: 'Keuangan & Layanan'
+  },
+  {
+    name: 'Klaim Garansi',
+    shortName: 'Garansi',
+    path: '/admin/claims',
+    icon: ShieldCheck,
     priority: 'secondary',
     group: 'Keuangan & Layanan'
   },

@@ -121,11 +121,10 @@ export default function AdminCreateBookingModal({
     const unit = Number(jumlahUnit) || 1;
     const base = selectedServiceObj ? Number(selectedServiceObj.harga) : 75000;
     const subtotal = base * unit;
-    const discount = unit === 2 ? Math.round(subtotal * 0.05) : unit >= 3 ? Math.round(subtotal * 0.1) : 0;
     return {
       subtotal,
-      discount,
-      total: subtotal - discount
+      discount: 0,
+      total: subtotal
     };
   }, [selectedServiceObj, jumlahUnit]);
 
@@ -541,11 +540,7 @@ export default function AdminCreateBookingModal({
               <div className="p-3 bg-white rounded-xl border border-blue-100 flex items-center justify-between text-xs">
                 <div>
                   <span className="text-slate-500 font-medium">Estimasi Tarif Resmi:</span>
-                  {calculatedCost.discount > 0 && (
-                    <span className="ml-2 text-xs bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
-                      Diskon Multi-Unit: -Rp {calculatedCost.discount.toLocaleString('id-ID')}
-                    </span>
-                  )}
+                  <span className="ml-2 text-slate-400 font-medium">({jumlahUnit} unit)</span>
                 </div>
                 <div className="font-mono font-black text-blue-700 text-sm">
                   Rp {calculatedCost.total.toLocaleString('id-ID')}

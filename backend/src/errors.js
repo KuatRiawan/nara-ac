@@ -9,6 +9,7 @@ class AppError extends Error {
 }
 
 const E = {
+  badRequest: (message = 'Permintaan tidak valid.', detail) => new AppError(400, 'BAD_REQUEST', message, detail),
   validation: (message, detail) => new AppError(400, 'VALIDATION_ERROR', message, detail),
   unauthorized: (message = 'Autentikasi diperlukan. Silakan login.') => new AppError(401, 'UNAUTHORIZED', message),
   forbidden: (message = 'Anda tidak memiliki hak akses untuk aksi ini.') => new AppError(403, 'FORBIDDEN', message),

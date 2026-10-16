@@ -124,14 +124,21 @@ export default function MobileNav({ isOpen, onClose, scrollTo }) {
                   Cek Status Booking
                 </Link>
 
-                <div className="pt-2 text-center">
+                <div className="pt-2 flex flex-col items-center gap-2 text-center">
                   <Link
                     to="/login"
                     onClick={onClose}
-                    className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-600 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
                   >
                     <User className="w-3.5 h-3.5" />
-                    <span>Portal Staf & Teknisi</span>
+                    <span>Masuk Portal Member Pelanggan</span>
+                  </Link>
+                  <Link
+                    to="/staff/login"
+                    onClick={onClose}
+                    className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                  >
+                    <span>Portal Staf &amp; Teknisi</span>
                   </Link>
                 </div>
               </div>

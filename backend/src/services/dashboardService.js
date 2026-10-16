@@ -24,7 +24,13 @@ async function conflicts() {
   return [...overlaps, ...unavailable];
 }
 
-async function maintenanceDue(days = 14, limit = 50) {
+async function maintenanceDue(daysArg = 14, limitArg = 50) {
+  let days = daysArg;
+  let limit = limitArg;
+  if (typeof daysArg === 'object' && daysArg !== null) {
+    days = daysArg.days !== undefined ? daysArg.days : 14;
+    limit = daysArg.limit !== undefined ? daysArg.limit : 50;
+  }
   const { sanitizeLimitOffset } = require('../db/pool');
   const { limit: safeLimit } = sanitizeLimitOffset(limit);
   return (await query(

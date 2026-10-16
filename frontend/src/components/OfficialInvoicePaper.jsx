@@ -113,20 +113,58 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
     return invoiceItems.reduce((acc, it) => acc + it.units, 0);
   }, [b.units, b.jumlah_unit, invoiceItems]);
 
-  const subtotal = useMemo(() => {
-    if (b.subtotal !== undefined) return Number(b.subtotal);
-    return invoiceItems.reduce((acc, it) => acc + it.subtotal, 0);
-  }, [b.subtotal, invoiceItems]);
+  // Determine membership status (BR-01, BR-02, BR-03)
+  const isMember = Boolean(b.is_member || b.customer?.is_member || b.customer_is_member);
 
-  // Multi-unit discount calculation: 5% for 2 units, 10% for 3+ units
-  const discount = useMemo(() => {
-    if (b.discount !== undefined) return Number(b.discount);
-    if (units === 2) return Math.round(subtotal * 0.05);
-    if (units >= 3) return Math.round(subtotal * 0.1);
-    return 0;
-  }, [units, subtotal, b.discount]);
+  // Subtotals: split service items and spare parts (BR-02, BR-03, BR-39, BR-40)
+  const subtotalJasa = useMemo(() => {
+    if (b.subtotal_jasa !== undefined) return Number(b.subtotal_jasa);
+    return invoiceItems.reduce((acc, it) => acc + it.subtotal, 0);
+  }, [b.subtotal_jasa, invoiceItems]);
+
+  const sparepartItems = useMemo(() => {
+    if (Array.isArray(b.sparepart_items)) return b.sparepart_items;
+    if (Array.isArray(b.pemakaian_inventory)) {
+      return b.pemakaian_inventory.map(p => ({
+        nama: p.nama_item || 'Spare Part / Material',
+        qty: Number(p.jumlah || 1),
+        hargaSatuan: Number(p.harga_jual || p.harga_satuan || 0),
+        subtotal: Number(p.total_harga || (Number(p.jumlah || 1) * Number(p.harga_jual || 0))),
+      }));
+    }
+    return [];
+  }, [b.sparepart_items, b.pemakaian_inventory]);
+
+  const subtotalSparepart = useMemo(() => {
+    if (b.subtotal_sparepart !== undefined) return Number(b.subtotal_sparepart);
+    return sparepartItems.reduce((acc, it) => acc + (Number(it.subtotal) || (Number(it.qty || 1) * Number(it.hargaSatuan || 0))), 0);
+  }, [b.subtotal_sparepart, sparepartItems]);
+
+  const subtotal = subtotalJasa + subtotalSparepart;
+
+  // Discount calculation:
+  // BR-02: Member gets 10% discount on service labor only.
+  // Non-member: Diskon eksklusif hanya untuk member (0% untuk non-member).
+  // BR-03: Spare parts never get discount.
+  const { discount, discountLabel } = useMemo(() => {
+    if (b.discount !== undefined && b.discount_label) {
+      return { discount: Number(b.discount), discountLabel: b.discount_label };
+    }
+    if (isMember) {
+      const disc = Math.round(subtotalJasa * 0.1);
+      return { discount: disc, discountLabel: 'Diskon Spesial Membership (10% Biaya Jasa)' };
+    }
+    return { discount: 0, discountLabel: '' };
+  }, [subtotalJasa, isMember, b.discount, b.discount_label]);
 
   const total = b.total !== undefined ? Number(b.total) : (subtotal - discount);
+
+  // Financial reconciliation: initial vs final, balance due vs refund (BR-39, BR-40, BR-41)
+  const invoiceType = b.invoice_type || (b.status === 'done' || subtotalSparepart > 0 ? 'final' : 'initial');
+  const invoiceTypeLabel = b.invoice_type_label || (invoiceType === 'final' ? 'Invoice Final (Penyelesaian Pekerjaan)' : 'Invoice Awal (Estimasi Booking)');
+  const totalDibayar = Number(b.total_dibayar || (b.isPaid || b.status_pembayaran === 'paid' ? total : 0));
+  const balanceDue = Number(b.balance_due != null ? b.balance_due : Math.max(0, total - totalDibayar));
+  const refundAmount = Number(b.refund_amount != null ? b.refund_amount : Math.max(0, totalDibayar - total));
 
   // Warranty duration text
   const warrantyText = useMemo(() => {
@@ -228,9 +266,16 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
           {/* Right: Invoice Tag & Metadata */}
           <div className="text-left md:text-right shrink-0 w-full md:w-auto max-w-full md:max-w-xs">
             <div className="inline-block w-full px-3.5 py-2 rounded-xl bg-slate-900 text-white text-left md:text-right shadow-xs">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400 block mb-0.5">
-                INVOICE & SPK RESMI
-              </span>
+              <div className="flex items-center justify-between md:justify-end gap-1.5 mb-0.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-sky-400">
+                  {invoiceTypeLabel}
+                </span>
+                {isMember && (
+                  <span className="px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 font-black text-[8px] uppercase tracking-wider">
+                    ★ Member
+                  </span>
+                )}
+              </div>
               <span className="text-xs sm:text-sm font-mono font-black tracking-wider block">
                 {invNumber}
               </span>
@@ -322,10 +367,13 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
           </thead>
           <tbody className="divide-y divide-slate-200">
             {invoiceItems.map((item, idx) => (
-              <tr key={idx}>
+              <tr key={`svc-${idx}`}>
                 <td className="py-2.5 px-2 text-center font-mono font-bold">{idx + 1}</td>
                 <td className="py-2.5 px-2">
-                  <p className="font-bold text-slate-900 text-xs">{item.nama}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 text-[9px] font-bold uppercase">Jasa</span>
+                    <p className="font-bold text-slate-900 text-xs">{item.nama}</p>
+                  </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {item.catatan ? `Catatan: ${item.catatan} — ` : ''}
                     Pembersihan evaporator, kondensor, blower indoor, drainase air, pengecekan kelistrikan & tekanan freon (SOP 7 Langkah NARA AC)
@@ -339,11 +387,39 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
               </tr>
             ))}
 
+            {/* Spare Part / Material Items (BR-03, BR-05, BR-39) */}
+            {sparepartItems.map((item, idx) => (
+              <tr key={`part-${idx}`} className="bg-slate-50/50">
+                <td className="py-2.5 px-2 text-center font-mono font-bold">{invoiceItems.length + idx + 1}</td>
+                <td className="py-2.5 px-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[9px] font-bold uppercase">Spare Part / Material</span>
+                    <p className="font-bold text-slate-900 text-xs">{item.nama}</p>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Komponen pengganti resmi dengan standar mutu NARA AC
+                  </p>
+                </td>
+                <td className="py-2.5 px-2 text-center font-bold font-mono">{item.qty || 1}</td>
+                <td className="py-2.5 px-2 text-right font-mono">Rp {Number(item.hargaSatuan || 0).toLocaleString('id-ID')}</td>
+                <td className="py-2.5 px-2 text-right font-bold font-mono text-slate-950">
+                  Rp {Number(item.subtotal || (Number(item.qty || 1) * Number(item.hargaSatuan || 0))).toLocaleString('id-ID')}
+                </td>
+              </tr>
+            ))}
+
             {discount > 0 && (
               <tr className="bg-emerald-50 text-emerald-900 font-medium">
-                <td className="py-2 px-2 text-center font-mono">{invoiceItems.length + 1}</td>
+                <td className="py-2 px-2 text-center font-mono">{invoiceItems.length + sparepartItems.length + 1}</td>
                 <td className="py-2 px-2">
-                  Diskon Spesial Paket Multi-Unit ({units === 2 ? '5%' : '10%'})
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold">{discountLabel}</span>
+                    {isMember && (
+                      <span className="text-[10px] text-emerald-700 italic">
+                        (Berlaku khusus jasa pengerjaan teknisi)
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-2 px-2 text-center">-</td>
                 <td className="py-2 px-2 text-right font-mono">-</td>
@@ -395,12 +471,19 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
         <div className="space-y-1.5 text-left sm:text-right self-center pr-0 sm:pr-2">
           <div className="flex justify-between text-slate-600 text-xs">
             <span>Subtotal Jasa Servis:</span>
-            <span className="font-mono">Rp {subtotal.toLocaleString('id-ID')}</span>
+            <span className="font-mono">Rp {subtotalJasa.toLocaleString('id-ID')}</span>
           </div>
+
+          {subtotalSparepart > 0 && (
+            <div className="flex justify-between text-slate-600 text-xs">
+              <span>Subtotal Spare Part &amp; Material:</span>
+              <span className="font-mono">Rp {subtotalSparepart.toLocaleString('id-ID')}</span>
+            </div>
+          )}
 
           {discount > 0 && (
             <div className="flex justify-between text-emerald-700 text-xs">
-              <span>Potongan Multi-Unit:</span>
+              <span>{discountLabel}:</span>
               <span className="font-mono font-bold">-Rp {discount.toLocaleString('id-ID')}</span>
             </div>
           )}
@@ -411,6 +494,29 @@ export default function OfficialInvoicePaper({ booking, isPaidOverride, paymentS
               Rp {total.toLocaleString('id-ID')}
             </span>
           </div>
+
+          {/* Balance Due / Refund Reconciliation (BR-41) */}
+          {totalDibayar > 0 && (
+            <div className="pt-1 border-t border-slate-200 text-xs space-y-1">
+              <div className="flex justify-between text-slate-600">
+                <span>Total Sudah Dibayar:</span>
+                <span className="font-mono font-bold text-slate-800">Rp {totalDibayar.toLocaleString('id-ID')}</span>
+              </div>
+              {balanceDue > 0 && (
+                <div className="flex justify-between text-rose-700 bg-rose-50 px-2 py-0.5 rounded font-bold">
+                  <span>Sisa Kekurangan Bayar:</span>
+                  <span className="font-mono">Rp {balanceDue.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+              {refundAmount > 0 && (
+                <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">
+                  <span>Kelebihan Bayar (Refund):</span>
+                  <span className="font-mono">Rp {refundAmount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <p className="text-xs text-slate-500">
             Harga sudah termasuk biaya operasional & alat SOP teknisi.
           </p>

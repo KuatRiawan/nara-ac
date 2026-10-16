@@ -39,4 +39,4 @@ function sanitizeLimitOffset(limit, offset = 0) {
   return { limit: l, offset: o };
 }
 
-module.exports = { pool, query: (t, p) => pool.query(t, p), withTx, sanitizeLimitOffset };
+module.exports = { pool, query: (t, p) => pool.query(t, p), withTx, withTransaction: withTx, sanitizeLimitOffset };

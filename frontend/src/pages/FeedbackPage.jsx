@@ -300,6 +300,18 @@ export default function FeedbackPage() {
               Penilaian Anda sangat berharga bagi <strong>CV. Nara Teknindotama</strong> untuk terus menjaga kualitas pengerjaan dan kepuasan pelanggan.
             </p>
 
+            {rating <= 2 && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs mb-6 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-amber-950 leading-relaxed">
+                  <p className="font-bold mb-0.5">Komitmen Evaluasi Layanan (SOP NARA AC)</p>
+                  <p>
+                    Kami memohon maaf atas ketidaknyamanan yang dialami. Sesuai standar operasional kami, laporan ulasan ini telah diteruskan dengan prioritas tinggi ke manajemen untuk segera ditindaklanjuti dan dicarikan solusi terbaik bagi Anda.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl bg-sky-50 border border-sky-100 text-left text-xs mb-8 flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
               <p className="text-sky-900 leading-relaxed">

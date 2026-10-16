@@ -314,6 +314,57 @@ router.patch('/bookings/:id/assign', validate(idParam, 'params'), validate(Joi.o
   res.json(await wf.assign(Number(req.params.id), req.body.teknisi_id, req.user));
 }));
 
+// BR-11 & BR-12: Penggantian teknisi oleh admin jika berhalangan, atau tawarkan slot alternatif jika tidak ada teknisi pengganti
+router.patch('/bookings/:id/replace-technician', validate(idParam, 'params'), validate(Joi.object({
+  teknisi_baru_id: Joi.number().integer().positive().optional().allow(null).label('Teknisi Pengganti'),
+  alasan: Joi.string().trim().min(3).max(300).required().label('Alasan Penggantian')
+})), wrap(async (req, res) => {
+  const bookingId = Number(req.params.id);
+  const { teknisi_baru_id: newTechId, alasan } = req.body;
+
+  const b = (await query('SELECT * FROM bookings WHERE id = $1', [bookingId])).rows[0];
+  if (!b) throw E.notFound('Booking tidak ditemukan.');
+
+  // Jika admin memilih teknisi pengganti secara spesifik
+  if (newTechId) {
+    const updated = await wf.assign(bookingId, newTechId, req.user);
+    return res.json({
+      success: true,
+      message: 'Teknisi pengganti berhasil ditugaskan.',
+      data: updated
+    });
+  }
+
+  // Jika teknisi_baru_id tidak disediakan, sistem mencari teknisi pengganti yang tersedia (BR-11)
+  const recommendations = await wf.recommendTechnicians(new Date(b.jadwal_mulai), new Date(b.jadwal_selesai), bookingId);
+  const availableCandidate = recommendations.find((r) => r.assignable);
+
+  if (availableCandidate) {
+    const updated = await wf.assign(bookingId, availableCandidate.id, req.user);
+    return res.json({
+      success: true,
+      message: `Teknisi pengganti otomatis (${availableCandidate.nama}) berhasil ditugaskan.`,
+      teknisi_pengganti: availableCandidate.nama,
+      data: updated
+    });
+  }
+
+  // BR-12: Jika teknisi pengganti tidak tersedia, sistem mencari dan menawarkan slot alternatif
+  const dateStr = wibDateString(new Date(b.jadwal_mulai));
+  const altAvailability = await bs.getAvailability(dateStr, b.layanan_id, b.jumlah_unit || 1);
+  const availableSlots = (altAvailability.slot || []).filter((s) => s.tersedia);
+
+  res.json({
+    success: false,
+    code: 'NO_REPLACEMENT_TECHNICIAN',
+    message: 'Tidak ada teknisi pengganti yang tersedia pada jadwal saat ini. Sistem menawarkan opsi slot jadwal alternatif.',
+    booking_id: bookingId,
+    kode_booking: b.kode_booking,
+    tanggal: dateStr,
+    slot_alternatif: availableSlots.slice(0, 6)
+  });
+}));
+
 router.patch('/bookings/:id/reschedule', validate(idParam, 'params'), validate(Joi.object({
   jadwal_mulai: Joi.string().trim().required().label('Jadwal'), alasan: Joi.string().trim().min(3).max(300).required().label('Alasan'),
   teknisi_id: Joi.number().integer().positive(),

@@ -32,7 +32,7 @@ const reviewsData = [
     id: 1,
     name: 'Alas Nuwoyo',
     badge: 'Local Guide · 52 ulasan',
-    avatar: 'https://lh3.googleusercontent.com/a-/ALV-UjWl5gSBGXuZsC7IrzRXVxYypRCoP12SxgZEzR5rOvHZvC6zQS2V=s120-c-rp-mo-ba12-br100',
+    avatar: '/images/reviews/alas-nuwoyo.png',
     rating: 5,
     date: 'Setahun lalu',
     comment: 'Pilihan terbaik untuk servis AC! Tim teknisi yang sangat berpengalaman dan profesional, harga yang kompetitif, dan pelayanan yang sangat baik. Pak Yusuf sebagai pemiliknya juga sangat responsif dan peduli dengan kebutuhan pelanggan. Puas banget dengan hasil servis AC di Narateknindotama dan akan rekomendasiin kepada siapa aja yang butuh servis AC yang andal dan berkualitas. Mantap!'
@@ -41,7 +41,7 @@ const reviewsData = [
     id: 2,
     name: 'Vita Chotimah Pasha',
     badge: '2 ulasan',
-    avatar: 'https://lh3.googleusercontent.com/a-/ALV-UjUVS6YcVvDj_JiuXbFpW-qo5olYo1uHx5Xx669JkMSD7HdfuyTnDg=s120-c-rp-mo-br100',
+    avatar: '/images/reviews/vita-chotimah.png',
     rating: 5,
     date: 'Setahun lalu',
     comment: 'Pelayanannya super cepat, pengerjaannya juga oke banget, rapih, bersih, harga juga bersahabat, bakalan pake lagi sih kalo service nya bagus gini👍🏻'
@@ -50,7 +50,7 @@ const reviewsData = [
     id: 3,
     name: 'Ririani',
     badge: '6 ulasan',
-    avatar: 'https://lh3.googleusercontent.com/a-/ALV-UjXFzGDs6fr18k5_boXOK11kaB6wsOisM_JMOMIvhPdSi1Otqu3V=s120-c-rp-mo-br100',
+    avatar: '/images/reviews/ririani.png',
     rating: 5,
     date: '4 bulan lalu',
     comment: 'Fast respon, good service.. Untuk harga affordable👍'
@@ -59,7 +59,7 @@ const reviewsData = [
     id: 4,
     name: 'hendrik fendi',
     badge: '1 ulasan',
-    avatar: 'https://lh3.googleusercontent.com/a/ACg8ocJdrZCb1kmC5LfvkrCDMIZNMOgnYrhz4h8lAwekRDHf5ozuKg=s120-c-rp-mo-br100',
+    avatar: '/images/reviews/hendrik-fendi.png',
     rating: 5,
     date: 'Setahun lalu',
     comment: 'Saya sangat puas dengan layanan servis AC di Narateknindotama! Tim teknisi mereka sangat ramah dan berpengalaman, menjelaskan setiap langkah servis dengan detail. Pak Yusuf sebagai pemiliknya juga sangat responsif dan peduli dengan kebutuhan pelanggan. Harga yang ditawarkan juga sangat kompetitif. Saya akan merekomendasikan Narateknindotama kepada siapa saja yang membutuhkan servis AC yang andal dan berkualitas.'
@@ -68,7 +68,7 @@ const reviewsData = [
     id: 5,
     name: 'Jala Sukma',
     badge: '1 ulasan',
-    avatar: 'https://lh3.googleusercontent.com/a-/ALV-UjXlr9mX3f-ZAwDSMHjs5r71G5htbiZeU6AfxBBEz043_TyYlw=s120-c-rp-mo-br100',
+    avatar: '/images/reviews/jala-sukma.png',
     rating: 5,
     date: 'Setahun lalu',
     comment: 'Ini servis yang kedua kalinya menggunakan jasa Nara Teknindotama utk pembersihan AC. Teknisinya informatif dan cekatan. Thank you ya 🙂'
@@ -190,6 +190,8 @@ export default function GoogleReviewsSection() {
                     <img
                       src={rev.avatar}
                       alt={rev.name}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
                       onError={() => handleImageError(rev.id)}
                       className="w-11 h-11 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
                     />

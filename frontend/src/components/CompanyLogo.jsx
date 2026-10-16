@@ -1,6 +1,6 @@
 export default function CompanyLogo({ className = '', dark = false, iconSize = 'h-12', iconOnly = false, collapsed = false }) {
   return (
-    <div className={`flex items-center ${iconOnly || collapsed ? 'justify-center' : 'gap-3'} ${className}`}>
+    <div className={`flex items-center shrink-0 ${iconOnly || collapsed ? 'justify-center' : 'gap-3'} ${className}`}>
       <img 
         src="/images/logo.png" 
         alt="CV. Nara Teknindotama Logo" 

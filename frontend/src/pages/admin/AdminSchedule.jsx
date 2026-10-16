@@ -28,6 +28,8 @@ export default function AdminSchedule({ onBookingAssigned }) {
   const [newRescheduleTime, setNewRescheduleTime] = useState('09:00');
   const [rescheduleReason, setRescheduleReason] = useState('Penyesuaian jadwal servis oleh admin');
   const [isSubmittingReschedule, setIsSubmittingReschedule] = useState(false);
+  const [altSlots, setAltSlots] = useState([]);
+  const [isReplacing, setIsReplacing] = useState(false);
 
   // Copy helper
   const handleCopyCode = (code, e) => {
@@ -120,6 +122,7 @@ export default function AdminSchedule({ onBookingAssigned }) {
   // Smart Assign Recommendation
   const openAssign = useCallback(async (booking) => {
     setAssigningBooking(booking);
+    setAltSlots([]);
     setLoadingRecs(true);
     try {
       const res = await api.get(`/admin/schedule/recommendation?booking_id=${booking.id}`);
@@ -151,6 +154,58 @@ export default function AdminSchedule({ onBookingAssigned }) {
     } catch (err) {
       const msg = getErrorMessage(err, 'Gagal menugaskan teknisi');
       showError(msg);
+    }
+  };
+
+  // BR-11 & BR-12: Penggantian Teknisi Berhalangan & Rekomendasi Slot Alternatif
+  const handleReplaceTechnician = async (teknisi_baru_id = null) => {
+    if (!assigningBooking) return;
+    setIsReplacing(true);
+    setAltSlots([]);
+    try {
+      const res = await api.patch(`/admin/bookings/${assigningBooking.id}/replace-technician`, {
+        teknisi_baru_id,
+        alasan: 'Teknisi sebelumnya berhalangan hadir'
+      });
+      const data = res?.data || res;
+      if (data.success) {
+        showSuccess(data.message || 'Teknisi pengganti berhasil ditugaskan.');
+        setAssigningBooking(null);
+        setAltSlots([]);
+        fetchMonthSchedule();
+        if (onBookingAssigned) onBookingAssigned();
+        window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+      } else if (data.code === 'NO_REPLACEMENT_TECHNICIAN') {
+        setAltSlots(data.slot_alternatif || []);
+        showError(data.message || 'Tidak ada teknisi pengganti yang tersedia pada slot ini.');
+      }
+    } catch (err) {
+      const resp = err.response?.data;
+      if (resp?.code === 'NO_REPLACEMENT_TECHNICIAN') {
+        setAltSlots(resp.slot_alternatif || []);
+        showError(resp.message || 'Tidak ada teknisi pengganti yang tersedia.');
+      } else {
+        showError(getErrorMessage(err, 'Gagal mengganti teknisi'));
+      }
+    } finally {
+      setIsReplacing(false);
+    }
+  };
+
+  const handleSelectAltSlot = async (slot) => {
+    if (!assigningBooking || !slot?.mulai) return;
+    try {
+      await api.patch(`/admin/bookings/${assigningBooking.id}/reschedule`, {
+        jadwal_mulai: slot.mulai,
+        alasan: 'Penyesuaian jadwal servis karena teknisi berhalangan'
+      });
+      showSuccess(`Jadwal berhasil dipindahkan ke slot ${new Date(slot.mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`);
+      setAssigningBooking(null);
+      setAltSlots([]);
+      fetchMonthSchedule();
+      window.dispatchEvent(new CustomEvent('nara-booking-updated'));
+    } catch (err) {
+      showError(getErrorMessage(err, 'Gagal memindahkan jadwal ke slot alternatif'));
     }
   };
 
@@ -306,6 +361,65 @@ export default function AdminSchedule({ onBookingAssigned }) {
               </div>
             </div>
           </div>
+
+          {/* BR-11: Teknisi Ditugaskan & Opsi Penggantian jika Berhalangan */}
+          {getAssignedTechnician(assigningBooking) && (
+            <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-amber-800">Teknisi Saat Ini Ditugaskan</p>
+                <p className="font-black text-slate-900 text-sm mt-0.5">
+                  {getAssignedTechnician(assigningBooking).nama}
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Jika teknisi ini berhalangan hadir, tunjuk teknisi pengganti di bawah atau cari secara otomatis.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isReplacing}
+                onClick={() => handleReplaceTechnician(null)}
+                className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 font-bold text-xs rounded-xl shadow-xs shrink-0 cursor-pointer"
+              >
+                {isReplacing ? 'Mencari...' : '⚡ Cari Pengganti Otomatis'}
+              </Button>
+            </div>
+          )}
+
+          {/* BR-12: Rekomendasi Slot Alternatif Jika Teknisi Pengganti Tidak Tersedia */}
+          {altSlots.length > 0 && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-start gap-2 text-rose-800">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-600" />
+                <div>
+                  <h4 className="font-black text-sm text-rose-900">Teknisi Pengganti Tidak Tersedia</h4>
+                  <p className="text-xs text-rose-700 mt-0.5">
+                    Tidak ada teknisi pengganti yang tersedia pada slot saat ini. Sistem menawarkan opsi slot jadwal alternatif:
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-2">
+                {altSlots.map((slot, idx) => (
+                  <div key={idx} className="bg-white border border-rose-200 rounded-lg p-3 flex justify-between items-center shadow-2xs">
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block">
+                        {new Date(slot.mulai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.selesai).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                      </span>
+                      <span className="text-2xs text-emerald-600 font-bold">Kapasitas Tersedia</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleSelectAltSlot(slot)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs h-7 px-2.5 rounded-lg cursor-pointer"
+                    >
+                      Pilih Slot
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* DAFTAR REKOMENDASI TEKNISI */}
@@ -396,10 +510,16 @@ export default function AdminSchedule({ onBookingAssigned }) {
                   <div className="pt-2">
                     {tech.assignable ? (
                       <Button
-                        onClick={() => handleAssign(tech.id, false)}
+                        onClick={() => {
+                          if (getAssignedTechnician(assigningBooking)) {
+                            handleReplaceTechnician(tech.id);
+                          } else {
+                            handleAssign(tech.id, false);
+                          }
+                        }}
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-10 shadow-sm cursor-pointer transition-all"
                       >
-                        Tugaskan Teknisi Ini
+                        {getAssignedTechnician(assigningBooking) ? 'Tugaskan Sebagai Pengganti' : 'Tugaskan Teknisi Ini'}
                       </Button>
                     ) : tech.status === 'conflict' ? (
                       <div className="space-y-1.5">

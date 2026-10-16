@@ -266,8 +266,8 @@ describe('Booking rules, lifecycle, auth, and DB integrity', () => {
       expect(invRes.status).toBe(200);
       expect(invRes.body.units).toBe(3);
       expect(invRes.body.subtotal).toBe(500000);
-      expect(invRes.body.discount).toBe(50000); // 10% diskon untuk >= 3 unit
-      expect(invRes.body.total).toBe(450000);
+      expect(invRes.body.discount).toBe(0); // Diskon eksklusif hanya untuk member
+      expect(invRes.body.total).toBe(500000);
       expect(invRes.body.items).toHaveLength(2);
 
       // Verifikasi detail admin

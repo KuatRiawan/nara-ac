@@ -83,6 +83,7 @@ export default function DashboardLayout({ children, role, title, onOpenNotif, un
     if (path.startsWith('/admin/ac-units')) return 'Database Unit AC Pelanggan';
     if (path.startsWith('/admin/technicians')) return 'Manajemen Teknisi Lapangan';
     if (path.startsWith('/admin/invoices')) return 'E-Invoice & Kas Pembayaran';
+    if (path.startsWith('/admin/claims')) return 'Manajemen Klaim Garansi';
     if (path.startsWith('/admin/services')) return 'Katalog Layanan & Tarif Resmi';
     if (path.startsWith('/admin/feedback')) return 'Feedback & Ulasan Konsumen';
     if (path.startsWith('/admin/inventory')) return 'Inventaris Sparepart & Freon';

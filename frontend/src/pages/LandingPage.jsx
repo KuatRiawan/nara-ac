@@ -11,6 +11,7 @@ import FAQAccordion from '../components/landing/FAQAccordion';
 import ClientLogoMarquee from '../components/landing/ClientLogoMarquee';
 import GallerySection from '../components/landing/GallerySection';
 import GoogleReviewsSection from '../components/landing/GoogleReviewsSection';
+import DigitalExperienceSection from '../components/landing/DigitalExperienceSection';
 import MobileNav from '../components/landing/MobileNav';
 import AirflowBreeze from '../components/landing/AirflowBreeze';
 import EstimatorCard from '../components/landing/EstimatorCard';
@@ -51,9 +52,6 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [typingIndex, setTypingIndex] = useState(0);
-
-  // Digital Experience Demo Tab State
-  const [activeDemoTab, setActiveDemoTab] = useState('status');
 
   // Parallax scroll tracking
   const { scrollY } = useScroll();
@@ -207,26 +205,24 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
 
           {/* Brand Logo */}
-          <Link to="/" className="flex items-center group transition-transform hover:opacity-90">
-            <CompanyLogo dark={false} iconSize="h-9 sm:h-10" />
+          <Link to="/" className="flex items-center shrink-0 mr-4 xl:mr-8 group transition-transform hover:opacity-90">
+            <CompanyLogo dark={false} iconSize="h-8 sm:h-9" />
           </Link>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-7 text-sm font-bold text-slate-700">
+          {/* Desktop Navigation Links (Spacious & Non-Wrapping) */}
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-7 text-xs xl:text-sm font-bold text-slate-700">
             {[
-              { id: 'home', label: 'Beranda' },
               { id: 'layanan', label: 'Layanan' },
               { id: 'keunggulan', label: 'Keunggulan' },
               { id: 'cara-kerja', label: 'Cara Kerja' },
               { id: 'galeri', label: 'Dokumentasi' },
               { id: 'ulasan', label: 'Ulasan' },
-              { id: 'profil', label: 'Profil' },
               { id: 'faq', label: 'FAQ' },
             ].map((item) => (
               <button
                 key={item.id}
                 onClick={() => scrollTo(item.id)}
-                className={`relative py-1 transition-colors hover:text-blue-600 cursor-pointer ${activeSection === item.id ? 'text-blue-600' : 'text-slate-600'
+                className={`relative py-1 transition-colors hover:text-blue-600 cursor-pointer whitespace-nowrap shrink-0 ${activeSection === item.id ? 'text-blue-600' : 'text-slate-600'
                   }`}
               >
                 {item.label}
@@ -241,29 +237,32 @@ export default function LandingPage() {
           </nav>
 
           {/* Desktop Actions */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <Link to="/status" className="hidden sm:block">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <Link to="/status">
               <Button
                 variant="outline"
-                className="border-sky-200 text-slate-700 hover:text-blue-600 hover:bg-sky-50 font-bold rounded-xl px-4 h-10 text-xs sm:text-sm cursor-pointer shadow-2xs"
+                size="sm"
+                className="border-sky-200 text-slate-700 hover:text-blue-600 hover:bg-sky-50 font-bold rounded-xl px-3 sm:px-3.5 h-9.5 text-xs cursor-pointer shadow-2xs flex items-center gap-1.5"
               >
-                <Search className="w-3.5 h-3.5 mr-1.5 text-blue-600" /> Cek Status
+                <Search className="w-3.5 h-3.5 text-blue-600" />
+                <span>Cek Status</span>
               </Button>
             </Link>
 
-            <Link to="/booking" className="hidden sm:inline-flex">
+            <Link to="/login" className="inline-flex">
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-4 sm:px-5 h-10 text-xs sm:text-sm shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all cursor-pointer flex items-center"
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-3.5 sm:px-4.5 h-9.5 text-xs shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all cursor-pointer flex items-center gap-1.5"
               >
-                <CalendarCheck className="w-4 h-4 mr-1.5" />
-                <span>Booking Service</span>
+                <User className="w-3.5 h-3.5" />
+                <span>Masuk Member</span>
               </Button>
             </Link>
 
             {/* Mobile Hamburger Trigger */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-sky-50 transition-colors cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-slate-700 hover:bg-sky-50 transition-colors cursor-pointer ml-1"
               aria-label="Buka menu navigasi"
             >
               <div className="flex flex-col gap-1.5 w-5">
@@ -840,396 +839,7 @@ export default function LandingPage() {
         {/* ============================================================== */}
         {/* 8. DIGITAL EXPERIENCE PREVIEW                                  */}
         {/* ============================================================== */}
-        <section className="py-24 bg-sky-50/40 border-t border-sky-100/60 relative">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-                <Sparkles className="w-3.5 h-3.5" /> Pengalaman Digital
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-                Sistem Layanan Terpadu & Transparan
-              </h2>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-                Lihat bagaimana NARA AC mengelola setiap detail servis AC dari pelacakan tiket hingga laporan pengerjaan.
-              </p>
-            </div>
-
-            {/* Interactive Preview Tabs */}
-            <div className="bg-white rounded-3xl border border-sky-100 shadow-xl overflow-hidden max-w-5xl mx-auto">
-
-              {/* Tab navigation pills */}
-              <div className="flex border-b border-sky-100 bg-sky-50/60 p-2 gap-2 overflow-x-auto scrollbar-none">
-                {[
-                  { id: 'status', label: 'Pelacakan Status Booking' },
-                  { id: 'sop', label: 'Checklist 7 Langkah SOP' },
-                  { id: 'history', label: 'Rekam Riwayat Unit AC' },
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveDemoTab(tab.id)}
-                    className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${activeDemoTab === tab.id
-                      ? 'bg-white text-blue-600 shadow-xs border border-sky-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                      }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab content animated transitions */}
-              <AnimatePresence mode="wait">
-                {/* Tab 1: Pelacakan Status Demo */}
-                {activeDemoTab === 'status' && (
-                  <motion.div
-                    key="tab-status"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.3, ease: easeOutCubic }}
-                    className="p-6 sm:p-8 space-y-6"
-                  >
-                    {/* Top Ticket Strip */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-sky-100">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Ticket className="w-4 h-4 text-blue-600" />
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kode Tiket Servis Resmi</span>
-                        </div>
-                        <h4 className="text-xl sm:text-2xl font-black text-blue-700 font-mono mt-1 tracking-wider">
-                          BK-2026-0814
-                        </h4>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                          Sedang Dikerjakan di Lokasi
-                        </span>
-                        <span className="text-xs text-slate-400 font-medium hidden sm:inline">• Slot Hari Ini, 10:00 WIB</span>
-                      </div>
-                    </div>
-
-                    {/* Real 4-Step SOP Progress Tracker */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                          ✓
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 leading-tight">1. Booking Diterima</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">Tiket tercatat di sistem</p>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                          ✓
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 leading-tight">2. Teknisi Dikonfirmasi</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">Budi Santoso (TK-024)</p>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-300 shadow-xs flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                          <Wrench className="w-3.5 h-3.5 animate-pulse" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-blue-900 leading-tight">3. SOP Pengerjaan</p>
-                          <p className="text-[11px] text-blue-700 mt-0.5">Pencucian indoor & outdoor</p>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 opacity-60 flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xs shrink-0">
-                          4
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-700 leading-tight">4. Selesai & Garansi</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">Garansi 30 hari aktif</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Two-Column Detail Cards: Technician Info & Order Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Technician Card */}
-                      <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
-                            <User className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-sm font-bold text-slate-900">Budi Santoso</h5>
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                ID: TK-024
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-0.5">Teknisi Senior Sertifikasi • Seragam Resmi</p>
-                          </div>
-                        </div>
-                        <a
-                          href={buildWhatsAppUrl(whatsappNumber, 'Halo Teknisi NARA AC (Tiket BK-2026-0814), saya ingin menanyakan progres pengerjaan.')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
-                        >
-                          <Phone className="w-3 h-3" />
-                          <span>Chat WA</span>
-                        </a>
-                      </div>
-
-                      {/* Order Spec Card */}
-                      <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex items-center justify-between gap-3 text-xs">
-                        <div>
-                          <span className="font-bold text-slate-800 block text-sm">Paket Cuci Core (Deep Clean)</span>
-                          <span className="text-slate-500">2 Unit AC • Total: <strong>Rp 228.000</strong></span>
-                        </div>
-                        <div className="text-right">
-                          <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                            Garansi 30 Hari
-                          </span>
-                          <span className="text-[10px] text-slate-400 block mt-1">SOP 7 Langkah Penuh</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Actual System Features Bar: Print Official Invoice & Self Reschedule */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
-                          <FileText className="w-3.5 h-3.5 text-blue-600" />
-                          Invoice Resmi Berbadan Hukum CV
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
-                          <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
-                          Reschedule Mandiri via WhatsApp
-                        </span>
-                      </div>
-
-                      <Link
-                        to="/status"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
-                      >
-                        <span>Coba Lacak Tiket Nyata di Halaman Cek Status</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Tab 2: SOP Checklist Demo */}
-                {activeDemoTab === 'sop' && (
-                  <motion.div
-                    key="tab-sop"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.3, ease: easeOutCubic }}
-                    className="p-6 sm:p-8 space-y-6"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-sky-100">
-                      <div>
-                        <h4 className="text-lg sm:text-xl font-bold text-slate-900">Checklist 7 Langkah SOP Pengerjaan Teknisi</h4>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                          Standar kendali mutu wajib yang diverifikasi langsung teknisi melalui aplikasi kerja sebelum servis dinyatakan selesai.
-                        </p>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shrink-0 w-fit">
-                        SOP Digital Terverifikasi
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {[
-                        { title: '1. Proteksi Area Kerja & Pasang Terpal', desc: 'Melindungi lantai, perabotan, dan dinding dari cipratan air cucian.', done: true, status: 'Selesai' },
-                        { title: '2. Cuci Filter Udara & Casing Cover Depan', desc: 'Pembersihan debu pekat, bakteri, dan sterilisasi cover indoor.', done: true, status: 'Selesai' },
-                        { title: '3. Semprot Evaporator Indoor Bertekanan', desc: 'Tembak kotoran lendir pada kisi-kisi coil evaporator hingga bersih tuntas.', done: false, active: true, status: 'Sedang Proses' },
-                        { title: '4. Flushing Talang Air & Saluran Drainase', desc: 'Mencegah sumbatan lumut dan kebocoran air (AC bocor menetes).', done: false, status: 'Antrean SOP' },
-                        { title: '5. Pembersihan Kisi-Kisi Kondensor Outdoor', desc: 'Menghilangkan endapan panas agar kompresor awet dan hemat listrik.', done: false, status: 'Antrean SOP' },
-                        { title: '6. Pengecekan Tekanan Freon & Arus Ampere', desc: 'Pengukuran manifold gauge (PSI) & tang ampere sesuai standar pabrik.', done: false, status: 'Antrean SOP' },
-                        { title: '7. Running Test Akhir & Verifikasi Suhu Dingin', desc: 'Uji kestabilan hembusan angin & pengujian suhu dingin presisi (16°C-20°C).', done: false, status: 'Antrean SOP' }
-                      ].map((item, idx) => (
-                        <div
-                          key={idx}
-                          className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${item.done
-                              ? 'bg-emerald-50/50 border-emerald-200/80 text-slate-800'
-                              : item.active
-                                ? 'bg-blue-50/80 border-blue-300 shadow-xs text-blue-950'
-                                : 'bg-slate-50/70 border-slate-200/70 text-slate-600'
-                            }`}
-                        >
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${item.done
-                              ? 'bg-emerald-600 text-white'
-                              : item.active
-                                ? 'bg-blue-600 text-white animate-pulse'
-                                : 'bg-slate-200 text-slate-400'
-                            }`}>
-                            {item.done ? '✓' : item.active ? <Wrench className="w-3 h-3" /> : idx + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <h5 className="text-xs sm:text-sm font-bold truncate">{item.title}</h5>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${item.done
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : item.active
-                                    ? 'bg-blue-100 text-blue-800 font-bold'
-                                    : 'bg-slate-200 text-slate-600'
-                                }`}>
-                                {item.status}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Quality Assurance Strip */}
-                    <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                          <Camera className="w-4 h-4 text-blue-600" />
-                          Foto Dokumentasi Sebelum & Sesudah Tersimpan
-                        </span>
-                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          Freon Asli Tersegel Pabrikan (Tanpa Oplosan)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                        Standar Teknis Resmi CV. Nara Teknindotama
-                      </span>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Tab 3: Unit History Demo */}
-                {activeDemoTab === 'history' && (
-                  <motion.div
-                    key="tab-history"
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.3, ease: easeOutCubic }}
-                    className="p-6 sm:p-8 space-y-6"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-sky-100">
-                      <div>
-                        <h4 className="text-lg sm:text-xl font-bold text-slate-900">Database Unit AC & Rekam Riwayat Servis</h4>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                          Setiap unit AC pelanggan memiliki identitas digital: tipe unit, riwayat pencucian, data suhu, dan estimasi waktu servis berkala.
-                        </p>
-                      </div>
-                      <Link
-                        to="/login"
-                        className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        <span>Portal Pelanggan</span>
-                      </Link>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Unit 1 */}
-                      <div className="p-5 rounded-2xl bg-white border border-sky-100 shadow-xs hover:border-blue-300 transition-all">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                              <Wind className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h5 className="text-sm font-bold text-slate-900">Daikin Flash Inverter 1 PK</h5>
-                                <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">FTKQ25</span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-0.5">Lokasi: Kamar Tidur Utama (Lt. 2)</p>
-                            </div>
-                          </div>
-                          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1 w-fit">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Kondisi Prima • Garansi Aktif s/d 11 Feb 2026
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Servis Terakhir:</span>
-                            <span className="font-semibold text-slate-700">12 Januari 2026</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Layanan:</span>
-                            <span className="font-semibold text-blue-600">Cuci AC Core (Deep Clean)</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Hasil Diagnostik:</span>
-                            <span className="font-semibold text-slate-700">16.4°C • 142 PSI</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Jadwal Cuci Berikutnya:</span>
-                            <span className="font-semibold text-emerald-700">April 2026 (Notifikasi Otomatis)</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Unit 2 */}
-                      <div className="p-5 rounded-2xl bg-white border border-sky-100 shadow-xs hover:border-blue-300 transition-all">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
-                              <Wind className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h5 className="text-sm font-bold text-slate-900">Panasonic Eco Tough 0.5 PK</h5>
-                                <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">CS-YN5WKJ</span>
-                              </div>
-                              <p className="text-xs text-slate-500 mt-0.5">Lokasi: Ruang Tamu & Keluarga (Lt. 1)</p>
-                            </div>
-                          </div>
-                          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold flex items-center gap-1 w-fit">
-                            <Clock className="w-3.5 h-3.5" /> Waktunya Servis Berkala (Jatuh Tempo)
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Servis Terakhir:</span>
-                            <span className="font-semibold text-slate-700">05 Oktober 2025</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Layanan:</span>
-                            <span className="font-semibold text-blue-600">Core + Tambah Freon R32</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Hasil Diagnostik:</span>
-                            <span className="font-semibold text-slate-700">17.1°C • 140 PSI</span>
-                          </div>
-                          <div>
-                            <span className="text-[11px] text-slate-400 block">Tindakan Rekomendasi:</span>
-                            <Link to="/booking" className="font-bold text-blue-600 hover:underline">
-                              Booking Servis Unit Ini &rarr;
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-blue-900">
-                      <span>Semua data unit dan riwayat pengerjaan otomatis tersinkronisasi setelah servis selesai tanpa perlu pencatatan manual.</span>
-                      <Link to="/customer/units" className="font-bold text-blue-700 hover:underline flex items-center gap-1 shrink-0">
-                        Buka Manajemen Unit AC &rarr;
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-            </div>
-          </div>
-        </section>
+        <DigitalExperienceSection />
 
         {/* ============================================================== */}
         {/* 9. PROFIL PERUSAHAAN & LEGALITAS                              */}
@@ -1512,9 +1122,13 @@ export default function LandingPage() {
                   <span>Instagram: @narateknindotamaserviceac</span><br />
                   <span>TikTok: Nara Theknik</span>
                 </li>
-                <li className="pt-2">
+                <li className="pt-2 flex flex-col gap-1.5">
                   <Link to="/login" className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold text-xs">
-                    <span>Portal Staf & Teknisi</span>
+                    <span>Portal Pelanggan &amp; Member</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link to="/staff/login" className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700 font-medium text-xs">
+                    <span>Portal Staf &amp; Teknisi</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </Link>
                 </li>

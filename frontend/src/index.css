@@ -19,9 +19,17 @@
   --color-brand-blue: var(--color-primary-600);
   --color-brand-dark: #0f172a;
 
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 0.95rem;
+
   --animate-fade-in: fade-in 0.5s ease-out;
   --animate-fade-in-up: fade-in-up 0.6s ease-out;
   --animate-pulse-slow: pulse-slow 3s infinite ease-in-out;
+}
+
+@utility text-2xs {
+  font-size: 0.6875rem;
+  line-height: 0.95rem;
 }
 
 @layer base {

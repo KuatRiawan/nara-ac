@@ -110,6 +110,9 @@ function createApp() {
   v1.use('/', require('./routes/ops'));
   v1.use('/technician', require('./routes/technician'));
   v1.use('/admin', require('./routes/admin'));
+  v1.use('/claims', require('./routes/claims'));
+  v1.use('/payments', require('./routes/payments'));
+  v1.use('/whatsapp', require('./routes/whatsapp'));
   v1.get('/files/:name', (req, res, next) => {
     const p = filePath(req.params.name);
     if (!p) return next();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../api';
 import { AuthContext } from '../AuthContext';
@@ -25,6 +25,7 @@ import AdminFeedback from './admin/AdminFeedback';
 import AdminServices from './admin/AdminServices';
 import AdminAnalytics from './admin/AdminAnalytics';
 import AdminSettings from './admin/AdminSettings';
+import AdminClaims from './admin/AdminClaims';
 
 
 export default function AdminDashboard() {
@@ -232,6 +233,8 @@ export default function AdminDashboard() {
           <Route path="/ac-units" element={<AdminACUnits />} />
           <Route path="/technicians/*" element={<AdminTechnicians />} />
           <Route path="/invoices" element={<AdminInvoices bookings={bookings} onBookingUpdated={handleBookingCreated} />} />
+          <Route path="/claims" element={<AdminClaims />} />
+          <Route path="/whatsapp-cs" element={<Navigate to="/admin" replace />} />
           <Route path="/services" element={<AdminServices />} />
           <Route path="/feedback" element={<AdminFeedback />} />
           <Route path="/inventory" element={<AdminInventory />} />

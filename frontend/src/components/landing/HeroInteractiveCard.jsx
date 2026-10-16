@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Calculator, Clock, ShieldCheck, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { Search, Calculator, Clock, ShieldCheck, ArrowRight, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export default function HeroInteractiveCard({ services = [] }) {
@@ -59,17 +59,14 @@ export default function HeroInteractiveCard({ services = [] }) {
   const calculation = useMemo(() => {
     const s = serviceOptions[selectedService] || serviceOptions.core;
     const subtotal = s.basePrice * unitCount;
-    // Multi-unit bundle discount (5% for 2 units, 10% for 3+ units)
-    let discount = 0;
-    if (unitCount === 2) discount = Math.round(subtotal * 0.05);
-    else if (unitCount >= 3) discount = Math.round(subtotal * 0.1);
-
-    const total = subtotal - discount;
+    // Diskon eksklusif untuk Member: 10%
+    const memberDiscount = Math.round(subtotal * 0.1);
+    const total = subtotal;
     const estTime = Math.round((s.durationPerUnit * unitCount) * (unitCount > 1 ? 0.85 : 1));
 
     return {
       subtotal,
-      discount,
+      memberDiscount,
       total,
       estTime,
       serviceName: s.name,
@@ -253,12 +250,13 @@ export default function HeroInteractiveCard({ services = [] }) {
                   <span className="font-bold text-emerald-700">{calculation.warranty} Penuh</span>
                 </div>
 
-                {calculation.discount > 0 && (
-                  <div className="flex items-center justify-between text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
-                    <span className="font-semibold">Diskon Paket Multi-Unit:</span>
-                    <span className="font-bold font-mono">-Rp {calculation.discount.toLocaleString('id-ID')}</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-xs text-blue-700 bg-blue-50/80 px-2.5 py-1.5 rounded-lg border border-blue-200/80">
+                  <span className="font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    Benefit Member:
+                  </span>
+                  <span className="font-bold">Hemat 10% (-Rp {calculation.memberDiscount.toLocaleString('id-ID')})</span>
+                </div>
 
                 <div className="pt-2 border-t border-sky-200 flex items-center justify-between">
                   <div>

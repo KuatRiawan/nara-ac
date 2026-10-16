@@ -146,6 +146,13 @@ describe('Admin management & technician workflow', () => {
     });
 
     test('selesaikan pekerjaan → done, dan riwayat status tercatat', async () => {
+      // BR-18 & BR-19: Lampirkan foto before dan after sesuai SOP
+      await query(
+        `INSERT INTO work_order_photos (booking_id, tipe, url_foto, catatan, file_name, mime_type, ukuran_byte, diunggah_oleh)
+         VALUES ($1, 'before', '/api/v1/files/before.jpg', 'Kondisi awal', 'before.jpg', 'image/jpeg', 1024, 'Teknisi Test'),
+                ($1, 'after', '/api/v1/files/after.jpg', 'Kondisi selesai', 'after.jpg', 'image/jpeg', 1024, 'Teknisi Test')`,
+        [booking.id]
+      );
       const res = await request(app).patch(`/api/v1/technician/jobs/${booking.id}/complete`).set(techHeaders).send({});
       expect(res.status).toBe(200);
       const row = (await query('SELECT status FROM bookings WHERE id=$1', [booking.id])).rows[0];

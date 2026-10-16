@@ -24,21 +24,96 @@ async function telegramSend(chatId, text) {
   } finally { clearTimeout(timer); }
 }
 
+/**
+ * Pengiriman pesan WhatsApp resmi CV. Nara Teknindotama (BR-18, BR-47).
+ */
+async function whatsappSend(phone, text) {
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 8) {
+    throw new Error('Nomor WhatsApp pelanggan tidak valid atau kosong.');
+  }
+
+  let apiUrl = config.whatsappApiUrl;
+  let apiToken = config.whatsappApiToken;
+  let provider = 'fonnte';
+
+  // Periksa konfigurasi dinamis yang disimpan admin di dashboard
+  try {
+    const row = (await query("SELECT value FROM settings WHERE key='whatsapp_gateway_config'")).rows[0];
+    if (row && row.value && row.value.enabled && row.value.api_token) {
+      apiUrl = row.value.api_url;
+      apiToken = row.value.api_token;
+      provider = row.value.provider || 'fonnte';
+    }
+  } catch (_e) {
+    // Abaikan jika DB query gagal, gunakan config fallback
+  }
+
+  // Jika integrasi gateway WhatsApp aktif (Fonnte, Wablas, Twilio, atau custom webhook)
+  if (apiUrl && apiToken) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      if (provider === 'fonnte' || apiUrl.includes('fonnte.com')) {
+        const targetUrl = apiUrl.includes('/send_message') ? 'https://api.fonnte.com/send' : (apiUrl || 'https://api.fonnte.com/send');
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': apiToken,
+          },
+          body: JSON.stringify({ target: cleanPhone, message: text }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
+      } else if (provider === 'wablas' || apiUrl.includes('wablas.com')) {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': apiToken,
+          },
+          body: JSON.stringify({ phone: cleanPhone, message: text }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
+      } else {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiToken}`,
+          },
+          body: JSON.stringify({ to: cleanPhone, message: text }),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 const defaultChannels = {
   in_app: async () => { /* tersimpan di DB dan tampil di aplikasi */ },
   telegram: telegramSend,
+  whatsapp: whatsappSend, // BR-47: Kanal utama untuk pelanggan
 };
 let channels = { ...defaultChannels };
 /** Untuk pengujian: ganti implementasi kanal. */
 function setChannels(overrides) { channels = { ...defaultChannels, ...overrides }; }
 function resetChannels() { channels = { ...defaultChannels }; }
 
-function buildMessage(b, target) {
+function buildMessage(b, target, tipe = 'jadwal_h_minus_1') {
   const when = formatWib(new Date(b.jadwal_mulai));
   if (target === 'pelanggan') {
-    return `Pengingat servis: layanan "${b.nama_layanan}" dijadwalkan besok, ${when}. Kode booking ${b.kode_booking}. Mohon pastikan ada orang di lokasi.`;
+    if (tipe === 'perawatan_berkala') {
+      return `Halo Bpk/Ibu, ini pengingat perawatan berkala dari CV. NARA TEKNINDOTAMA. Unit AC Anda (${b.brand || 'AC'} ${b.model || ''}) sudah mendekati jadwal cuci/servis berkala. Jadwalkan servis Anda melalui website kami atau balas pesan ini untuk booking otomatis.`;
+    }
+    return `Halo Bpk/Ibu, ini pengingat resmi dari CV. NARA TEKNINDOTAMA: Layanan "${b.nama_layanan}" dijadwalkan besok, ${when}. Kode tiket: ${b.kode_booking}. Teknisi bertugas: ${b.teknisi_nama || 'Tim Teknisi NARA AC'}. Mohon pastikan ada orang di lokasi pengerjaan.`;
   }
-  return `Pengingat tugas: ${b.nama_layanan} besok ${when}, kode ${b.kode_booking}, lokasi: ${b.alamat}.`;
+  return `Pengingat tugas teknisi: ${b.nama_layanan} besok ${when}, kode ${b.kode_booking}, lokasi: ${b.alamat}.`;
 }
 
 const MAX_RETRY_ATTEMPTS = 3;
@@ -49,37 +124,41 @@ function sleep(ms) {
 }
 
 async function dispatch(row) {
+  // BR-47: Pelanggan wajib menerima pengingat melalui WhatsApp
   let channel = 'in_app';
-  let recipientChat = null;
-  if (row.target === 'teknisi' && config.telegramBotToken && row.telegram_chat_id) {
+  let recipient = row.penerima;
+  if (row.target === 'pelanggan') {
+    channel = 'whatsapp';
+  } else if (row.target === 'teknisi' && config.telegramBotToken && row.telegram_chat_id) {
     channel = 'telegram';
-    recipientChat = row.telegram_chat_id;
+    recipient = row.telegram_chat_id;
   }
   const attempts = row.percobaan + 1;
   
-  // Implement exponential backoff retry (BE-022)
+  // Implement exponential backoff retry (BE-022, BR-43, BR-47)
   if (attempts > 1 && attempts <= MAX_RETRY_ATTEMPTS) {
-    const delayMs = RETRY_DELAYS_MS[attempts - 2]; // 0-indexed: first retry (attempt 2) -> delay 1s
+    const delayMs = RETRY_DELAYS_MS[attempts - 2];
     await sleep(delayMs);
   }
   
   try {
-    await channels[channel](recipientChat, row.pesan);
+    const fn = channels[channel] || channels.in_app;
+    await fn(recipient, row.pesan);
     await query(
       `UPDATE reminder_log SET kanal=$2, status='sent', percobaan=$3, error=NULL, waktu_kirim=now() WHERE id=$1`,
       [row.id, channel, attempts],
     );
     return 'sent';
   } catch (e) {
+    const errMsg = String(e.message || e).slice(0, 300);
     await query(
       `UPDATE reminder_log SET kanal=$2, status='failed', percobaan=$3, error=$4 WHERE id=$1`,
-      [row.id, channel, attempts, String(e.message || e).slice(0, 300)],
+      [row.id, channel, attempts, errMsg],
     );
-    // Only mark as failed if we've exhausted all retries
+    // Only mark as permanently failed if we've exhausted all retries
     if (attempts >= MAX_RETRY_ATTEMPTS) {
       return 'failed';
     }
-    // Otherwise, it will be retried by the scheduler
     return 'pending';
   }
 }
@@ -90,8 +169,7 @@ const PENDING_SELECT = `
   LEFT JOIN technicians t ON t.id = b.teknisi_id`;
 
 /**
- * Job H-1: membuat baris reminder untuk booking `scheduled` besok (WIB) lalu mengirim yang pending.
- * Tanpa `force`, hanya berjalan setelah jam pengingat (settings.reminder_hour, default 08:00 WIB).
+ * Job H-1: membuat baris reminder untuk booking `scheduled` besok (WIB) lalu mengirim yang pending via WhatsApp (BR-47).
  */
 async function runReminders({ force = false, now = new Date() } = {}) {
   const ops = await getOps();
@@ -113,11 +191,11 @@ async function runReminders({ force = false, now = new Date() } = {}) {
     const targets = [['pelanggan', b.kontak]];
     if (b.teknisi_id) targets.push(['teknisi', b.teknisi_nama]);
     for (const [target, penerima] of targets) {
-       
+      const kanal = target === 'pelanggan' ? 'whatsapp' : (target === 'teknisi' && config.telegramBotToken ? 'telegram' : 'in_app');
       const r = await query(
-        `INSERT INTO reminder_log (booking_id, target, penerima, kanal, untuk_tanggal, pesan)
-         VALUES ($1,$2,$3,'in_app',$4,$5) ON CONFLICT (booking_id,target,untuk_tanggal) DO NOTHING`,
-        [b.id, target, penerima, tomorrow, buildMessage(b, target)],
+        `INSERT INTO reminder_log (booking_id, target, penerima, kanal, untuk_tanggal, pesan, tipe_reminder)
+         VALUES ($1,$2,$3,$4,$5,$6,'jadwal_h_minus_1') ON CONFLICT (booking_id,target,untuk_tanggal) DO NOTHING`,
+        [b.id, target, penerima, kanal, tomorrow, buildMessage(b, target, 'jadwal_h_minus_1')],
       );
       created += r.rowCount;
     }
@@ -125,11 +203,48 @@ async function runReminders({ force = false, now = new Date() } = {}) {
   const pend = (await query(`${PENDING_SELECT} WHERE r.status='pending' AND r.untuk_tanggal=$1`, [tomorrow])).rows;
   let sent = 0; let failed = 0;
   for (const row of pend) {
-     
     const st = await dispatch(row);
     if (st === 'sent') sent += 1; else failed += 1;
   }
   return { dilewati: false, untuk_tanggal: tomorrow, booking_dipindai: bookings.length, dibuat: created, terkirim: sent, gagal: failed };
+}
+
+/**
+ * Mengirim pengingat perawatan berkala AC unit via WhatsApp (BR-16, BR-18, BR-47).
+ */
+async function runMaintenanceReminders({ days = 7, force = false } = {}) {
+  const dashboard = require('./dashboardService');
+  const dueUnits = await dashboard.maintenanceDue({ days, limit: 100 });
+  let created = 0;
+  let sent = 0;
+  let failed = 0;
+
+  for (const u of dueUnits) {
+    if (!u.kontak) continue;
+    // Cari booking terakhir untuk unit ini
+    const lastB = (await query('SELECT id FROM bookings WHERE ac_unit_id=$1 ORDER BY jadwal_mulai DESC LIMIT 1', [u.id])).rows[0];
+    if (!lastB) continue;
+
+    const todayStr = wibDateString(new Date());
+    const pesan = `Halo Bpk/Ibu ${u.customer || ''}, unit AC Anda (${u.brand || 'AC'} ${u.model || ''} di ${u.lokasi || 'lokasi'}) sudah memasuki masa perawatan berkala dari servis terakhir. Hubungi kami untuk jadwal servis agar performa AC tetap dingin dan higienis.`;
+
+    const r = await query(
+      `INSERT INTO reminder_log (booking_id, unit_ac_id, target, penerima, kanal, untuk_tanggal, pesan, tipe_reminder)
+       VALUES ($1, $2, 'pelanggan', $3, 'whatsapp', $4, $5, 'perawatan_berkala')
+       ON CONFLICT (booking_id, target, untuk_tanggal) DO NOTHING
+       RETURNING id`,
+      [lastB.id, u.id, u.kontak, todayStr, pesan]
+    );
+
+    if (r.rows[0]) {
+      created++;
+      const row = (await query(`${PENDING_SELECT} WHERE r.id=$1`, [r.rows[0].id])).rows[0];
+      const res = await dispatch(row);
+      if (res === 'sent') sent++; else failed++;
+    }
+  }
+
+  return { units_checked: dueUnits.length, dibuat: created, terkirim: sent, gagal: failed };
 }
 
 async function retryReminder(id) {
@@ -183,4 +298,4 @@ function startScheduler() {
 }
 function stopScheduler() { if (timer) { timer.stop(); timer = null; } }
 
-module.exports = { runReminders, retryReminder, listReminders, startScheduler, stopScheduler, setChannels, resetChannels };
+module.exports = { runReminders, runMaintenanceReminders, retryReminder, listReminders, startScheduler, stopScheduler, setChannels, resetChannels, whatsappSend };

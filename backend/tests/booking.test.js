@@ -218,7 +218,7 @@ describe('Booking P0 Regression Tests', () => {
       expect(res.body).toHaveProperty('status_pembayaran', 'pending');
     });
 
-    test('Public invoice endpoint returns correct calculation', async () => {
+    test('Public invoice endpoint returns correct calculation for guest (0 discount)', async () => {
       const res = await request(app)
         .get(`/api/v1/public/bookings/${testBookingKode}/invoice`);
 
@@ -226,8 +226,8 @@ describe('Booking P0 Regression Tests', () => {
       expect(res.body).toHaveProperty('basePrice', 75000);
       expect(res.body).toHaveProperty('units', 3);
       expect(res.body).toHaveProperty('subtotal', 225000);
-      expect(res.body).toHaveProperty('discount', 22500);
-      expect(res.body).toHaveProperty('total', 202500);
+      expect(res.body).toHaveProperty('discount', 0);
+      expect(res.body).toHaveProperty('total', 225000);
       expect(res.body).toHaveProperty('status_pembayaran', 'pending');
       expect(res.body).toHaveProperty('warrantyText', '14 Hari Kalender');
     });
@@ -255,7 +255,7 @@ describe('Booking P0 Regression Tests', () => {
       expect(invoiceRes.body.total).toBe(75000);
     });
 
-    test('Two unit booking invoice with 5% discount', async () => {
+    test('Two unit booking invoice for guest has 0 discount (discount member only)', async () => {
       const res = await request(app)
         .post('/api/v1/bookings')
         .send({
@@ -274,8 +274,8 @@ describe('Booking P0 Regression Tests', () => {
       expect(invoiceRes.body.basePrice).toBe(75000);
       expect(invoiceRes.body.units).toBe(2);
       expect(invoiceRes.body.subtotal).toBe(150000);
-      expect(invoiceRes.body.discount).toBe(7500);
-      expect(invoiceRes.body.total).toBe(142500);
+      expect(invoiceRes.body.discount).toBe(0);
+      expect(invoiceRes.body.total).toBe(150000);
     });
 
     test('Core service warranty text is correct (layanan_id=4)', async () => {

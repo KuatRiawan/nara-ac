@@ -107,6 +107,8 @@ const BOOKING_SELECT = `
   SELECT b.id, b.kode_booking, b.status, b.status_pembayaran, b.jadwal_mulai, b.jadwal_selesai, b.alamat, b.keluhan, b.kontak,
          b.created_at, b.updated_at, b.created_by, b.is_synthetic, b.ac_unit_id, b.alasan_batal, b.alasan_tunda,
          b.mulai_aktual, b.selesai_aktual, b.jumlah_unit, b.idempotency_key,
+         b.skema_pembayaran, b.metode_pembayaran, b.bukti_pembayaran_url, b.status_verifikasi_pembayaran,
+         b.catatan_verifikasi, b.verified_by, b.verified_at, b.total_dibayar, b.refund_nominal, b.refund_status, b.refund_catatan,
          b.customer_id, c.nama AS customer_nama,
          b.layanan_id, s.nama_layanan, s.harga, s.kategori,
          b.teknisi_id, t.nama AS teknisi_nama,
@@ -140,6 +142,17 @@ function mapBooking(r) {
     dibuat_oleh: r.created_by,
     is_synthetic: r.is_synthetic,
     status_pembayaran: r.status_pembayaran || 'pending',
+    skema_pembayaran: r.skema_pembayaran || 'pay_after_service',
+    metode_pembayaran: r.metode_pembayaran || 'transfer',
+    bukti_pembayaran_url: r.bukti_pembayaran_url || null,
+    status_verifikasi_pembayaran: r.status_verifikasi_pembayaran || 'belum_ada_bukti',
+    catatan_verifikasi: r.catatan_verifikasi || null,
+    verified_by: r.verified_by || null,
+    verified_at: r.verified_at || null,
+    total_dibayar: Number(r.total_dibayar || 0),
+    refund_nominal: Number(r.refund_nominal || 0),
+    refund_status: r.refund_status || 'none',
+    refund_catatan: r.refund_catatan || null,
     created_at: r.created_at,
     updated_at: r.updated_at,
     idempotency_key: r.idempotency_key,
@@ -266,10 +279,10 @@ async function createBooking(input, actor = { label: 'customer' }, now = new Dat
        
       const feedbackToken = generateFeedbackToken();
       const ins = await client.query(
-        `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, created_by, jumlah_unit, idempotency_key, feedback_token)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        `INSERT INTO bookings (kode_booking, customer_id, layanan_id, jadwal_mulai, jadwal_selesai, alamat, keluhan, kontak, created_by, jumlah_unit, idempotency_key, feedback_token, skema_pembayaran, metode_pembayaran)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          ON CONFLICT (kode_booking) DO NOTHING RETURNING id`,
-        [code, cust.id, primarySvc.id, start, end, input.alamat, input.keluhan || '', kontak, actor.label, totalUnits, input.idempotency_key || null, feedbackToken],
+        [code, cust.id, primarySvc.id, start, end, input.alamat, input.keluhan || '', kontak, actor.label, totalUnits, input.idempotency_key || null, feedbackToken, input.skema_pembayaran || 'pay_after_service', input.metode_pembayaran || 'transfer'],
       );
       if (ins.rows.length) {
         booking = ins.rows[0];
@@ -438,6 +451,22 @@ async function cancelBooking(id, actor, alasan = 'Dibatalkan oleh pelanggan') {
     if (!EDITABLE.includes(b.status)) {
       throw E.business(`Booking dengan status "${b.status}" tidak dapat dibatalkan.`);
     }
+
+    // BR-08: Pembatalan wajib dilakukan minimal 24 jam sebelum jadwal (untuk customer)
+    const isCustomer = !actor?.role || actor.role === 'customer' || actor.label === 'customer';
+    if (isCustomer && b.jadwal_mulai) {
+      const now = Date.now();
+      const jadwalTime = new Date(b.jadwal_mulai).getTime();
+      const hoursUntilSchedule = (jadwalTime - now) / (1000 * 60 * 60);
+
+      if (hoursUntilSchedule < 24) {
+        throw E.business(
+          'Pembatalan mandiri wajib dilakukan minimal 24 jam sebelum jadwal pengerjaan. Silakan hubungi admin kami melalui WhatsApp jika ada kendala mendesak.',
+          { jadwal_mulai: b.jadwal_mulai, hours_remaining: Math.max(0, Math.round(hoursUntilSchedule)) }
+        );
+      }
+    }
+
     await client.query('UPDATE bookings SET status=$2, alasan_batal=$3, updated_at=now() WHERE id=$1', [id, 'cancelled', alasan]);
     await client.query(
       'INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan) VALUES ($1,$2,$3,$4,$5)',
@@ -580,14 +609,28 @@ async function publicStatusByCode(codeRaw) {
     ? resolvedItems.map((i) => `${i.nama_layanan} (${i.jumlah_unit} unit)`).join(', ')
     : row.nama_layanan;
 
+  // Ambil pemakaian spare part / inventory aktual untuk invoice final
+  const inventoryUsage = (await query(
+    `SELECT u.id, i.nama, i.satuan, u.jumlah, u.catatan, u.waktu
+     FROM inventory_usage u
+     JOIN inventory i ON i.id = u.item_id WHERE u.booking_id = $1 ORDER BY u.waktu`, [row.id],
+  )).rows;
+
+  // Cek apakah customer memiliki akun terdaftar (member) sesuai BR-01
+  const customerUser = (await query('SELECT id FROM users WHERE customer_id = $1 AND role = \'customer\' LIMIT 1', [row.customer_id])).rows[0];
+  const isMember = Boolean(customerUser);
+
   return {
     id: row.id,
+    customer_id: row.customer_id,
+    is_member: isMember,
     kode_booking: row.kode_booking,
     status: row.status,
     layanan: namaLayananTeks,
     harga: row.harga,
     jumlah_unit: totalUnits,
     items: resolvedItems,
+    pemakaian_inventory: inventoryUsage,
     keluhan: row.keluhan,
     jadwal_mulai: row.jadwal_mulai,
     jadwal_selesai: row.jadwal_selesai,
@@ -598,6 +641,15 @@ async function publicStatusByCode(codeRaw) {
     bisa_feedback: row.status === 'done' && !row.sudah_feedback,
     sudah_feedback: !!row.sudah_feedback,
     status_pembayaran: row.status_pembayaran || 'pending',
+    skema_pembayaran: row.skema_pembayaran || 'pay_after_service',
+    metode_pembayaran: row.metode_pembayaran || 'transfer',
+    bukti_pembayaran_url: row.bukti_pembayaran_url || null,
+    status_verifikasi_pembayaran: row.status_verifikasi_pembayaran || 'menunggu_verifikasi',
+    catatan_verifikasi: row.catatan_verifikasi || null,
+    total_dibayar: Number(row.total_dibayar || 0),
+    refund_nominal: Number(row.refund_nominal || 0),
+    refund_status: row.refund_status || null,
+    refund_catatan: row.refund_catatan || null,
     jadwal_teks: formatWib(new Date(row.jadwal_mulai)),
     created_at: row.created_at,
     // Masked customer info for safe public status display (FIND-01, FIND-02)
@@ -648,10 +700,18 @@ async function submitFeedback(id, { kode_booking: kode, kontak, feedback_token, 
     );
     // Invalidate the single-use token upon successful feedback
     await client.query('UPDATE bookings SET feedback_token = NULL WHERE id = $1', [id]);
+    // BR-24: Review bintang 1 atau 2 wajib ditindaklanjuti admin
+    const isLowRating = Number(rating) <= 2;
     await notify(client, {
-      role: 'admin', title: rating <= 2 ? 'Feedback rating rendah' : 'Feedback baru',
-      message: `${b.kode_booking} diberi rating ${rating}/5${komentar ? `: "${String(komentar).slice(0, 80)}"` : ''}`,
-      type: 'feedback', bookingId: id, tautan: '/admin/feedback',
+      role: 'admin',
+      title: isLowRating ? '🚨 TINDAK LANJUT WAJIB: Ulasan Bintang Rendah' : 'Feedback baru',
+      message: isLowRating
+        ? `[PERHATIAN ATURAN BR-24] ${b.kode_booking} diberi rating rendah (${rating}/5). Hubungi customer segera untuk klarifikasi & garansi: "${String(komentar || 'Tidak ada komentar').slice(0, 100)}"`
+        : `${b.kode_booking} diberi rating ${rating}/5${komentar ? `: "${String(komentar).slice(0, 80)}"` : ''}`,
+      type: 'feedback',
+      bookingId: id,
+      tautan: `/admin/feedback`,
+      priority: isLowRating ? 'high' : 'normal',
     });
     return { rating, terima_kasih: true };
   });
@@ -729,70 +789,132 @@ async function verifyPublicBooking(kode, kontak) {
   return b;
 }
 
-/** Calculate invoice data for a booking */
+/** Calculate invoice data for a booking (BR-02, BR-03, BR-39, BR-40, BR-41) */
 function calculateInvoice(booking) {
   if (!booking) return null;
   
-  let items = [];
-  let subtotal = 0;
+  let serviceItems = [];
+  let sparepartItems = [];
+  let subtotalJasa = 0;
+  let subtotalSparepart = 0;
   let totalUnits = 0;
 
+  // 1. Ekstrak Service Items (Jasa)
   if (Array.isArray(booking.items) && booking.items.length > 0) {
-    items = booking.items.map((it) => {
+    serviceItems = booking.items.map((it) => {
       const itemSubtotal = (it.subtotal !== null && it.subtotal !== undefined)
         ? Number(it.subtotal)
         : (Number(it.harga_satuan || it.harga || 0) * Number(it.jumlah_unit || 1));
-      subtotal += itemSubtotal;
+      subtotalJasa += itemSubtotal;
       totalUnits += Number(it.jumlah_unit || 1);
       return {
+        id: it.id,
         layanan_id: it.layanan_id,
         nama_layanan: it.nama_layanan || it.nama || booking.layanan || 'Servis AC',
         harga_satuan: Number(it.harga_satuan || it.harga || 0),
         jumlah_unit: Number(it.jumlah_unit || 1),
         subtotal: itemSubtotal,
         catatan: it.catatan || '',
+        jenis: 'jasa',
       };
     });
   } else {
     const basePrice = Number(booking.harga) || 0;
     totalUnits = Number(booking.jumlah_unit) || 1;
-    subtotal = basePrice * totalUnits;
-    items = [{
+    subtotalJasa = basePrice * totalUnits;
+    serviceItems = [{
       layanan_id: booking.layanan?.id || booking.layanan_id,
       nama_layanan: booking.layanan?.nama || booking.layanan || 'Servis AC',
       harga_satuan: basePrice,
       jumlah_unit: totalUnits,
-      subtotal,
+      subtotal: subtotalJasa,
       catatan: booking.keluhan || '',
+      jenis: 'jasa',
     }];
   }
 
-  // Apply discounts based on total units: 5% for 2 units, 10% for >= 3 units
-  let discount = 0;
-  if (totalUnits === 2) {
-    discount = Math.round(subtotal * 0.05);
-  } else if (totalUnits >= 3) {
-    discount = Math.round(subtotal * 0.1);
+  // 2. Ekstrak Sparepart Items jika ada dari laporan / pemakaian inventory
+  if (Array.isArray(booking.pemakaian_inventory) && booking.pemakaian_inventory.length > 0) {
+    sparepartItems = booking.pemakaian_inventory.map((m) => {
+      const hargaSatuan = Number(m.harga || m.harga_satuan || 0);
+      const jml = Number(m.jumlah || 1);
+      const itemSubtotal = hargaSatuan * jml;
+      subtotalSparepart += itemSubtotal;
+      return {
+        id: m.id,
+        item_id: m.item_id,
+        nama_layanan: `Spare Part: ${m.nama || m.item || 'Suku Cadang'}`,
+        harga_satuan: hargaSatuan,
+        jumlah_unit: jml,
+        satuan: m.satuan || 'pcs',
+        subtotal: itemSubtotal,
+        catatan: m.catatan || '',
+        jenis: 'sparepart',
+      };
+    });
   }
 
+  const subtotal = subtotalJasa + subtotalSparepart;
+
+  // 3. Aturan Diskon (BR-02 & BR-03):
+  // Member mendapat diskon 10% untuk BIAYA JASA SAJA. Spare part TIDAK mendapat diskon.
+  // Non-member TIDAK mendapat diskon (diskon eksklusif hanya untuk member).
+  const isMember = Boolean(booking.is_member || booking.customer_is_member || booking.has_account);
+  let discountJasa = 0;
+  let discountReason = '';
+
+  if (isMember) {
+    discountJasa = Math.round(subtotalJasa * 0.10); // BR-02: 10% khusus jasa
+    discountReason = 'Diskon Membership 10% (Khusus Biaya Jasa)';
+  } else {
+    // Non-member tidak mendapat diskon
+    discountJasa = 0;
+    discountReason = '';
+  }
+
+  const discount = discountJasa; // BR-03: Spare part 0% diskon
   const total = subtotal - discount;
 
-  // Determine warranty based on service type
+  // 4. Pembayaran, Kekurangan / Kelebihan (BR-40, BR-41)
+  const totalDibayar = Number(booking.total_dibayar || booking.nominal_bayar || 0);
+  const selisih = total - totalDibayar; // Positif = kurang bayar (tagih), Negatif = lebih bayar (refund)
+  const balanceDue = selisih > 0 ? selisih : 0;
+  const refundAmount = selisih < 0 ? Math.abs(selisih) : 0;
+
+  // 5. BR-39: Klasifikasi Invoice Awal vs Invoice Final
+  const isFinal = booking.status === 'done' || Boolean(booking.selesai_aktual) || sparepartItems.length > 0;
+  const invoiceType = isFinal ? 'final' : 'initial';
+  const invoiceTypeLabel = isFinal ? 'Invoice Final (Pekerjaan Selesai)' : 'Invoice Awal (Estimasi Booking)';
+
+  // 6. Masa Garansi (BR-23)
   let warrantyText = '14 Hari Kalender';
-  const allNames = items.map((i) => (i.nama_layanan || '').toLowerCase()).join(' ');
+  const allNames = serviceItems.map((i) => (i.nama_layanan || '').toLowerCase()).join(' ');
   if (allNames.includes('freon') && allNames.includes('core')) {
     warrantyText = '45 Hari Penuh Garansi Dingin';
   } else if (allNames.includes('core')) {
     warrantyText = '30 Hari Penuh Garansi Pengerjaan';
   }
 
+  const primaryBasePrice = serviceItems.length > 0 ? (serviceItems[0].harga_satuan || 0) : 0;
+
   return {
-    basePrice: items.length === 1 ? items[0].harga_satuan : 0,
+    invoice_type: invoiceType,
+    invoice_type_label: invoiceTypeLabel,
+    is_member: isMember,
+    basePrice: primaryBasePrice,
     units: totalUnits,
-    items,
+    items: [...serviceItems, ...sparepartItems],
+    service_items: serviceItems,
+    sparepart_items: sparepartItems,
+    subtotal_jasa: subtotalJasa,
+    subtotal_sparepart: subtotalSparepart,
     subtotal,
     discount,
+    discount_reason: discountReason,
     total,
+    total_dibayar: totalDibayar,
+    balance_due: balanceDue,
+    refund_amount: refundAmount,
     status_pembayaran: booking.status_pembayaran || 'pending',
     warrantyText,
   };

@@ -33,6 +33,8 @@ const bookingSchema = Joi.object({
   ac_unit_id: Joi.number().integer().positive().allow(null),
   teknisi_id: Joi.number().integer().positive().allow(null),
   idempotency_key: Joi.string().trim().max(100).allow('', null).optional().label('Idempotency Key'),
+  skema_pembayaran: Joi.string().valid('full_upfront', 'dp_50', 'pay_after_service').default('pay_after_service').optional().label('Skema Pembayaran'),
+  metode_pembayaran: Joi.string().valid('transfer', 'qris', 'cash').default('transfer').optional().label('Metode Pembayaran'),
 }).or('layanan_id', 'items');
 
 const listSchema = Joi.object({
@@ -92,6 +94,30 @@ router.patch('/public/bookings/:kode/cancel', publicLimiter, validate(Joi.object
   if (!/^(NARA-AC[A-Za-z0-9-]+|AC-[A-Za-z0-9-]+|BK-[A-Za-z0-9-]+)$/i.test(req.params.kode)) throw E.notFound('Kode booking tidak ditemukan.');
   const booking = await svc.verifyPublicBooking(req.params.kode, req.body.kontak);
   res.json(await svc.cancelBooking(booking.id, { label: 'customer' }, req.body.alasan || 'Dibatalkan oleh pelanggan'));
+}));
+
+// Konfirmasi pekerjaan selesai oleh customer secara mandiri via kode tiket (BR-14)
+router.post('/public/bookings/:kode/confirm-done', publicLimiter, validate(Joi.object({
+  kontak: Joi.string().pattern(/^\d{6,20}$/).required().label('6-20 digit kontak'),
+  catatan: Joi.string().trim().max(300).allow('').optional(),
+})), wrap(async (req, res) => {
+  if (!/^(NARA-AC[A-Za-z0-9-]+|AC-[A-Za-z0-9-]+|BK-[A-Za-z0-9-]+)$/i.test(req.params.kode)) throw E.notFound('Kode booking tidak ditemukan.');
+  const booking = await svc.verifyPublicBooking(req.params.kode, req.body.kontak);
+  if (booking.status !== 'done') throw E.business('Hanya pekerjaan yang telah berstatus selesai yang dapat dikonfirmasi.');
+
+  const { query: dbQuery } = require('../db/pool');
+  await dbQuery(
+    `INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan)
+     VALUES ($1, 'done', 'done', 'customer', $2)`,
+    [booking.id, req.body.catatan || 'Pelanggan telah memverifikasi dan mengonfirmasi pekerjaan selesai']
+  );
+
+  res.json({
+    success: true,
+    message: 'Konfirmasi pekerjaan selesai berhasil dicatat. Terima kasih!',
+    kode_booking: booking.kode_booking,
+    status: 'done'
+  });
 }));
 
 router.get('/public/bookings/:kode/invoice', publicLimiter, optionalAuth, validate(Joi.object({

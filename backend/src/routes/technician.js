@@ -112,6 +112,7 @@ router.patch('/jobs/:id/complete', TECH_OR_ADMIN, validate(idParam, 'params'), v
 router.post('/jobs/:id/delay', TECH_OR_ADMIN, validate(idParam, 'params'), validate(Joi.object({
   kategori: Joi.string().valid(...wf.DELAY_CATEGORIES).required().label('Kategori'),
   alasan: Joi.string().trim().min(3).max(300).required().label('Alasan'),
+  durasi_tunggu_menit: Joi.number().integer().min(0).max(180).optional().label('Durasi Tunggu'),
 })), wrap(async (req, res) => {
   res.json(await wf.reportDelay(Number(req.params.id), req.body, req.user));
 }));

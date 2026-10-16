@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
+import { AuthContext } from '../AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import CompanyLogo from '../components/CompanyLogo';
@@ -18,6 +19,7 @@ export default function BookingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { whatsappNumber } = useBusinessProfile();
+  const { user } = useContext(AuthContext);
 
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -365,10 +367,15 @@ export default function BookingPage() {
       }
     }
 
-    // Multi-unit discount: 5% for 2 units, 10% for 3+ units
+    // Diskon khusus eksklusif untuk Member (10% Biaya Jasa). Non-member: 0%
     let discount = 0;
-    if (units === 2) discount = Math.round(subtotal * 0.05);
-    else if (units >= 3) discount = Math.round(subtotal * 0.1);
+    let discountLabel = '';
+    const isMember = Boolean(user && user.role === 'customer');
+
+    if (isMember) {
+      discount = Math.round(subtotal * 0.1);
+      discountLabel = 'Diskon Membership (10% Biaya Jasa)';
+    }
 
     const total = subtotal - discount;
 
@@ -396,8 +403,8 @@ export default function BookingPage() {
       warranty = '30 Hari';
     }
 
-    return { basePrice: primaryPrice, subtotal, discount, total, estDuration, warranty, totalUnits: units, items: itemsSummary };
-  }, [selectedService, form.jumlah_unit, form.extra_items, services]);
+    return { basePrice: primaryPrice, subtotal, discount, discountLabel, isMember, total, estDuration, warranty, totalUnits: units, items: itemsSummary };
+  }, [selectedService, form.jumlah_unit, form.extra_items, services, user]);
 
   // Validation handlers
   const handleNext = () => {
@@ -1031,7 +1038,7 @@ export default function BookingPage() {
                             Jumlah Unit AC yang Diservis
                           </label>
                           <p className="text-xs text-slate-500">
-                            Diskon khusus multi-unit aktif otomatis
+                            {Boolean(user && user.role === 'customer') ? 'Diskon 10% membership aktif otomatis' : 'Daftar / Masuk Member untuk hemat 10%'}
                           </p>
                         </div>
                         <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
@@ -1845,16 +1852,21 @@ export default function BookingPage() {
                         <div className="flex justify-between text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                           <span className="font-bold flex items-center gap-1">
                             <Percent className="w-3.5 h-3.5" />
-                            Diskon Multi-Unit ({calculation.totalUnits === 2 ? '5%' : '10%'}):
+                            {calculation.discountLabel || 'Diskon Membership (10%):'}
                           </span>
                           <span className="font-bold font-mono">
                             -Rp {calculation.discount.toLocaleString('id-ID')}
                           </span>
                         </div>
                       ) : (
-                        <div className="text-xs text-slate-500 flex items-center gap-1">
-                          <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Pesan 2 unit ke atas untuk dapat diskon otomatis</span>
+                        <div className="text-xs text-slate-500 flex items-center justify-between bg-blue-50/60 border border-blue-100 px-2.5 py-1.5 rounded-lg">
+                          <span className="flex items-center gap-1.5 text-blue-700 font-medium">
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                            Hemat 10% dengan Akun Member
+                          </span>
+                          <Link to="/login" className="text-blue-700 underline font-bold hover:text-blue-800">
+                            Masuk
+                          </Link>
                         </div>
                       )}
 

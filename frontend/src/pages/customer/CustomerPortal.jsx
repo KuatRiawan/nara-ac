@@ -2,7 +2,7 @@ import { useContext, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AuthContext } from '../../AuthContext';
-import { LogOut, Loader2, LayoutDashboard, Wrench, History } from 'lucide-react';
+import { LogOut, Loader2, LayoutDashboard, Wrench, History, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import CompanyLogo from '../../components/CompanyLogo';
 import { Button } from '../../components/ui/button';
@@ -10,6 +10,7 @@ import Breadcrumb from '../../components/ui/Breadcrumb';
 import CustomerDashboard from './CustomerDashboard';
 import CustomerAcUnits from './CustomerAcUnits';
 import CustomerHistory from './CustomerHistory';
+import CustomerProfile from './CustomerProfile';
 import LogoutConfirmationDialog from '../../components/ui/LogoutConfirmation';
 
 export default function CustomerPortal() {
@@ -36,6 +37,7 @@ export default function CustomerPortal() {
     { path: '/customer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/customer/ac-units', label: 'Unit AC Saya', icon: Wrench },
     { path: '/customer/history', label: 'Riwayat Servis', icon: History },
+    { path: '/customer/settings', label: 'Pengaturan', icon: Settings },
   ];
 
   const isActive = (path) => location.pathname.startsWith(path);
@@ -56,6 +58,12 @@ export default function CustomerPortal() {
       return [
         { label: 'Beranda', to: '/customer/dashboard' },
         { label: 'Riwayat Servis', to: '/customer/history' }
+      ];
+    }
+    if (path.startsWith('/customer/settings') || path.startsWith('/customer/profile')) {
+      return [
+        { label: 'Beranda', to: '/customer/dashboard' },
+        { label: 'Pengaturan Akun & Profil', to: '/customer/settings' }
       ];
     }
     return [{ label: 'Beranda', to: '/customer/dashboard' }];
@@ -110,15 +118,19 @@ export default function CustomerPortal() {
 
               {/* Right Actions */}
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                <Link
+                  to="/customer/settings"
+                  className="hidden sm:flex items-center gap-2.5 p-1.5 pr-2.5 rounded-2xl hover:bg-slate-100/80 transition-colors group cursor-pointer"
+                  title="Buka Pengaturan Akun & Profil"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs group-hover:scale-105 transition-transform">
                     {(user?.nama || user?.name || 'P').charAt(0).toUpperCase()}
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-slate-900 leading-tight">{user?.nama || user?.name || 'Pelanggan'}</p>
-                    <p className="text-xs text-slate-500 font-medium">Portal Pelanggan</p>
+                    <p className="text-xs font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{user?.nama || user?.name || 'Pelanggan'}</p>
+                    <p className="text-xs text-slate-500 font-medium">Pengaturan Akun</p>
                   </div>
-                </div>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"
@@ -136,7 +148,7 @@ export default function CustomerPortal() {
           {/* Mobile Nav Tabs */}
           <div className="md:hidden border-t border-sky-100/60 bg-white/80">
             <div className="max-w-7xl mx-auto px-2">
-              <div className="grid grid-cols-3 gap-1 py-1.5">
+              <div className="grid grid-cols-4 gap-1 py-1.5">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
@@ -188,6 +200,8 @@ export default function CustomerPortal() {
                 <Route path="dashboard" element={<CustomerDashboard />} />
                 <Route path="ac-units" element={<CustomerAcUnits />} />
                 <Route path="history" element={<CustomerHistory />} />
+                <Route path="settings" element={<CustomerProfile />} />
+                <Route path="profile" element={<Navigate to="/customer/settings" replace />} />
                 <Route path="*" element={<Navigate to="/customer/dashboard" replace />} />
               </Routes>
             </motion.div>

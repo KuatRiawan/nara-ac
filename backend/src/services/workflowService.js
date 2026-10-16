@@ -170,18 +170,19 @@ async function adminCancel(id, alasan, user) {
   return await bs.cancelBooking(id, { label: user.nama, role: user.role }, alasan);
 }
 
-async function reportDelay(id, { kategori, alasan }, user) {
+async function reportDelay(id, { kategori, alasan, durasi_tunggu_menit: durasiTunggu }, user) {
   return await withTx(async (client) => {
     const b = await lockBooking(client, id);
     assertOwnJob(b, user);
     if (!['scheduled', 'rescheduled', 'on process'].includes(b.status)) {
       throw E.business(`Keterlambatan tidak dapat dilaporkan pada status "${b.status}".`);
     }
-    const teks = `[${kategori}] ${alasan}`;
+    const tungguNote = durasiTunggu ? ` (Telah menunggu ${durasiTunggu} menit)` : '';
+    const teks = `[${kategori}] ${alasan}${tungguNote}`;
     await client.query('UPDATE bookings SET status=$2, alasan_tunda=$3, updated_at=now() WHERE id=$1', [id, 'delayed', teks]);
     await client.query('INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan) VALUES ($1,$2,$3,$4,$5)',
       [id, b.status, 'delayed', user.nama, teks]);
-    await audit(client, user, 'job_delayed', 'booking', id, { before: { status: b.status }, after: { status: 'delayed' }, metadata: { kategori, alasan, kode: label(b) } });
+    await audit(client, user, 'job_delayed', 'booking', id, { before: { status: b.status }, after: { status: 'delayed' }, metadata: { kategori, alasan, durasi_tunggu_menit: durasiTunggu, kode: label(b) } });
     await notify(client, { role: 'admin', title: 'Pekerjaan terlambat', message: `${label(b)} dilaporkan tertunda: ${teks}`, type: 'booking', bookingId: id, tautan: '/admin/bookings?status=delayed' });
     await notify(client, { role: 'customer', id: b.customer_id, title: 'Pekerjaan tertunda', message: `Booking ${label(b)} mengalami keterlambatan. Admin akan menghubungi Anda.`, type: 'booking', bookingId: id, tautan: `/status/${label(b)}` });
     return bookingRow(client, id);
@@ -321,6 +322,23 @@ async function completeJob(id, { override_alasan: overrideAlasan } = {}, user) {
         throw E.business(`Masih ada ${pending.length} item checklist wajib yang belum selesai.`, { checklist_pending: pending.map((p) => p.task) });
       }
     }
+
+    // BR-18 & BR-19: Wajib melampirkan minimal 1 foto kondisi sebelum (before) dan 1 foto sesudah pengerjaan (after)
+    const photoCounts = (await client.query(
+      `SELECT tipe, COUNT(*)::int AS total FROM work_order_photos WHERE booking_id = $1 GROUP BY tipe`, [id]
+    )).rows;
+    const beforeCount = (photoCounts.find((p) => p.tipe === 'before')?.total) || 0;
+    const afterCount = (photoCounts.find((p) => p.tipe === 'after')?.total) || 0;
+
+    if (beforeCount < 1 || afterCount < 1) {
+      if (!(user.role === 'admin' && overrideAlasan)) {
+        throw E.business(
+          `SOP Dokumentasi: Wajib melampirkan minimal 1 foto sebelum pengerjaan (before) dan 1 foto sesudah pengerjaan (after) sebelum menyelesaikan order. (Saat ini: ${beforeCount} foto before, ${afterCount} foto after)`,
+          { foto_before: beforeCount, foto_after: afterCount }
+        );
+      }
+    }
+
     await client.query('UPDATE bookings SET status=$2, selesai_aktual=now(), updated_at=now() WHERE id=$1', [id, 'done']);
     await client.query('INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan) VALUES ($1,$2,$3,$4,$5)',
       [id, 'on process', 'done', user.nama, pending.length ? `Selesai dengan override admin: ${overrideAlasan}` : 'Pekerjaan selesai']);

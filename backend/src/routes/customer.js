@@ -22,6 +22,8 @@ const acUnitSchema = Joi.object({
   catatan: Joi.string().trim().max(500).allow('', null).label('Catatan')
 });
 
+const acUnitService = require('../services/acUnitService');
+
 router.get('/ac-units', validate(Joi.object({
   aktif: Joi.boolean().default(true),
   page: Joi.number().integer().min(1).default(1),
@@ -33,7 +35,27 @@ router.get('/ac-units', validate(Joi.object({
   const result = await query('SELECT * FROM ac_units WHERE customer_id = $1 AND aktif = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4', 
     [customerId, aktif, limit, offset]);
   const total = (await query('SELECT COUNT(*)::int FROM ac_units WHERE customer_id = $1 AND aktif = $2', [customerId, aktif])).rows[0].count;
-  res.json({ data: result.rows, meta: { total: Number(total), page, limit } });
+
+  // Enrich unit dengan riwayat servis & jadwal perawatan berkala (BR-15, BR-16, BR-17)
+  const enriched = await Promise.all(result.rows.map(async (u) => {
+    const maint = await acUnitService.getUnitMaintenanceInfo(u.id);
+    return {
+      ...u,
+      total_servis_selesai: maint?.total_servis_selesai || 0,
+      servis_terakhir: maint?.servis_terakhir || null,
+      jadwal_perawatan_berikutnya: maint?.jadwal_perawatan_berikutnya || null,
+      status_perawatan: maint?.status_perawatan || 'optimal',
+    };
+  }));
+
+  res.json({ data: enriched, meta: { total: Number(total), page, limit } });
+}));
+
+router.get('/ac-units/:id', validate(idParam, 'params'), wrap(async (req, res) => {
+  const unit = await query('SELECT id FROM ac_units WHERE id=$1 AND customer_id=$2', [req.params.id, req.user.customer_id]);
+  if (!unit.rows.length) throw E.notFound('Unit AC tidak ditemukan');
+  const maint = await acUnitService.getUnitMaintenanceInfo(req.params.id);
+  res.json({ data: maint });
 }));
 
 router.post('/ac-units', validate(acUnitSchema), wrap(async (req, res) => {
@@ -114,6 +136,56 @@ router.post('/notifications/read-all', validate(Joi.object({}), 'body'), wrap(as
   res.json({ success: true });
 }));
 
+// Profile
+const customerProfileSchema = Joi.object({
+  nama: Joi.string().trim().min(2).max(80).required().label('Nama Lengkap'),
+  email: Joi.string().email({ tlds: { allow: false } }).max(120).required().label('Email'),
+  kontak: Joi.string().trim().allow('', null).max(30).optional().label('Nomor WhatsApp / HP'),
+  alamat: Joi.string().trim().allow('', null).max(500).optional().label('Alamat Utama'),
+});
+
+router.get('/profile', wrap(async (req, res) => {
+  const u = (await query('SELECT id, nama, email, kontak, role, customer_id, created_at FROM users WHERE id = $1', [req.user.id])).rows[0];
+  let cust = null;
+  if (u && u.customer_id) {
+    cust = (await query('SELECT id, nama, kontak, alamat, catatan_umum, created_at FROM customers WHERE id = $1', [u.customer_id])).rows[0];
+  }
+  res.json({
+    data: {
+      user: u,
+      customer: cust
+    }
+  });
+}));
+
+router.patch('/profile', validate(customerProfileSchema), wrap(async (req, res) => {
+  const { nama, email, kontak, alamat } = req.body;
+  const existing = (await query('SELECT id FROM users WHERE lower(email)=lower($1) AND id<>$2', [email, req.user.id])).rows[0];
+  if (existing) throw E.conflict('Email sudah digunakan oleh akun lain.');
+
+  const u = (await query(
+    'UPDATE users SET nama=$1, email=$2, kontak=$3 WHERE id=$4 RETURNING id, nama, email, role, kontak, customer_id, created_at',
+    [nama, email, kontak || null, req.user.id]
+  )).rows[0];
+
+  let cust = null;
+  if (u.customer_id) {
+    cust = (await query(
+      'UPDATE customers SET nama=$1, kontak=$2, alamat=$3 WHERE id=$4 RETURNING *',
+      [nama, kontak || '', alamat || null, u.customer_id]
+    )).rows[0];
+  }
+
+  res.json({
+    success: true,
+    message: 'Profil Anda berhasil diperbarui.',
+    data: {
+      user: u,
+      customer: cust
+    }
+  });
+}));
+
 // Dashboard overview
 router.get('/dashboard', validate(Joi.object({}), 'query'), wrap(async (req, res) => {
   const customerId = req.user.customer_id;
@@ -138,6 +210,49 @@ router.get('/dashboard', validate(Joi.object({}), 'query'), wrap(async (req, res
       history_count: parseInt(historyCount.rows[0].count, 10),
       unread_notifications: parseInt(unreadNotifs.rows[0].count, 10)
     }
+  });
+}));
+
+// Reschedule mandiri oleh customer terdaftar (BR-09)
+router.patch('/bookings/:id/reschedule', validate(idParam, 'params'), validate(Joi.object({
+  jadwal_mulai: Joi.string().trim().required().label('Jadwal Baru'),
+}), 'body'), wrap(async (req, res) => {
+  const customerId = req.user.customer_id;
+  const bookingId = Number(req.params.id);
+  const b = (await query('SELECT * FROM bookings WHERE id = $1 AND customer_id = $2', [bookingId, customerId])).rows[0];
+  if (!b) throw E.notFound('Pekerjaan tidak ditemukan atau bukan milik akun Anda.');
+
+  const bs = require('../services/bookingService');
+  const updated = await bs.reschedule(bookingId, req.body.jadwal_mulai, { label: `customer:${req.user.nama || 'Pelanggan'}` });
+  res.json({
+    success: true,
+    message: 'Jadwal kunjungan servis berhasil diubah.',
+    data: updated
+  });
+}));
+
+// Konfirmasi pekerjaan selesai oleh customer (BR-14)
+router.post('/bookings/:id/confirm-done', validate(idParam, 'params'), validate(Joi.object({
+  catatan: Joi.string().trim().max(300).allow('').optional()
+}), 'body'), wrap(async (req, res) => {
+  const customerId = req.user.customer_id;
+  const bookingId = Number(req.params.id);
+  
+  const b = (await query('SELECT * FROM bookings WHERE id = $1 AND customer_id = $2', [bookingId, customerId])).rows[0];
+  if (!b) throw E.notFound('Pekerjaan tidak ditemukan atau bukan milik akun Anda.');
+  if (b.status !== 'done') throw E.business('Hanya pekerjaan yang telah diselesaikan oleh teknisi yang dapat dikonfirmasi.');
+
+  await query(
+    `INSERT INTO status_log (booking_id, status_lama, status_baru, diubah_oleh, catatan)
+     VALUES ($1, 'done', 'done', $2, $3)`,
+    [bookingId, `customer:${req.user.nama || 'Pelanggan'}`, req.body.catatan || 'Pelanggan telah memverifikasi dan mengonfirmasi pekerjaan selesai']
+  );
+
+  res.json({
+    success: true,
+    message: 'Terima kasih, konfirmasi pekerjaan selesai telah berhasil dicatat.',
+    booking_id: bookingId,
+    status: 'done'
   });
 }));
 

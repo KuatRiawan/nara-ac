@@ -402,11 +402,25 @@ export default function TechnicianJobDetail() {
             </section>
 
             <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-                <Package className="w-4 h-4 text-slate-500" />
-                <h2 className="font-semibold text-sm text-slate-700">Material yang Dipakai</h2>
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-slate-500" />
+                  <h2 className="font-semibold text-sm text-slate-700">Material &amp; Suku Cadang yang Dipakai</h2>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Kesepakatan Langsung di Lokasi
+                </span>
               </div>
               <div className="p-4">
+                <div className="mb-3 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-900">
+                  <p className="font-bold flex items-center gap-1 text-2xs uppercase">
+                    Ketentuan Penambahan Suku Cadang:
+                  </p>
+                  <p className="text-2xs mt-0.5 text-blue-800">
+                    Penambahan spare part/material disepakati langsung dengan pelanggan di tempat tanpa memerlukan persetujuan admin. Total biaya material akan otomatis direkonsiliasi pada faktur final.
+                  </p>
+                </div>
+
                 <ul className="space-y-3 mb-4 text-sm">
                   {job.materials?.map(m => (
                     <li key={m.id} className="flex justify-between items-center border-b border-slate-50 pb-2">
@@ -432,7 +446,7 @@ export default function TechnicianJobDetail() {
                   </select>
                   <div className="flex gap-2">
                     <input type="number" placeholder="Jml" step="0.1" value={materialQty} onChange={e=>setMaterialQty(e.target.value)} className="w-20 text-sm rounded-lg border-slate-300 focus:ring-primary-500" required />
-                    <button type="submit" className="bg-primary-100 text-primary-700 font-medium px-4 py-2 rounded-lg hover:bg-primary-200 text-sm transition">
+                    <button type="submit" className="bg-primary-100 text-primary-700 font-medium px-4 py-2 rounded-lg hover:bg-primary-200 text-sm transition cursor-pointer">
                       Tambah
                     </button>
                   </div>

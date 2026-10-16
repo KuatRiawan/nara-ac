@@ -7,6 +7,8 @@ const BookingPage = lazy(() => import('./pages/BookingPage'));
 const StatusPage = lazy(() => import('./pages/StatusPage'));
 const FeedbackPage = lazy(() => import('./pages/FeedbackPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const StaffLoginPage = lazy(() => import('./pages/StaffLoginPage'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TechnicianDashboard = lazy(() => import('./pages/TechnicianDashboard'));
 const TechnicianJobDetail = lazy(() => import('./pages/TechnicianJobDetail'));
@@ -38,6 +40,10 @@ function App() {
           <Route path="/invoices/:kode?" element={<StatusPage initialInvoiceOpen={true} />} />
           <Route path="/feedback/:kode" element={<FeedbackPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/staff" element={<Navigate to="/staff/login" replace />} />
+          <Route path="/staff/login" element={<StaffLoginPage />} />
+          <Route path="/admin/login" element={<StaffLoginPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsConditionsPage />} />
