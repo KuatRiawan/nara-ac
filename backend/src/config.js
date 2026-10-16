@@ -49,4 +49,6 @@ module.exports = {
   dataScienceDashboardUrl: process.env.DS_DASHBOARD_URL || '',
   uploadDir: process.env.UPLOAD_DIR || require('path').join(__dirname, '..', 'uploads'),
   allowAnyLocalOrigin: !isProd,
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
 };

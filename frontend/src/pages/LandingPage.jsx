@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import api from '../api';
 import { useBusinessProfile, buildWhatsAppUrl } from '../hooks/useBusinessProfile';
-import { CalendarCheck, Search, ArrowRight, CheckCircle2, ShieldCheck, Clock, Sparkles, MapPin, Phone, Mail, Wind, ChevronRight, FileText, ChevronDown, Check, X, HelpCircle } from 'lucide-react';
+import { CalendarCheck, Search, ArrowRight, CheckCircle2, ShieldCheck, Clock, Sparkles, MapPin, Phone, Mail, Wind, ChevronRight, FileText, ChevronDown, Check, X, HelpCircle, User, Camera, Printer, RotateCcw, Ticket, Wrench, AlertCircle, Award, ExternalLink, Calendar } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import CompanyLogo from '../components/CompanyLogo';
 import FAQAccordion from '../components/landing/FAQAccordion';
-import TrustBar from '../components/landing/TrustBar';
+import ClientLogoMarquee from '../components/landing/ClientLogoMarquee';
 import GallerySection from '../components/landing/GallerySection';
+import GoogleReviewsSection from '../components/landing/GoogleReviewsSection';
 import MobileNav from '../components/landing/MobileNav';
 import AirflowBreeze from '../components/landing/AirflowBreeze';
 import EstimatorCard from '../components/landing/EstimatorCard';
@@ -50,7 +51,6 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
   const [typingIndex, setTypingIndex] = useState(0);
-  const [showComparisonTable, setShowComparisonTable] = useState(true);
 
   // Digital Experience Demo Tab State
   const [activeDemoTab, setActiveDemoTab] = useState('status');
@@ -74,7 +74,7 @@ export default function LandingPage() {
   useEffect(() => {
     const timer = setInterval(() => {
       setTypingIndex(prev => (prev + 1) % rotatingWords.length);
-    }, 2800);
+    }, 3200);
     return () => clearInterval(timer);
   }, [rotatingWords]);
 
@@ -134,7 +134,7 @@ export default function LandingPage() {
         durasi_menit: std?.durasi_menit !== undefined ? Number(std.durasi_menit) : 60,
         garansi: '14 Hari',
         scopeIncluded: [
-          'Cuci filter udara & cover casing indoor',
+          'Cuci filter udara & casing cover indoor',
           'Cuci evaporator indoor (permukaan luar)',
           'Semprot saluran pembuangan air (drain pipe)',
           'Semprot kisi-kisi kondensor unit outdoor',
@@ -142,10 +142,11 @@ export default function LandingPage() {
           'Garansi pengerjaan 14 hari'
         ],
         scopeExcluded: [
-          'Bongkar total blower fan rotor & talang air',
+          'Bongkar total rotor blower fan & talang air',
           'Chemical wash anti-bakteri & bau apek',
-          'Vakum kuras pipa drainase lendir anti-bocor',
-          'Garansi 30 hari penuh'
+          'Vakum sedot kuras pipa drainase lendir',
+          'Pengisian / penambahan freon murni pabrikan',
+          'Deteksi kebocoran pipa & pengencangan flaring'
         ],
         ctaText: 'Pilih Paket Standar',
         bookingUrl: `/booking?layanan=${std?.id || 1}&paket=standard`
@@ -163,12 +164,16 @@ export default function LandingPage() {
         garansi: '30 Hari Penuh',
         scopeIncluded: [
           'SEMUA cakupan Paket Standar lengkap',
-          'Bongkar total rotor blower fan & talang air indoor (atasi bocor tuntas)',
+          'Bongkar total rotor blower fan & talang air indoor',
           'Deep wash evaporator & kondensor outdoor tekanan tinggi',
           'Chemical treatment anti-bakteri & pembasmi bau apek',
           'Vakum sedot kuras saluran drainase (bebas sumbat lendir 100%)',
           'Pengecekan tekanan freon digital & arus kompresor',
           'Garansi pengerjaan nyata 30 hari penuh'
+        ],
+        scopeExcluded: [
+          'Pengisian / penambahan freon murni pabrikan',
+          'Deteksi kebocoran pipa & pengencangan flaring'
         ],
         benefitNote: '💡 Mengapa Memilih Core? Menuntaskan 95% keluhan AC bocor air menetes dan bau apek. Hembusan angin jadi kencang, dingin merata, dan hemat listrik hingga 30%!',
         ctaText: 'Pilih Paket Core (Rekomendasi)',
@@ -178,8 +183,8 @@ export default function LandingPage() {
         id: cf?.id || 5,
         tier: 'core_freon',
         nama_layanan: cf?.nama_layanan || 'Paket Core + Isi Freon',
-        subtitle: 'Deep Clean Total + Freon Murni Pabrikan',
-        badge: 'Solusi AC Kurang / Tidak Dingin',
+        subtitle: 'Solusi AC Kurang / Tidak Dingin',
+        badge: 'Paket Komplit + Freon',
         isPopular: false,
         deskripsi: cf?.deskripsi || 'Kombinasi cuci Deep Clean total plus pengisian ulang freon murni presisi pabrikan agar performa AC kembali menggigil seperti baru.',
         harga: cf?.harga !== undefined ? Number(cf.harga) : 220000,
@@ -190,96 +195,16 @@ export default function LandingPage() {
           'Pengisian freon murni R32 / R410A / R22 presisi pabrikan',
           'Deteksi titik kebocoran pipa & pengencangan sambungan flaring',
           'Pengujian tekanan manifold digital & kalibrasi thermostat',
-          'Pengujian performa kompresor & stabilitas suhu',
+          'Pengujian performa kompresor & stabilitas suhu dingin',
           'Prioritas jadwal teknisi & garansi dingin 45 hari'
         ],
+        scopeExcluded: [],
         benefitNote: '❄️ Solusi Total: Mengembalikan performa AC yang tidak dingin / pipa bersalju. AC langsung dingin maksimal & kompresor bekerja lebih tenang.',
         ctaText: 'Pilih Paket Core + Freon',
         bookingUrl: `/booking?layanan=${cf?.id || 5}&paket=core_freon`
       }
     ];
   }, [liveServices]);
-
-  // Comparison Matrix for Table Breakdown
-  const comparisonMatrix = useMemo(() => [
-    {
-      feature: 'Pembersihan Filter Udara & Casing Cover',
-      detail: 'Pencucian cover depan & filter debu mikro',
-      standard: true,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Pencucian Evaporator Indoor',
-      detail: 'Pembersihan kisi-kisi pendingin indoor',
-      standard: 'Permukaan Luar',
-      core: 'Deep Clean Total',
-      coreFreon: 'Deep Clean Total'
-    },
-    {
-      feature: 'Semprot Kondensor Unit Outdoor',
-      detail: 'Pembersihan kisi-kisi pembuang panas kompresor',
-      standard: true,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Bongkar Total Rotor Blower Fan',
-      detail: 'Rontokkan kotoran tebal di baling-baling kipas silinder',
-      standard: false,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Bongkar & Bersihkan Talang Air (Drain Pan)',
-      detail: 'Basmi lendir hitam & lumut penyebab utama AC bocor air',
-      standard: false,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Treatment Cairan Anti-Bakteri & Jamur',
-      detail: 'Hilangkan bau apek membandel & sterilisasi udara',
-      standard: false,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Vakum Sedot Saluran Pembuangan Lendir',
-      detail: 'Penyedotan pipa pembuangan agar bebas mampet 100%',
-      standard: false,
-      core: true,
-      coreFreon: true
-    },
-    {
-      feature: 'Pengecekan Tekanan Freon Digital',
-      detail: 'Pengukuran akurat dengan manifold digital',
-      standard: 'Cek Standar',
-      core: 'Cek Presisi Digital',
-      coreFreon: 'Cek & Kalibrasi'
-    },
-    {
-      feature: 'Pengisian Ulang Freon Murni Pabrikan',
-      detail: 'Refill freon R32 / R410A / R22 murni sesuai PK unit',
-      standard: false,
-      core: false,
-      coreFreon: true
-    },
-    {
-      feature: 'Pemeriksaan Kebocoran & Pengencangan Flaring',
-      detail: 'Deteksi kebocoran pada nepel dan sambungan tembaga',
-      standard: false,
-      core: 'Cek Visual',
-      coreFreon: true
-    },
-    {
-      feature: 'Masa Garansi Purna-Layanan Resmi',
-      detail: 'Jaminan servis ulang jika ada kendala pasca-pengerjaan',
-      standard: '14 Hari',
-      core: '30 Hari Penuh',
-      coreFreon: '45 Hari Garansi Dingin'
-    }
-  ], []);
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans selection:bg-blue-600 selection:text-white overflow-x-hidden text-slate-800">
@@ -295,8 +220,8 @@ export default function LandingPage() {
       {/* ============================================================== */}
       <header
         className={`fixed w-full top-0 z-40 transition-all duration-300 ${isScrolled
-            ? 'bg-white/95 backdrop-blur-xl shadow-xs border-b border-sky-100 py-3.5'
-            : 'bg-white/90 backdrop-blur-md border-b border-sky-100/60 py-4.5'
+          ? 'bg-white/95 backdrop-blur-xl shadow-xs border-b border-sky-100 py-3.5'
+          : 'bg-white/90 backdrop-blur-md border-b border-sky-100/60 py-4.5'
           }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -314,6 +239,7 @@ export default function LandingPage() {
               { id: 'keunggulan', label: 'Keunggulan' },
               { id: 'cara-kerja', label: 'Cara Kerja' },
               { id: 'galeri', label: 'Dokumentasi' },
+              { id: 'ulasan', label: 'Ulasan' },
               { id: 'profil', label: 'Profil' },
               { id: 'faq', label: 'FAQ' },
             ].map((item) => (
@@ -385,1175 +311,1313 @@ export default function LandingPage() {
           id="home"
           className="relative pt-32 pb-20 md:pt-40 md:pb-28 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-sky-50/90 via-blue-50/40 to-white text-slate-900 overflow-hidden min-h-[92vh] flex items-center"
         >
-        {/* Parallax Atmospheric Glowing Ambient Spheres */}
-        <motion.div
-          style={{ y: yHeroGlow1 }}
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-sky-200/40 rounded-full blur-[140px] pointer-events-none"
-        />
-        <motion.div
-          style={{ y: yHeroGlow2 }}
-          className="absolute bottom-10 right-10 w-96 h-96 bg-blue-200/35 rounded-full blur-[120px] pointer-events-none"
-        />
-
-        {/* Cinematic Cool Air Breeze Wave Streams */}
-        <AirflowBreeze />
-
-        {/* Subtle grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.14] pointer-events-none"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #93C5FD 1px, transparent 0)`,
-            backgroundSize: '36px 36px'
-          }}
-        />
-
-        <div className="max-w-7xl mx-auto w-full relative z-10 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-
-          {/* Left Hero Storytelling with Parallax */}
+          {/* Parallax Atmospheric Glowing Ambient Spheres */}
           <motion.div
-            style={{ y: yHeroLeft }}
-            className="lg:col-span-7 space-y-7 text-center lg:text-left"
-          >
-
-            {/* Pill Tag */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: easeOutCubic }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 backdrop-blur-md border border-sky-200 text-blue-700 text-xs sm:text-sm font-semibold shadow-xs"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Solusi Perawatan AC Terencana • CV. Nara Teknindotama</span>
-            </motion.div>
-
-            {/* Main Headline */}
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.6, ease: easeOutCubic }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] text-slate-900"
-            >
-              Udara Nyaman,<br />
-              Perawatan AC{' '}
-              <span className="inline-block bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-600 bg-clip-text text-transparent">
-                {rotatingWords[typingIndex]}
-              </span>
-            </motion.h1>
-
-            {/* Supporting Description */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.6, ease: easeOutCubic }}
-              className="text-slate-600 text-base sm:text-lg lg:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0"
-            >
-              Jadwalkan servis AC dengan lebih mudah, pantau proses pengerjaan secara transparan, dan kelola perawatan AC Anda bersama teknisi terverifikasi NARA AC.
-            </motion.p>
-
-            {/* Hero CTAs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6, ease: easeOutCubic }}
-              className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 justify-center lg:justify-start pt-2"
-            >
-              <Link to="/booking">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl px-8 h-13 sm:h-14 text-base shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/35 transition-all cursor-pointer group flex items-center justify-center"
-                >
-                  <CalendarCheck className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                  Booking Service Sekarang
-                </Button>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => scrollTo('layanan')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 h-13 sm:h-14 rounded-2xl bg-white hover:bg-sky-50 text-slate-800 font-bold text-base border border-sky-200 shadow-xs transition-all cursor-pointer group"
-              >
-                <span>Jelajahi Paket & Harga</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-blue-600" />
-              </button>
-            </motion.div>
-
-            {/* Live Micro Badges */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.45, duration: 0.6 }}
-              className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 text-xs text-slate-600 font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Garansi Pengerjaan Nyata</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                <span>SOP 7 Langkah Pengerjaan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-sky-600" />
-                <span>Slot Waktu Terorganisir</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          {/* Right Hero: Single Card with Tabs - Kalkulator & Lacak Status */}
+            style={{ y: yHeroGlow1 }}
+            className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-sky-200/40 rounded-full blur-[140px] pointer-events-none"
+          />
           <motion.div
-            style={{ y: yHeroRight }}
-            className="lg:col-span-5 relative"
-          >
-            <HeroInteractiveCard services={liveServices} />
-          </motion.div>
-        </div>
-      </section>
+            style={{ y: yHeroGlow2 }}
+            className="absolute bottom-10 right-10 w-96 h-96 bg-blue-200/35 rounded-full blur-[120px] pointer-events-none"
+          />
 
-      {/* ============================================================== */}
-      {/* 3. TRUST MARQUEE & CREDENTIALS STRIP                           */}
-      {/* ============================================================== */}
-      <TrustBar />
+          {/* Cinematic Cool Air Breeze Wave Streams */}
+          <AirflowBreeze />
 
-      {/* ============================================================== */}
-      {/* 4. PERBANDINGAN PAKET & CAKUPAN PENGERJAAN AC                   */}
-      {/* ============================================================== */}
-      <section id="layanan" className="py-24 bg-white relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Subtle grid pattern overlay */}
+          <div
+            className="absolute inset-0 opacity-[0.14] pointer-events-none"
+            style={{
+              backgroundImage: `radial-gradient(circle at 1px 1px, #93C5FD 1px, transparent 0)`,
+              backgroundSize: '36px 36px'
+            }}
+          />
 
-          {/* Header */}
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-              <Wind className="w-3.5 h-3.5" /> Pilihan Paket & Cakupan Layanan
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-              Perbandingan Paket Servis AC
-            </h2>
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-              Bandingkan cakupan pengerjaan antara <strong>Paket Standar</strong>, <strong>Core (Deep Clean)</strong>, dan <strong>Core + Freon</strong> agar Anda mendapatkan hasil perawatan AC yang paling optimal sesuai kondisi unit.
-            </p>
-          </div>
+          <div className="max-w-7xl mx-auto w-full relative z-10 grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
 
-          {/* Pricing Comparison Cards Grid with Stagger & 3D Tilt Hover */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-40px' }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mb-12"
-          >
-            {servicePackages.map((pkg) => {
-              const isCore = pkg.isPopular;
-
-              return (
-                <motion.div
-                  key={pkg.id}
-                  variants={fadeInUpVariant}
-                  whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.25, ease: easeOutCubic } }}
-                  className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 relative group ${isCore
-                      ? 'bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-500 shadow-xl shadow-blue-500/10 lg:-translate-y-2'
-                      : 'bg-white border-2 border-sky-100 hover:border-sky-300 shadow-md hover:shadow-xl shadow-sky-900/5'
-                    }`}
-                >
-                  {/* Popular Highlight Badge */}
-                  {isCore && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-sky-600 text-white text-xs font-black uppercase tracking-wider px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                      ⭐ Paling Direkomendasikan (Best Value)
-                    </div>
-                  )}
-
-                  <div>
-                    {/* Top Tier Info */}
-                    <div className="flex items-center justify-between mb-3 pt-1">
-                      <Badge className={`font-bold uppercase text-xs tracking-wider border-0 ${isCore
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-sky-100 text-sky-800'
-                        }`}>
-                        {pkg.badge}
-                      </Badge>
-                      <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-blue-500" />
-                        ± {pkg.durasi_menit} Menit
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-2xl font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
-                      {pkg.nama_layanan}
-                    </h3>
-                    <p className="text-xs font-bold text-blue-600 mb-3">
-                      {pkg.subtitle}
-                    </p>
-
-                    {/* Description */}
-                    <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6">
-                      {pkg.deskripsi}
-                    </p>
-
-                    {/* Price Block */}
-                    <div className="mb-6 pb-6 border-b border-sky-100">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Estimasi Biaya Jasa</span>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-3xl sm:text-4xl font-black text-slate-900">
-                          Rp {pkg.harga.toLocaleString('id-ID')}
-                        </span>
-                        <span className="text-xs text-slate-500 font-semibold">/ unit</span>
-                      </div>
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-2">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Garansi Servis {pkg.garansi}
-                      </span>
-                    </div>
-
-                    {/* Scope Checklist: Included */}
-                    <div className="space-y-3 mb-6">
-                      <p className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>Cakupan yang Anda Dapatkan:</span>
-                      </p>
-                      <div className="space-y-2">
-                        {pkg.scopeIncluded.map((task, tIdx) => (
-                          <div key={tIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700">
-                            <Check className={`w-4 h-4 shrink-0 mt-0.5 ${isCore ? 'text-blue-600 font-bold' : 'text-emerald-500'
-                              }`} />
-                            <span className={isCore && tIdx > 0 && tIdx < 5 ? 'font-bold text-slate-900' : ''}>
-                              {task}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Scope Checklist: Excluded (if any, showing clear contrast) */}
-                    {pkg.scopeExcluded && pkg.scopeExcluded.length > 0 && (
-                      <div className="space-y-2 mb-6 pt-3 border-t border-dashed border-slate-200">
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                          <X className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Belum Termasuk di Standar:</span>
-                        </p>
-                        <div className="space-y-1.5">
-                          {pkg.scopeExcluded.map((ex, exIdx) => (
-                            <div key={exIdx} className="flex items-start gap-2 text-xs text-slate-500 line-through">
-                              <X className="w-3.5 h-3.5 text-slate-300 shrink-0 mt-0.5" />
-                              <span>{ex}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Benefit Callout Note */}
-                    {pkg.benefitNote && (
-                      <div className="mb-6 p-3.5 rounded-2xl bg-sky-50 border border-sky-100 text-xs text-blue-950 font-medium leading-relaxed">
-                        {pkg.benefitNote}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Booking CTA Button */}
-                  <Link to={pkg.bookingUrl} className="block w-full pt-4">
-                    <Button
-                      className={`w-full h-12 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${isCore
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25'
-                          : 'bg-sky-100 hover:bg-sky-200 text-blue-700 border border-sky-200'
-                        }`}
-                    >
-                      <CalendarCheck className="w-4 h-4" />
-                      <span>{pkg.ctaText}</span>
-                    </Button>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-
-          {/* Toggle Comparison Table Button */}
-          <div className="text-center mb-8">
-            <button
-              onClick={() => setShowComparisonTable(prev => !prev)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-sky-50 hover:bg-sky-100 text-blue-700 font-bold text-xs sm:text-sm border border-sky-200 transition-all cursor-pointer shadow-2xs"
+            {/* Left Hero Storytelling with Parallax */}
+            <motion.div
+              style={{ y: yHeroLeft }}
+              className="lg:col-span-7 space-y-7 text-center lg:text-left"
             >
-              <HelpCircle className="w-4 h-4 text-blue-600" />
-              <span>{showComparisonTable ? 'Sembunyikan Tabel Perbandingan Detail' : 'Buka Tabel Perbandingan Detail Cakupan Pengerjaan'}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showComparisonTable ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
 
-          {/* Side-by-Side Comparison Matrix Table */}
-          <AnimatePresence>
-            {showComparisonTable && (
+              {/* Pill Tag */}
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.4, ease: easeOutCubic }}
-                className="overflow-hidden mb-14"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: easeOutCubic }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 backdrop-blur-md border border-sky-200 text-blue-700 text-xs sm:text-sm font-semibold shadow-xs"
               >
-                <div className="bg-white rounded-3xl border border-sky-100 shadow-xl shadow-sky-900/5 overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[640px]">
-                    <thead>
-                      <tr className="bg-sky-50/70 border-b border-sky-100 text-slate-900 text-xs sm:text-sm">
-                        <th className="p-4 sm:p-5 font-black">Cakupan Pengerjaan & Komponen</th>
-                        <th className="p-4 sm:p-5 font-bold text-center w-1/4">Paket Standar</th>
-                        <th className="p-4 sm:p-5 font-black text-center w-1/4 bg-blue-100/60 text-blue-900">
-                          Paket Core ⭐
-                        </th>
-                        <th className="p-4 sm:p-5 font-bold text-center w-1/4">Core + Freon</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-sky-100/60 text-xs sm:text-sm">
-                      {comparisonMatrix.map((row, rIdx) => (
-                        <tr key={rIdx} className="hover:bg-sky-50/30 transition-colors">
-                          <td className="p-4 sm:p-5">
-                            <span className="font-bold text-slate-900 block">{row.feature}</span>
-                            <span className="text-xs text-slate-500">{row.detail}</span>
-                          </td>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Solusi Perawatan AC Terencana • CV. Nara Teknindotama</span>
+              </motion.div>
 
-                          {/* Standard Column */}
-                          <td className="p-4 sm:p-5 text-center">
-                            {typeof row.standard === 'boolean' ? (
-                              row.standard ? (
-                                <Check className="w-5 h-5 text-emerald-500 mx-auto" />
-                              ) : (
-                                <X className="w-5 h-5 text-slate-300 mx-auto" />
-                              )
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
-                                {row.standard}
-                              </span>
-                            )}
-                          </td>
+              {/* Main Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.6, ease: easeOutCubic }}
+                className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] text-slate-900"
+              >
+                Udara Nyaman,<br />
+                Perawatan AC<br />
+                <span className="inline-block relative overflow-hidden pb-2 pt-1">
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={rotatingWords[typingIndex]}
+                      initial={{ opacity: 0, y: 30, filter: 'blur(6px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, y: -30, filter: 'blur(6px)' }}
+                      transition={{ duration: 0.5, ease: easeOutCubic }}
+                      className="inline-block bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-600 bg-clip-text text-transparent"
+                    >
+                      {rotatingWords[typingIndex]}
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
+              </motion.h1>
 
-                          {/* Core Column (Highlighted) */}
-                          <td className="p-4 sm:p-5 text-center bg-blue-50/40">
-                            {typeof row.core === 'boolean' ? (
-                              row.core ? (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white mx-auto shadow-2xs">
-                                  <Check className="w-4 h-4" />
-                                </span>
-                              ) : (
-                                <X className="w-5 h-5 text-slate-300 mx-auto" />
-                              )
-                            ) : (
-                              <span className="inline-block px-2.5 py-1 rounded-md bg-blue-600 text-white text-xs font-bold shadow-2xs">
-                                {row.core}
-                              </span>
-                            )}
-                          </td>
+              {/* Supporting Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6, ease: easeOutCubic }}
+                className="text-slate-600 text-base sm:text-lg lg:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0"
+              >
+                Jadwalkan servis AC dengan lebih mudah, pantau proses pengerjaan secara transparan, dan kelola perawatan AC Anda bersama teknisi terverifikasi NARA AC.
+              </motion.p>
 
-                          {/* Core + Freon Column */}
-                          <td className="p-4 sm:p-5 text-center">
-                            {typeof row.coreFreon === 'boolean' ? (
-                              row.coreFreon ? (
-                                <Check className="w-5 h-5 text-emerald-600 mx-auto" />
-                              ) : (
-                                <X className="w-5 h-5 text-slate-300 mx-auto" />
-                              )
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-xs font-bold">
-                                {row.coreFreon}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Hero CTAs */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6, ease: easeOutCubic }}
+                className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 justify-center lg:justify-start pt-2"
+              >
+                <Link to="/booking">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl px-8 h-13 sm:h-14 text-base shadow-xl shadow-blue-500/25 hover:shadow-2xl hover:shadow-blue-500/35 transition-all cursor-pointer group flex items-center justify-center"
+                  >
+                    <CalendarCheck className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                    Booking Service Sekarang
+                  </Button>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => scrollTo('layanan')}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 h-13 sm:h-14 rounded-2xl bg-white hover:bg-sky-50 text-slate-800 font-bold text-base border border-sky-200 shadow-xs transition-all cursor-pointer group"
+                >
+                  <span>Jelajahi Paket & Harga</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-blue-600" />
+                </button>
+              </motion.div>
+
+              {/* Live Micro Badges */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.45, duration: 0.6 }}
+                className="pt-4 flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 text-xs text-slate-600 font-medium"
+              >
+                <button
+                  type="button"
+                  onClick={() => scrollTo('ulasan')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-sky-100 shadow-2xs hover:border-blue-300 transition-all cursor-pointer group"
+                >
+                  <span className="flex text-amber-400 text-xs">
+                    {'★'.repeat(5)}
+                  </span>
+                  <span className="font-black text-slate-900 group-hover:text-blue-600 transition-colors">5.0</span>
+                  <span className="text-slate-500 font-medium">(Google Review)</span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Garansi Pengerjaan Nyata</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  <span>SOP 7 Langkah Pengerjaan</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-sky-600" />
+                  <span>Slot Waktu Terorganisir</span>
                 </div>
               </motion.div>
-            )}
-          </AnimatePresence>
+            </motion.div>
 
-          {/* Bottom helper: Kantor / B2B */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-sky-50/70 border border-sky-200/80 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
-            <div>
-              <span className="text-xs font-bold tracking-wider uppercase text-blue-600 bg-white px-3 py-1 rounded-full border border-sky-200 inline-block mb-1.5">
-                Layanan Korporat & Residensial
+            {/* Right Hero: Single Card with Tabs - Kalkulator & Lacak Status */}
+            <motion.div
+              style={{ y: yHeroRight }}
+              className="lg:col-span-5 relative"
+            >
+              <HeroInteractiveCard services={liveServices} />
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* 3. CLIENT LOGOS RUNNING TICKER                                */}
+        {/* ============================================================== */}
+        <ClientLogoMarquee />
+
+        {/* ============================================================== */}
+        {/* 4. PERBANDINGAN PAKET & CAKUPAN PENGERJAAN AC                   */}
+        {/* ============================================================== */}
+        <section id="layanan" className="py-24 bg-white relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            {/* Header */}
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
+                <Wind className="w-3.5 h-3.5" /> Pilihan Paket & Cakupan Layanan
               </span>
-              <h4 className="font-black text-slate-900 text-base sm:text-lg">Butuh Servis AC dalam Jumlah Banyak untuk Kantor / Ruko?</h4>
-              <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-                Kami menyediakan kontrak pemeliharaan berkala untuk gedung, instansi, dan perumahan dengan invoice resmi dan penawaran harga khusus instansi.
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Perbandingan Paket Servis AC
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+                Bandingkan cakupan pengerjaan antara <strong>Paket Standar</strong>, <strong>Core (Deep Clean)</strong>, dan <strong>Core + Freon</strong> agar Anda mendapatkan hasil perawatan AC yang paling optimal sesuai kondisi unit.
               </p>
             </div>
-            <a
-              href={buildWhatsAppUrl(whatsappNumber, 'Halo NARA AC, saya ingin konsultasi servis AC kantor/ruko')}
-              target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white border border-sky-200 text-slate-900 hover:text-blue-600 font-bold text-xs sm:text-sm shrink-0 shadow-xs hover:shadow-md transition-all"
-            >
-              <Phone className="w-4 h-4 text-emerald-500" />
-              <span>Konsultasi WhatsApp</span>
-<span className="sr-only"> (buka di tab baru)</span>
-            </a>
-          </div>
-        </div>
-      </section>
 
-      {/* ============================================================== */}
-      {/* 5. KEUNGGULAN NARA AC (CLEAN WHITE & LIGHT BLUE BENTO GRID)     */}
-      {/* ============================================================== */}
-      <section id="keunggulan" className="py-24 bg-gradient-to-b from-white via-sky-50/40 to-white text-slate-900 relative overflow-hidden border-t border-sky-100/60">
-
-        {/* Glows */}
-        <div className="absolute top-1/2 left-0 w-96 h-96 bg-blue-200/30 rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-200/30 rounded-full blur-[140px] pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-widest mb-3">
-              <ShieldCheck className="w-3.5 h-3.5" /> Standar Mutu
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-              Mengapa Memilih NARA AC?
-            </h2>
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed font-normal">
-              Kami memadukan disiplin teknisi berpengalaman dengan sistem digital terorganisasi untuk kepuasan dan kenyamanan hunian Anda.
-            </p>
-          </div>
-
-          {/* Asymmetric Bento Grid (Staggered Animation with Spring Lift) */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-40px' }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-
-            {/* Bento Card 1 */}
-            <motion.div
-              variants={fadeInUpVariant}
-              whileHover={{ y: -6, scale: 1.012, transition: { duration: 0.25, ease: easeOutCubic } }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-blue-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mb-6">
-                  <CalendarCheck className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Jadwal Pasti & Terjadwal</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Tidak perlu menebak kapan teknisi datang. Pilih tanggal dan jam pengerjaan sesuai kebutuhan Anda langsung dari formulir booking online.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-blue-600 flex items-center gap-1">
-                <span>Manajemen Slot Jam Presisi</span>
-              </div>
-            </motion.div>
-
-            {/* Bento Card 2 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.5, ease: easeOutCubic }}
-              viewport={{ once: true }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-sky-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center mb-6">
-                  <Search className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Pelacakan Status Digital</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Pantau tiket pengerjaan Anda dari mana saja. Cek apakah tiket berstatus terjadwal, sedang dikerjakan teknisi, atau sudah selesai.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-sky-600 flex items-center gap-1">
-                <span>Terhubung API Sistem Publik</span>
-              </div>
-            </motion.div>
-
-            {/* Bento Card 3 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5, ease: easeOutCubic }}
-              viewport={{ once: true }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-emerald-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mb-6">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">7 Langkah SOP Standar Baku</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Bukan servis asal-asalan. Mulai dari pembersihan filter, cuci evaporator bertekanan, cuci outdoor, hingga uji running test dingin sebelum teknisi pamit.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                <span>Standar Operasional Tertulis</span>
-              </div>
-            </motion.div>
-
-            {/* Bento Card 4 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5, ease: easeOutCubic }}
-              viewport={{ once: true }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-amber-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-6">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Transparansi Biaya Mutlak</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Tidak ada istilah tembak harga mendadak saat tiba di tempat. Semua biaya jasa mengacu pada katalog resmi tanpa biaya tersembunyi.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-amber-600 flex items-center gap-1">
-                <span>Katalog Harga Terpublikasi</span>
-              </div>
-            </motion.div>
-
-            {/* Bento Card 5 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: easeOutCubic }}
-              viewport={{ once: true }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-indigo-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mb-6">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Rekam Jejak & Riwayat Unit</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Data unit AC dan riwayat servis Anda tersimpan rapi di sistem. Memudahkan mengetahui kapan jadwal perawatan berkala berikutnya.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-indigo-600 flex items-center gap-1">
-                <span>Database Terstruktur</span>
-              </div>
-            </motion.div>
-
-            {/* Bento Card 6 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5, ease: easeOutCubic }}
-              viewport={{ once: true }}
-              className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-rose-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-6">
-                  <Sparkles className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Garansi Pekerjaan Nyata</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">
-                  Komitmen purna-servis terjamin. Jika terjadi kendala pasca-pengerjaan, teknisi siap datang kembali melakukan pemeriksaan ulang gratis.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-rose-600 flex items-center gap-1">
-                <span>Perlindungan Pelanggan Nyata</span>
-              </div>
-            </motion.div>
-
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ============================================================== */}
-      {/* 6. CARA KERJA & ALUR RESERVASI                                 */}
-      {/* ============================================================== */}
-      <section id="cara-kerja" className="py-24 bg-white relative border-t border-sky-100/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-              <Clock className="w-3.5 h-3.5" /> Alur Cepat & Praktis
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-              4 Langkah Mudah Booking Servis AC
-            </h2>
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-              Dari pemesanan online hingga teknisi menyelesaikan pengerjaan di tempat Anda.
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* Desktop Connecting Line - connects step circles */}
-            <div className="hidden lg:block absolute top-[110px] left-[70px] right-[70px] h-0.5 pointer-events-none z-0">
-              <motion.div
-                initial={{ scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: easeOutCubic }}
-                className="h-full bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-400 origin-left rounded-full"
-              />
-            </div>
-
-            {/* Mobile Vertical Connecting Line */}
-            <div className="lg:hidden absolute top-0 bottom-0 left-[38px] w-0.5 pointer-events-none z-0">
-              <motion.div
-                initial={{ scaleY: 0 }}
-                whileInView={{ scaleY: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.2, ease: easeOutCubic, delay: 0.3 }}
-                className="h-full bg-gradient-to-b from-blue-400 via-sky-300 to-emerald-400 origin-top rounded-full"
-              />
-            </div>
-
+            {/* Pricing Comparison Cards Grid with Stagger & 3D Tilt Hover */}
             <motion.div
               variants={staggerContainer}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: '-50px' }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10"
+              viewport={{ once: true, margin: '-40px' }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mb-12"
             >
-              {[
-                {
-                  step: '01',
-                  title: 'Pilih Layanan & Waktu',
-                  desc: 'Pilih paket AC (Standar / Core / Core + Freon), lalu tentukan tanggal dan jam pengerjaan yang sesuai.',
-                },
-                {
-                  step: '02',
-                  title: 'Sistem Terbitkan Kode',
-                  desc: 'Booking Anda otomatis tercatat di sistem, menerbitkan kode unik (BK-XXX), dan diteruskan ke admin teknisi.'
-                },
-                {
-                  step: '03',
-                  title: 'Pengerjaan SOP Ketat',
-                  desc: 'Teknisi tiba sesuai jadwal dengan seragam resmi, membawa mesin steam bertekanan, dan memproteksi area kerja.'
-                },
-                {
-                  step: '04',
-                  title: 'Verifikasi & Selesai',
-                  desc: 'Uji running test suhu dingin, cek kelancaran drainase, dan riwayat servis tersimpan aman di sistem.'
-                }
-              ].map((st, sIndex) => (
-                <motion.div
-                  key={st.step}
-                  variants={fadeInUpVariant}
-                  whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.25, ease: easeOutCubic } }}
-                  className="relative group"
-                >
-                  {/* Step Circle + Connector Line (Desktop) */}
-                  <div className="absolute lg:left-1/2 lg:-translate-x-1/2 -translate-y-1/2 w-24 h-24 flex flex-col items-center z-10">
-                    {/* Step Number Circle */}
-                    <div className="relative w-16 h-16 rounded-full bg-white border-3 border-sky-200 flex items-center justify-center shadow-lg shadow-sky-500/10 transition-all duration-300 group-hover:border-blue-400 group-hover:shadow-xl group-hover:shadow-blue-500/20">
-                      <span className="font-mono text-2xl font-black text-blue-600 group-hover:text-blue-700 transition-colors">
-                        {st.step}
-                      </span>
-                      {/* Pulse ring on hover */}
-                      <motion.div
-                        animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className="absolute inset-0 rounded-full border-2 border-blue-400/30 pointer-events-none"
-                      />
-                    </div>
-                    {/* "Tahap X" Label */}
-                    <span className="mt-2 text-xs font-bold tracking-wider uppercase text-blue-700 bg-white px-2.5 py-1 rounded-full border border-sky-200 shadow-2xs whitespace-nowrap">
-                      Tahap {sIndex + 1}
-                    </span>
-                  </div>
+              {servicePackages.map((pkg) => {
+                const isCore = pkg.isPopular;
 
-                  {/* Content Card */}
-                  <div className="lg:pt-28 bg-sky-50/60 border border-sky-100 rounded-3xl p-6 sm:p-7 flex flex-col justify-between hover:bg-white hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300">
+                return (
+                  <motion.div
+                    key={pkg.id}
+                    variants={fadeInUpVariant}
+                    whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.25, ease: easeOutCubic } }}
+                    className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 relative group ${isCore
+                      ? 'bg-gradient-to-b from-blue-50/70 via-white to-white border-2 border-blue-500 shadow-xl shadow-blue-500/10 lg:-translate-y-2'
+                      : 'bg-white border-2 border-sky-100 hover:border-sky-300 shadow-md hover:shadow-xl shadow-sky-900/5'
+                      }`}
+                  >
+                    {/* Popular Highlight Badge */}
+                    {isCore && (
+                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-sky-600 text-white text-xs font-black uppercase tracking-wider px-4 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                        ⭐ Paling Direkomendasikan (Best Value)
+                      </div>
+                    )}
+
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{st.title}</h3>
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{st.desc}</p>
+                      {/* Top Tier Info */}
+                      <div className="flex items-center justify-between gap-2 mb-3 pt-1 min-h-[28px]">
+                        <Badge className={`font-bold uppercase text-xs tracking-wider border-0 shrink-0 ${isCore
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-sky-100 text-sky-800'
+                          }`}>
+                          {pkg.badge}
+                        </Badge>
+                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                          <Clock className="w-3.5 h-3.5 text-blue-500" />
+                          ± {pkg.durasi_menit} Menit
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-2xl font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
+                        {pkg.nama_layanan}
+                      </h3>
+                      <p className="text-xs font-bold text-blue-600 mb-3 min-h-[18px]">
+                        {pkg.subtitle}
+                      </p>
+
+                      {/* Description */}
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6 min-h-[48px]">
+                        {pkg.deskripsi}
+                      </p>
+
+                      {/* Price Block */}
+                      <div className="mb-6 pb-6 border-b border-sky-100">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Estimasi Biaya Jasa</span>
+                        <div className="mt-1 flex items-baseline gap-1.5">
+                          <span className="text-3xl sm:text-4xl font-black text-slate-900">
+                            Rp {pkg.harga.toLocaleString('id-ID')}
+                          </span>
+                          <span className="text-xs text-slate-500 font-semibold">/ unit</span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md mt-2">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Garansi Servis {pkg.garansi}
+                        </span>
+                      </div>
+
+                      {/* Scope Checklist: Unified Included (Check) & Excluded (Coret) */}
+                      <div className="space-y-3 mb-6">
+                        <p className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Cakupan Layanan:</span>
+                        </p>
+                        <div className="space-y-2">
+                          {/* Yang Didapat (Ceklis Hijau / Biru) */}
+                          {pkg.scopeIncluded.map((task, tIdx) => (
+                            <div key={`inc-${tIdx}`} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700">
+                              <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCore ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'
+                                }`}>
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                              <span className={isCore && tIdx > 0 && tIdx < 5 ? 'font-bold text-slate-900' : ''}>
+                                {task}
+                              </span>
+                            </div>
+                          ))}
+
+                          {/* Yang Tidak Didapat (Coret dengan tanda silang) */}
+                          {pkg.scopeExcluded && pkg.scopeExcluded.length > 0 && (
+                            <>
+                              {pkg.scopeExcluded.map((ex, exIdx) => (
+                                <div key={`exc-${exIdx}`} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-400">
+                                  <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0 mt-0.5">
+                                    <X className="w-2.5 h-2.5 stroke-[2.5]" />
+                                  </span>
+                                  <span className="line-through decoration-slate-300">
+                                    {ex}
+                                  </span>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Benefit Callout Note */}
+                      {pkg.benefitNote && (
+                        <div className="mb-6 p-3.5 rounded-2xl bg-sky-50 border border-sky-100 text-xs text-blue-950 font-medium leading-relaxed">
+                          {pkg.benefitNote}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+
+                    {/* Booking CTA Button */}
+                    <Link to={pkg.bookingUrl} className="block w-full pt-4">
+                      <Button
+                        className={`w-full h-12 rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${isCore
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/25'
+                          : 'bg-sky-100 hover:bg-sky-200 text-blue-700 border border-sky-200'
+                          }`}
+                      >
+                        <CalendarCheck className="w-4 h-4" />
+                        <span>{pkg.ctaText}</span>
+                      </Button>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </motion.div>
+
+            {/* Bottom helper: Kantor / B2B */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-sky-50/70 border border-sky-200/80 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+              <div>
+                <span className="text-xs font-bold tracking-wider uppercase text-blue-600 bg-white px-3 py-1 rounded-full border border-sky-200 inline-block mb-1.5">
+                  Layanan Korporat & Residensial
+                </span>
+                <h4 className="font-black text-slate-900 text-base sm:text-lg">Butuh Servis AC dalam Jumlah Banyak untuk Kantor / Ruko?</h4>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
+                  Kami menyediakan kontrak pemeliharaan berkala untuk gedung, instansi, dan perumahan dengan invoice resmi dan penawaran harga khusus instansi.
+                </p>
+              </div>
+              <a
+                href={buildWhatsAppUrl(whatsappNumber, 'Halo NARA AC, saya ingin konsultasi servis AC kantor/ruko')}
+                target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white border border-sky-200 text-slate-900 hover:text-blue-600 font-bold text-xs sm:text-sm shrink-0 shadow-xs hover:shadow-md transition-all"
+              >
+                <Phone className="w-4 h-4 text-emerald-500" />
+                <span>Konsultasi WhatsApp</span>
+                <span className="sr-only"> (buka di tab baru)</span>
+              </a>
+            </div>
           </div>
+        </section>
 
-        </div>
-      </section>
+        {/* ============================================================== */}
+        {/* 5. KEUNGGULAN NARA AC (CLEAN WHITE & LIGHT BLUE BENTO GRID)     */}
+        {/* ============================================================== */}
+        <section id="keunggulan" className="py-24 bg-gradient-to-b from-white via-sky-50/40 to-white text-slate-900 relative overflow-hidden border-t border-sky-100/60">
 
-      {/* ============================================================== */}
-      {/* 7. DOKUMENTASI NYATA KEGIATAN TEKNISI                          */}
-      {/* ============================================================== */}
-      <GallerySection />
+          {/* Glows */}
+          <div className="absolute top-1/2 left-0 w-96 h-96 bg-blue-200/30 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-sky-200/30 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* ============================================================== */}
-      {/* 8. DIGITAL EXPERIENCE PREVIEW                                  */}
-      {/* ============================================================== */}
-      <section className="py-24 bg-sky-50/40 border-t border-sky-100/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
 
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-              <Sparkles className="w-3.5 h-3.5" /> Pengalaman Digital
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-              Sistem Layanan Terpadu & Transparan
-            </h2>
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-              Lihat bagaimana NARA AC mengelola setiap detail servis AC dari pelacakan tiket hingga laporan pengerjaan.
-            </p>
-          </div>
-
-          {/* Interactive Preview Tabs */}
-          <div className="bg-white rounded-3xl border border-sky-100 shadow-xl overflow-hidden max-w-5xl mx-auto">
-
-            {/* Tab navigation pills */}
-            <div className="flex border-b border-sky-100 bg-sky-50/60 p-2 gap-2 overflow-x-auto scrollbar-none">
-              {[
-                { id: 'status', label: 'Pelacakan Status Booking' },
-                { id: 'sop', label: 'Checklist 7 Langkah SOP' },
-                { id: 'history', label: 'Rekam Riwayat Unit AC' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveDemoTab(tab.id)}
-                  className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${activeDemoTab === tab.id
-                      ? 'bg-white text-blue-600 shadow-xs border border-sky-200'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                    }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold uppercase tracking-widest mb-3">
+                <ShieldCheck className="w-3.5 h-3.5" /> Standar Mutu
+              </span>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Mengapa Memilih NARA AC?
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed font-normal">
+                Kami memadukan disiplin teknisi berpengalaman dengan sistem digital terorganisasi untuk kepuasan dan kenyamanan hunian Anda.
+              </p>
             </div>
 
-            {/* Tab content animated transitions */}
-            <AnimatePresence mode="wait">
-              {/* Tab 1: Pelacakan Status Demo */}
-              {activeDemoTab === 'status' && (
-                <motion.div
-                  key="tab-status"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3, ease: easeOutCubic }}
-                  className="p-6 sm:p-10 space-y-8"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-sky-100">
-                    <div>
-                      <span className="text-xs font-mono font-bold text-slate-500 uppercase">Kode Tiket Order</span>
-                      <h4 className="text-xl sm:text-2xl font-black text-slate-900 font-mono mt-0.5">BK-2026-0814</h4>
-                    </div>
-                    <Badge className="bg-blue-100 text-blue-800 font-bold border-blue-200 px-3 py-1 rounded-full text-xs w-fit">
-                      SEDANG DIKERJAKAN
-                    </Badge>
-                  </div>
+            {/* Asymmetric Bento Grid (Staggered Animation with Spring Lift) */}
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-40px' }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
 
-                  {/* Timeline Progress */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-                      <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5 mb-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Terjadwal
+              {/* Bento Card 1 */}
+              <motion.div
+                variants={fadeInUpVariant}
+                whileHover={{ y: -6, scale: 1.012, transition: { duration: 0.25, ease: easeOutCubic } }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-blue-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center mb-6">
+                    <CalendarCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Jadwal Pasti & Terjadwal</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Tidak perlu menebak kapan teknisi datang. Pilih tanggal dan jam pengerjaan sesuai kebutuhan Anda langsung dari formulir booking online.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-blue-600 flex items-center gap-1">
+                  <span>Manajemen Slot Jam Presisi</span>
+                </div>
+              </motion.div>
+
+              {/* Bento Card 2 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.5, ease: easeOutCubic }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-sky-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center mb-6">
+                    <Search className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Pelacakan Status Digital</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Pantau tiket pengerjaan Anda dari mana saja. Cek apakah tiket berstatus terjadwal, sedang dikerjakan teknisi, atau sudah selesai.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-sky-600 flex items-center gap-1">
+                  <span>Terhubung API Sistem Publik</span>
+                </div>
+              </motion.div>
+
+              {/* Bento Card 3 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5, ease: easeOutCubic }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-emerald-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mb-6">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">7 Langkah SOP Standar Baku</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Bukan servis asal-asalan. Mulai dari pembersihan filter, cuci evaporator bertekanan, cuci outdoor, hingga uji running test dingin sebelum teknisi pamit.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                  <span>Standar Operasional Tertulis</span>
+                </div>
+              </motion.div>
+
+              {/* Bento Card 4 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5, ease: easeOutCubic }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-amber-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-6">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Transparansi Biaya Mutlak</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Tidak ada istilah tembak harga mendadak saat tiba di tempat. Semua biaya jasa mengacu pada katalog resmi tanpa biaya tersembunyi.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-amber-600 flex items-center gap-1">
+                  <span>Katalog Harga Terpublikasi</span>
+                </div>
+              </motion.div>
+
+              {/* Bento Card 5 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.5, ease: easeOutCubic }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-indigo-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mb-6">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Rekam Jejak & Riwayat Unit</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Data unit AC dan riwayat servis Anda tersimpan rapi di sistem. Memudahkan mengetahui kapan jadwal perawatan berkala berikutnya.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-indigo-600 flex items-center gap-1">
+                  <span>Database Terstruktur</span>
+                </div>
+              </motion.div>
+
+              {/* Bento Card 6 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5, ease: easeOutCubic }}
+                viewport={{ once: true }}
+                className="bg-white rounded-3xl p-7 border border-sky-100 hover:border-rose-300 shadow-md hover:shadow-xl shadow-blue-500/5 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-6">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Garansi Pekerjaan Nyata</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Komitmen purna-servis terjamin. Jika terjadi kendala pasca-pengerjaan, teknisi siap datang kembali melakukan pemeriksaan ulang gratis.
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-sky-50 text-xs font-semibold text-rose-600 flex items-center gap-1">
+                  <span>Perlindungan Pelanggan Nyata</span>
+                </div>
+              </motion.div>
+
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* 6. CARA KERJA & ALUR RESERVASI                                 */}
+        {/* ============================================================== */}
+        <section id="cara-kerja" className="py-24 bg-white relative border-t border-sky-100/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
+                <Clock className="w-3.5 h-3.5" /> Alur Cepat & Praktis
+              </span>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                4 Langkah Mudah Booking Servis AC
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+                Dari pemesanan online hingga teknisi menyelesaikan pengerjaan di tempat Anda.
+              </p>
+            </div>
+
+            <div className="relative">
+
+              <motion.div
+                variants={staggerContainer}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-50px' }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10"
+              >
+                {[
+                  {
+                    step: '01',
+                    title: 'Pilih Layanan & Waktu',
+                    desc: 'Pilih paket AC (Standar / Core / Core + Freon), lalu tentukan tanggal dan jam pengerjaan yang sesuai.',
+                  },
+                  {
+                    step: '02',
+                    title: 'Sistem Terbitkan Kode',
+                    desc: 'Booking Anda otomatis tercatat di sistem, menerbitkan kode unik (BK-XXX), dan diteruskan ke admin teknisi.'
+                  },
+                  {
+                    step: '03',
+                    title: 'Pengerjaan SOP Ketat',
+                    desc: 'Teknisi tiba sesuai jadwal dengan seragam resmi, membawa mesin steam bertekanan, dan memproteksi area kerja.'
+                  },
+                  {
+                    step: '04',
+                    title: 'Verifikasi & Selesai',
+                    desc: 'Uji running test suhu dingin, cek kelancaran drainase, dan riwayat servis tersimpan aman di sistem.'
+                  }
+                ].map((st, sIndex) => (
+                  <motion.div
+                    key={st.step}
+                    variants={fadeInUpVariant}
+                    whileHover={{ y: -8, scale: 1.015, transition: { duration: 0.25, ease: easeOutCubic } }}
+                    className="relative group"
+                  >
+                    {/* Step Circle + Connector Line (Desktop) */}
+                    <div className="absolute lg:left-1/2 lg:-translate-x-1/2 -translate-y-1/2 w-24 h-24 flex flex-col items-center z-10">
+                      {/* Step Number Circle */}
+                      <div className="relative w-16 h-16 rounded-full bg-white border-3 border-sky-200 flex items-center justify-center shadow-lg shadow-sky-500/10 transition-all duration-300 group-hover:border-blue-400 group-hover:shadow-xl group-hover:shadow-blue-500/20">
+                        <span className="font-mono text-2xl font-black text-blue-600 group-hover:text-blue-700 transition-colors">
+                          {st.step}
+                        </span>
+                        {/* Pulse ring on hover */}
+                        <motion.div
+                          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="absolute inset-0 rounded-full border-2 border-blue-400/30 pointer-events-none"
+                        />
+                      </div>
+                      {/* "Tahap X" Label */}
+                      <span className="mt-2 text-xs font-bold tracking-wider uppercase text-blue-700 bg-white px-2.5 py-1 rounded-full border border-sky-200 shadow-2xs whitespace-nowrap">
+                        Tahap {sIndex + 1}
                       </span>
-                      <p className="text-xs text-slate-600">Teknisi & slot waktu telah dikonfirmasi sistem.</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-blue-50 border border-blue-300 shadow-sm">
-                      <span className="text-xs font-bold text-blue-700 flex items-center gap-1.5 mb-1">
-                        <Clock className="w-4 h-4 text-blue-600 animate-spin" /> Sedang Dikerjakan
-                      </span>
-                      <p className="text-xs text-slate-600">Teknisi sedang melakukan pencucian indoor & outdoor.</p>
+
+                    {/* Content Card */}
+                    <div className="lg:pt-28 bg-sky-50/60 border border-sky-100 rounded-3xl p-6 sm:p-7 flex flex-col justify-between hover:bg-white hover:border-blue-300 hover:shadow-xl shadow-blue-900/5 transition-all duration-300">
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">{st.title}</h3>
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{st.desc}</p>
+                      </div>
                     </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 opacity-60">
-                      <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 mb-1">
-                        <Check className="w-4 h-4 text-slate-500" /> Selesai
-                      </span>
-                      <p className="text-xs text-slate-600">Running test lulus dan laporan tersimpan.</p>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </div>
+
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* 7. DOKUMENTASI NYATA KEGIATAN TEKNISI                          */}
+        {/* ============================================================== */}
+        <GallerySection />
+
+        {/* ============================================================== */}
+        {/* 7.5 ULASAN ASLI GOOGLE MAPS                                   */}
+        {/* ============================================================== */}
+        <GoogleReviewsSection />
+
+        {/* ============================================================== */}
+        {/* 8. DIGITAL EXPERIENCE PREVIEW                                  */}
+        {/* ============================================================== */}
+        <section className="py-24 bg-sky-50/40 border-t border-sky-100/60 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
+                <Sparkles className="w-3.5 h-3.5" /> Pengalaman Digital
+              </span>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Sistem Layanan Terpadu & Transparan
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+                Lihat bagaimana NARA AC mengelola setiap detail servis AC dari pelacakan tiket hingga laporan pengerjaan.
+              </p>
+            </div>
+
+            {/* Interactive Preview Tabs */}
+            <div className="bg-white rounded-3xl border border-sky-100 shadow-xl overflow-hidden max-w-5xl mx-auto">
+
+              {/* Tab navigation pills */}
+              <div className="flex border-b border-sky-100 bg-sky-50/60 p-2 gap-2 overflow-x-auto scrollbar-none">
+                {[
+                  { id: 'status', label: 'Pelacakan Status Booking' },
+                  { id: 'sop', label: 'Checklist 7 Langkah SOP' },
+                  { id: 'history', label: 'Rekam Riwayat Unit AC' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveDemoTab(tab.id)}
+                    className={`flex-1 py-3 px-4 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${activeDemoTab === tab.id
+                      ? 'bg-white text-blue-600 shadow-xs border border-sky-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab content animated transitions */}
+              <AnimatePresence mode="wait">
+                {/* Tab 1: Pelacakan Status Demo */}
+                {activeDemoTab === 'status' && (
+                  <motion.div
+                    key="tab-status"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3, ease: easeOutCubic }}
+                    className="p-6 sm:p-8 space-y-6"
+                  >
+                    {/* Top Ticket Strip */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-sky-100">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Ticket className="w-4 h-4 text-blue-600" />
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kode Tiket Servis Resmi</span>
+                        </div>
+                        <h4 className="text-xl sm:text-2xl font-black text-blue-700 font-mono mt-1 tracking-wider">
+                          BK-2026-0814
+                        </h4>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                          Sedang Dikerjakan di Lokasi
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium hidden sm:inline">• Slot Hari Ini, 10:00 WIB</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="bg-sky-50/60 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 border border-sky-100">
-                    <span>Ingin mencoba melacak status pengerjaan Anda sendiri?</span>
-                    <Link to="/status" className="font-bold text-blue-600 hover:underline flex items-center gap-1">
-                      Buka Halaman Cek Status &rarr;
-                    </Link>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Tab 2: SOP Checklist Demo */}
-              {activeDemoTab === 'sop' && (
-                <motion.div
-                  key="tab-sop"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3, ease: easeOutCubic }}
-                  className="p-6 sm:p-10 space-y-6"
-                >
-                  <div className="pb-4 border-b border-sky-100">
-                    <h4 className="text-lg sm:text-xl font-bold text-slate-900">Prosedur 7 Langkah Standar Servis AC</h4>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Daftar periksa yang diverifikasi teknisi NARA AC pada setiap unit.</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {[
-                      'Proteksi terpal pelindung perabotan & dinding',
-                      'Pencucian filter indoor & casing cover depan',
-                      'Penyemprotan evaporator indoor bertekanan',
-                      'Pembersihan talang air & saluran pembuangan drain',
-                      'Pencucian kisi-kisi kondensor outdoor',
-                      'Pengecekan tekanan freon & arus listrik (ampere)',
-                      'Uji running test suhu dingin & kelancaran air'
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-sky-50/50 border border-sky-100 text-xs sm:text-sm text-slate-700">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
+                    {/* Real 4-Step SOP Progress Tracker */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                           ✓
                         </div>
-                        <span className="font-medium">{item}</span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 leading-tight">1. Booking Diterima</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Tiket tercatat di sistem</p>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          ✓
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 leading-tight">2. Teknisi Dikonfirmasi</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Budi Santoso (TK-024)</p>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-300 shadow-xs flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          <Wrench className="w-3.5 h-3.5 animate-pulse" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-blue-900 leading-tight">3. SOP Pengerjaan</p>
+                          <p className="text-[11px] text-blue-700 mt-0.5">Pencucian indoor & outdoor</p>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 opacity-60 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xs shrink-0">
+                          4
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 leading-tight">4. Selesai & Garansi</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Garansi 30 hari aktif</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Two-Column Detail Cards: Technician Info & Order Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Technician Card */}
+                      <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20">
+                            <User className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-sm font-bold text-slate-900">Budi Santoso</h5>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                ID: TK-024
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">Teknisi Senior Sertifikasi • Seragam Resmi</p>
+                          </div>
+                        </div>
+                        <a
+                          href={buildWhatsAppUrl(whatsappNumber, 'Halo Teknisi NARA AC (Tiket BK-2026-0814), saya ingin menanyakan progres pengerjaan.')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
+                        >
+                          <Phone className="w-3 h-3" />
+                          <span>Chat WA</span>
+                        </a>
+                      </div>
+
+                      {/* Order Spec Card */}
+                      <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex items-center justify-between gap-3 text-xs">
+                        <div>
+                          <span className="font-bold text-slate-800 block text-sm">Paket Cuci Core (Deep Clean)</span>
+                          <span className="text-slate-500">2 Unit AC • Total: <strong>Rp 228.000</strong></span>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-[11px]">
+                            Garansi 30 Hari
+                          </span>
+                          <span className="text-[10px] text-slate-400 block mt-1">SOP 7 Langkah Penuh</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actual System Features Bar: Print Official Invoice & Self Reschedule */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
+                          <FileText className="w-3.5 h-3.5 text-blue-600" />
+                          Invoice Resmi Berbadan Hukum CV
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
+                          <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                          Reschedule Mandiri via WhatsApp
+                        </span>
+                      </div>
+
+                      <Link 
+                        to="/status" 
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                      >
+                        <span>Coba Lacak Tiket Nyata di Halaman Cek Status</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Tab 2: SOP Checklist Demo */}
+                {activeDemoTab === 'sop' && (
+                  <motion.div
+                    key="tab-sop"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3, ease: easeOutCubic }}
+                    className="p-6 sm:p-8 space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-sky-100">
+                      <div>
+                        <h4 className="text-lg sm:text-xl font-bold text-slate-900">Checklist 7 Langkah SOP Pengerjaan Teknisi</h4>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                          Standar kendali mutu wajib yang diverifikasi langsung teknisi melalui aplikasi kerja sebelum servis dinyatakan selesai.
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shrink-0 w-fit">
+                        SOP Digital Terverifikasi
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        { title: '1. Proteksi Area Kerja & Pasang Terpal', desc: 'Melindungi lantai, perabotan, dan dinding dari cipratan air cucian.', done: true, status: 'Selesai' },
+                        { title: '2. Cuci Filter Udara & Casing Cover Depan', desc: 'Pembersihan debu pekat, bakteri, dan sterilisasi cover indoor.', done: true, status: 'Selesai' },
+                        { title: '3. Semprot Evaporator Indoor Bertekanan', desc: 'Tembak kotoran lendir pada kisi-kisi coil evaporator hingga bersih tuntas.', done: false, active: true, status: 'Sedang Proses' },
+                        { title: '4. Flushing Talang Air & Saluran Drainase', desc: 'Mencegah sumbatan lumut dan kebocoran air (AC bocor menetes).', done: false, status: 'Antrean SOP' },
+                        { title: '5. Pembersihan Kisi-Kisi Kondensor Outdoor', desc: 'Menghilangkan endapan panas agar kompresor awet dan hemat listrik.', done: false, status: 'Antrean SOP' },
+                        { title: '6. Pengecekan Tekanan Freon & Arus Ampere', desc: 'Pengukuran manifold gauge (PSI) & tang ampere sesuai standar pabrik.', done: false, status: 'Antrean SOP' },
+                        { title: '7. Running Test Akhir & Verifikasi Suhu Dingin', desc: 'Uji kestabilan hembusan angin & pengujian suhu dingin presisi (16°C-20°C).', done: false, status: 'Antrean SOP' }
+                      ].map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${
+                            item.done 
+                              ? 'bg-emerald-50/50 border-emerald-200/80 text-slate-800' 
+                              : item.active 
+                                ? 'bg-blue-50/80 border-blue-300 shadow-xs text-blue-950' 
+                                : 'bg-slate-50/70 border-slate-200/70 text-slate-600'
+                          }`}
+                        >
+                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold ${
+                            item.done 
+                              ? 'bg-emerald-600 text-white' 
+                              : item.active 
+                                ? 'bg-blue-600 text-white animate-pulse' 
+                                : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            {item.done ? '✓' : item.active ? <Wrench className="w-3 h-3" /> : idx + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h5 className="text-xs sm:text-sm font-bold truncate">{item.title}</h5>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                item.done 
+                                  ? 'bg-emerald-100 text-emerald-800' 
+                                  : item.active 
+                                    ? 'bg-blue-100 text-blue-800 font-bold' 
+                                    : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                {item.status}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{item.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Quality Assurance Strip */}
+                    <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600">
+                      <div className="flex flex-wrap items-center gap-4">
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                          <Camera className="w-4 h-4 text-blue-600" />
+                          Foto Dokumentasi Sebelum & Sesudah Tersimpan
+                        </span>
+                        <span className="flex items-center gap-1.5 font-semibold text-slate-700">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          Freon Asli Tersegel Pabrikan (Tanpa Oplosan)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-blue-700 font-bold bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                        Standar Teknis Resmi CV. Nara Teknindotama
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Tab 3: Unit History Demo */}
+                {activeDemoTab === 'history' && (
+                  <motion.div
+                    key="tab-history"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.3, ease: easeOutCubic }}
+                    className="p-6 sm:p-8 space-y-6"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-sky-100">
+                      <div>
+                        <h4 className="text-lg sm:text-xl font-bold text-slate-900">Database Unit AC & Rekam Riwayat Servis</h4>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                          Setiap unit AC pelanggan memiliki identitas digital: tipe unit, riwayat pencucian, data suhu, dan estimasi waktu servis berkala.
+                        </p>
+                      </div>
+                      <Link 
+                        to="/login"
+                        className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 flex items-center gap-1.5"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>Portal Pelanggan</span>
+                      </Link>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Unit 1 */}
+                      <div className="p-5 rounded-2xl bg-white border border-sky-100 shadow-xs hover:border-blue-300 transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                              <Wind className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-sm font-bold text-slate-900">Daikin Flash Inverter 1 PK</h5>
+                                <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">FTKQ25</span>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-0.5">Lokasi: Kamar Tidur Utama (Lt. 2)</p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Kondisi Prima • Garansi Aktif s/d 11 Feb 2026
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Servis Terakhir:</span>
+                            <span className="font-semibold text-slate-700">12 Januari 2026</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Layanan:</span>
+                            <span className="font-semibold text-blue-600">Cuci AC Core (Deep Clean)</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Hasil Diagnostik:</span>
+                            <span className="font-semibold text-slate-700">16.4°C • 142 PSI</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Jadwal Cuci Berikutnya:</span>
+                            <span className="font-semibold text-emerald-700">April 2026 (Notifikasi Otomatis)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Unit 2 */}
+                      <div className="p-5 rounded-2xl bg-white border border-sky-100 shadow-xs hover:border-blue-300 transition-all">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+                              <Wind className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-sm font-bold text-slate-900">Panasonic Eco Tough 0.5 PK</h5>
+                                <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">CS-YN5WKJ</span>
+                              </div>
+                              <p className="text-xs text-slate-500 mt-0.5">Lokasi: Ruang Tamu & Keluarga (Lt. 1)</p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold flex items-center gap-1 w-fit">
+                            <Clock className="w-3.5 h-3.5" /> Waktunya Servis Berkala (Jatuh Tempo)
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Servis Terakhir:</span>
+                            <span className="font-semibold text-slate-700">05 Oktober 2025</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Layanan:</span>
+                            <span className="font-semibold text-blue-600">Core + Tambah Freon R32</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Hasil Diagnostik:</span>
+                            <span className="font-semibold text-slate-700">17.1°C • 140 PSI</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-slate-400 block">Tindakan Rekomendasi:</span>
+                            <Link to="/booking" className="font-bold text-blue-600 hover:underline">
+                              Booking Servis Unit Ini &rarr;
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-blue-900">
+                      <span>Semua data unit dan riwayat pengerjaan otomatis tersinkronisasi setelah servis selesai tanpa perlu pencatatan manual.</span>
+                      <Link to="/customer/units" className="font-bold text-blue-700 hover:underline flex items-center gap-1 shrink-0">
+                        Buka Manajemen Unit AC &rarr;
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* 9. PROFIL PERUSAHAAN & LEGALITAS                              */}
+        {/* ============================================================== */}
+        <section id="profil" className="py-24 bg-white relative border-t border-sky-100/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+
+              {/* Story */}
+              <div className="lg:col-span-6 space-y-6">
+                <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Profil Resmi
+                </span>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
+                  CV. Nara Teknindotama
+                </h2>
+                <p className="text-slate-600 text-base leading-relaxed">
+                  CV. Nara Teknindotama adalah entitas usaha berbadan hukum yang berdedikasi pada penyediaan jasa teknis pendingin udara (AC), suku cadang resmi, serta pemeliharaan unit skala residensial maupun komersial.
+                </p>
+                <p className="text-slate-600 text-base leading-relaxed">
+                  Aktivitas operasional perawatan AC telah dirintis sejak <strong>Februari 2022</strong> dan resmi berbadan hukum pada <strong>Mei 2025</strong> guna memberikan perlindungan, kepastian hukum, dan standar pelayanan profesional bagi seluruh pelanggan.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Operasional Dimulai</p>
+                    <p className="text-lg font-black text-slate-900 mt-1">Februari 2022</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Legalitas Resmi</p>
+                    <p className="text-lg font-black text-slate-900 mt-1">Mei 2025</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Coverage Card (Clean Light Blue & White) */}
+              <div className="lg:col-span-6 bg-gradient-to-br from-sky-50 via-blue-50/70 to-sky-100/60 text-slate-900 rounded-3xl p-8 sm:p-10 shadow-xl shadow-blue-500/5 border border-sky-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full blur-[80px] pointer-events-none" />
+
+                <div className="relative z-10 space-y-6">
+                  <div>
+                    <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Wilayah Layanan</span>
+                    <h3 className="text-2xl font-black text-slate-900 mt-1">Cakupan Wilayah Operasional</h3>
+                    <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
+                      Teknisi NARA AC siap melayani pengerjaan servis langsung ke lokasi di area:
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 text-xs sm:text-sm">
+                    {[
+                      'Ciangsana & Gunung Putri',
+                      'Kota Wisata & Cibubur',
+                      'Cikeas & Bojong Kulur',
+                      'Kab. Bogor & Sekitarnya',
+                      'Kota Depok Bagian Timur',
+                      'Jakarta Timur & Sekitarnya'
+                    ].map((area, aIdx) => (
+                      <div key={aIdx} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/90 border border-sky-100 text-slate-700 shadow-2xs">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{area}</span>
                       </div>
                     ))}
                   </div>
-                </motion.div>
-              )}
 
-              {/* Tab 3: Unit History Demo */}
-              {activeDemoTab === 'history' && (
-                <motion.div
-                  key="tab-history"
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3, ease: easeOutCubic }}
-                  className="p-6 sm:p-10 space-y-6"
-                >
-                  <div className="pb-4 border-b border-sky-100">
-                    <h4 className="text-lg sm:text-xl font-bold text-slate-900">Rekam Jejak Pemeliharaan Unit</h4>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">Riwayat servis transparan untuk pemantauan kondisi mesin pendingin.</p>
+                  <div className="pt-4 border-t border-sky-200/60 text-xs text-slate-600 leading-relaxed">
+                    <strong className="text-slate-900">Alamat Kantor & Workshop:</strong><br />
+                    Jl. Teluk Langsa RT.002 RW.016, Ciangsana, Kec. Gunung Putri, Kabupaten Bogor, Jawa Barat.
                   </div>
+                </div>
+              </div>
 
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                      <div>
-                        <p className="text-xs font-mono font-bold text-blue-600">Daikin Inverter 1 PK — Ruang Keluarga</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Servis Terakhir: 12 Januari 2026 • Teknisi: Budi Santoso</p>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-                        Kondisi Prima (16.2°C)
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                      <div>
-                        <p className="text-xs font-mono font-bold text-blue-600">Panasonic Standard 0.5 PK — Kamar Utama</p>
-                        <p className="text-xs text-slate-500 mt-0.5">Servis Terakhir: 05 Oktober 2025 • Tambah Freon R32</p>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">
-                        Jadwal Cuci Berikutnya: April 2026
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ============================================================== */}
-      {/* 9. PROFIL PERUSAHAAN & LEGALITAS                              */}
-      {/* ============================================================== */}
-      <section id="profil" className="py-24 bg-white relative border-t border-sky-100/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+        {/* ============================================================== */}
+        {/* 10. FAQ ACCORDION                                              */}
+        {/* ============================================================== */}
+        <section id="faq" className="py-24 bg-sky-50/30 border-t border-sky-100/60 relative">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
-            {/* Story */}
-            <div className="lg:col-span-6 space-y-6">
-              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200">
-                <ShieldCheck className="w-3.5 h-3.5" /> Profil Resmi
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
+                <ChevronDown className="w-3.5 h-3.5" /> Tanya Jawab
               </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
-                CV. Nara Teknindotama
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
+                Pertanyaan yang Sering Diajukan
               </h2>
-              <p className="text-slate-600 text-base leading-relaxed">
-                CV. Nara Teknindotama adalah entitas usaha berbadan hukum yang berdedikasi pada penyediaan jasa teknis pendingin udara (AC), suku cadang resmi, serta pemeliharaan unit skala residensial maupun komersial.
+              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+                Jawaban ringkas dan jelas seputar cara booking, waktu pengerjaan, dan ketentuan garansi NARA AC.
               </p>
-              <p className="text-slate-600 text-base leading-relaxed">
-                Aktivitas operasional perawatan AC telah dirintis sejak <strong>Februari 2022</strong> dan resmi berbadan hukum pada <strong>Mei 2025</strong> guna memberikan perlindungan, kepastian hukum, dan standar pelayanan profesional bagi seluruh pelanggan.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Operasional Dimulai</p>
-                  <p className="text-lg font-black text-slate-900 mt-1">Februari 2022</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Legalitas Resmi</p>
-                  <p className="text-lg font-black text-slate-900 mt-1">Mei 2025</p>
-                </div>
-              </div>
             </div>
 
-            {/* Coverage Card (Clean Light Blue & White) */}
-            <div className="lg:col-span-6 bg-gradient-to-br from-sky-50 via-blue-50/70 to-sky-100/60 text-slate-900 rounded-3xl p-8 sm:p-10 shadow-xl shadow-blue-500/5 border border-sky-200 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full blur-[80px] pointer-events-none" />
+            <div className="space-y-4">
+              <FAQAccordion
+                index={0}
+                question="Berapa lama durasi pengerjaan cuci AC standar dan Core?"
+                answer="Cuci AC Standar membutuhkan waktu sekitar 45 hingga 60 menit per unit. Sedangkan Paket Core (Deep Clean) membutuhkan 75 hingga 90 menit karena teknisi membongkar total kipas blower dan talang air untuk membersihkan lumut dan lendir penyumbat secara tuntas."
+              />
+              <FAQAccordion
+                index={1}
+                question="Apa perbedaan utama Paket Standar dan Paket Core?"
+                answer="Paket Standar cocok untuk perawatan rutin AC yang masih dingin dan hanya berdebu ringan (dibersihkan dari luar). Sedangkan Paket Core adalah overhaul deep-clean: casing, talang air, dan rotor blower dilepas total, dicuci dengan cairan anti-bakteri, dan pipa pembuangan divakum. Core sangat direkomendasikan jika AC Anda pernah meneteskan air (bocor) atau berbau apek."
+              />
+              <FAQAccordion
+                index={2}
+                question="Bagaimana cara mengecek status tiket booking saya?"
+                answer="Anda dapat membuka menu 'Cek Status' di website ini, lalu masukkan kode booking Anda (misal BK-2026-001) atau nomor HP yang didaftarkan. Anda dapat melihat apakah tiket sedang dijadwalkan, dikerjakan oleh teknisi, atau sudah selesai."
+              />
+              <FAQAccordion
+                index={3}
+                question="Apakah ada garansi setelah pengerjaan servis AC?"
+                answer="Ya, kami memberikan garansi pekerjaan nyata: 14 hari untuk Paket Standar, 30 hari penuh untuk Paket Core, dan 45 hari untuk Paket Core + Freon. Jika AC mengalami kendala seperti bocor air atau kurang dingin pasca pengerjaan, teknisi kami akan datang memeriksa kembali gratis."
+              />
+              <FAQAccordion
+                index={4}
+                question="Apakah NARA AC melayani pengerjaan untuk kantor, ruko, atau instansi?"
+                answer="Tentu. Selain rumah tinggal, CV. Nara Teknindotama melayani kantor, ruko, restoran, klinik, dan instansi dengan opsi pembuatan invoice resmi berbadan hukum dan penawaran kerja sama pemeliharaan rutin berkala (MoU/SLA)."
+              />
+              <FAQAccordion
+                index={5}
+                question="Bagaimana jika saya perlu mengubah jadwal pengerjaan (reschedule)?"
+                answer="Anda dapat menghubungi admin layanan pelanggan NARA AC melalui nomor WhatsApp resmi kami setidaknya 24 jam sebelum jadwal pengerjaan agar kami dapat menyesuaikan kembali slot teknisi lapangan."
+              />
+            </div>
+          </div>
+        </section>
 
-              <div className="relative z-10 space-y-6">
-                <div>
-                  <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Wilayah Layanan</span>
-                  <h3 className="text-2xl font-black text-slate-900 mt-1">Cakupan Wilayah Operasional</h3>
-                  <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
-                    Teknisi NARA AC siap melayani pengerjaan servis langsung ke lokasi di area:
-                  </p>
-                </div>
+        {/* ============================================================== */}
+        {/* 11. FINAL HEROIC CALL TO ACTION BANNER (CLEAN LIGHT BLUE)       */}
+        {/* ============================================================== */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-sky-100/60">
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: easeOutCubic }}
+              viewport={{ once: true }}
+              className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-sky-500 p-8 sm:p-14 lg:p-16 text-white text-center relative overflow-hidden shadow-2xl shadow-blue-500/20"
+            >
+              {/* Ambient Lighting */}
+              <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[90px] pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-80 h-80 bg-sky-300/20 rounded-full blur-[90px] pointer-events-none" />
 
-                <div className="grid grid-cols-2 gap-2.5 text-xs sm:text-sm">
-                  {[
-                    'Ciangsana & Gunung Putri',
-                    'Kota Wisata & Cibubur',
-                    'Cikeas & Bojong Kulur',
-                    'Kab. Bogor & Sekitarnya',
-                    'Kota Depok Bagian Timur',
-                    'Jakarta Timur & Sekitarnya'
-                  ].map((area, aIdx) => (
-                    <div key={aIdx} className="flex items-center gap-2 p-2.5 rounded-xl bg-white/90 border border-sky-100 text-slate-700 shadow-2xs">
-                      <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span className="truncate">{area}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="relative z-10 max-w-3xl mx-auto space-y-6">
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider border border-white/20">
+                  <Wind className="w-3.5 h-3.5" /> Udara Sejuk, Nyaman, & Sehat
+                </span>
 
-                <div className="pt-4 border-t border-sky-200/60 text-xs text-slate-600 leading-relaxed">
-                  <strong className="text-slate-900">Alamat Kantor & Workshop:</strong><br />
-                  Jl. Teluk Langsa RT.002 RW.016, Ciangsana, Kec. Gunung Putri, Kabupaten Bogor, Jawa Barat.
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
+                  Jadwalkan Perawatan AC Anda dengan Lebih Mudah
+                </h2>
+
+                <p className="text-blue-50 text-base sm:text-lg leading-relaxed font-normal">
+                  Mulai dengan memilih paket layanan dan menentukan jadwal yang sesuai. Nikmati proses pengerjaan profesional dan transparan bersama CV. Nara Teknindotama.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                  <Link to="/booking">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto bg-white hover:bg-sky-50 text-blue-700 font-black rounded-2xl px-8 h-14 text-base shadow-xl hover:shadow-2xl transition-all cursor-pointer flex items-center justify-center gap-2 group"
+                    >
+                      <CalendarCheck className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
+                      <span>Booking Service Sekarang</span>
+                    </Button>
+                  </Link>
+
+                  <Link to="/status">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border-white/30 rounded-2xl px-8 h-14 text-base font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Search className="w-4 h-4 text-white" />
+                      <span>Cek Status Booking</span>
+                    </Button>
+                  </Link>
                 </div>
               </div>
-            </div>
-
+            </motion.div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ============================================================== */}
-      {/* 10. FAQ ACCORDION                                              */}
-      {/* ============================================================== */}
-      <section id="faq" className="py-24 bg-sky-50/30 border-t border-sky-100/60 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ============================================================== */}
+        {/* 12. FOOTER (CLEAN LIGHT BLUE & WHITE THEME)                    */}
+        {/* ============================================================== */}
+        <footer className="bg-sky-50/60 text-slate-600 pt-16 pb-28 sm:pb-36 px-4 sm:px-6 lg:px-8 border-t border-sky-100">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-sky-200/70">
 
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-widest border border-blue-200 mb-3">
-              <ChevronDown className="w-3.5 h-3.5" /> Tanya Jawab
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4">
-              Pertanyaan yang Sering Diajukan
-            </h2>
-            <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-              Jawaban ringkas dan jelas seputar cara booking, waktu pengerjaan, dan ketentuan garansi NARA AC.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <FAQAccordion
-              index={0}
-              question="Berapa lama durasi pengerjaan cuci AC standar dan Core?"
-              answer="Cuci AC Standar membutuhkan waktu sekitar 45 hingga 60 menit per unit. Sedangkan Paket Core (Deep Clean) membutuhkan 75 hingga 90 menit karena teknisi membongkar total kipas blower dan talang air untuk membersihkan lumut dan lendir penyumbat secara tuntas."
-            />
-            <FAQAccordion
-              index={1}
-              question="Apa perbedaan utama Paket Standar dan Paket Core?"
-              answer="Paket Standar cocok untuk perawatan rutin AC yang masih dingin dan hanya berdebu ringan (dibersihkan dari luar). Sedangkan Paket Core adalah overhaul deep-clean: casing, talang air, dan rotor blower dilepas total, dicuci dengan cairan anti-bakteri, dan pipa pembuangan divakum. Core sangat direkomendasikan jika AC Anda pernah meneteskan air (bocor) atau berbau apek."
-            />
-            <FAQAccordion
-              index={2}
-              question="Bagaimana cara mengecek status tiket booking saya?"
-              answer="Anda dapat membuka menu 'Cek Status' di website ini, lalu masukkan kode booking Anda (misal BK-2026-001) atau nomor HP yang didaftarkan. Anda dapat melihat apakah tiket sedang dijadwalkan, dikerjakan oleh teknisi, atau sudah selesai."
-            />
-            <FAQAccordion
-              index={3}
-              question="Apakah ada garansi setelah pengerjaan servis AC?"
-              answer="Ya, kami memberikan garansi pekerjaan nyata: 14 hari untuk Paket Standar, 30 hari penuh untuk Paket Core, dan 45 hari untuk Paket Core + Freon. Jika AC mengalami kendala seperti bocor air atau kurang dingin pasca pengerjaan, teknisi kami akan datang memeriksa kembali gratis."
-            />
-            <FAQAccordion
-              index={4}
-              question="Apakah NARA AC melayani pengerjaan untuk kantor, ruko, atau instansi?"
-              answer="Tentu. Selain rumah tinggal, CV. Nara Teknindotama melayani kantor, ruko, restoran, klinik, dan instansi dengan opsi pembuatan invoice resmi berbadan hukum dan penawaran kerja sama pemeliharaan rutin berkala (MoU/SLA)."
-            />
-            <FAQAccordion
-              index={5}
-              question="Bagaimana jika saya perlu mengubah jadwal pengerjaan (reschedule)?"
-              answer="Anda dapat menghubungi admin layanan pelanggan NARA AC melalui nomor WhatsApp resmi kami setidaknya 24 jam sebelum jadwal pengerjaan agar kami dapat menyesuaikan kembali slot teknisi lapangan."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================== */}
-      {/* 11. FINAL HEROIC CALL TO ACTION BANNER (CLEAN LIGHT BLUE)       */}
-      {/* ============================================================== */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white border-t border-sky-100/60">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: easeOutCubic }}
-            viewport={{ once: true }}
-            className="rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-sky-500 p-8 sm:p-14 lg:p-16 text-white text-center relative overflow-hidden shadow-2xl shadow-blue-500/20"
-          >
-            {/* Ambient Lighting */}
-            <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[90px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-sky-300/20 rounded-full blur-[90px] pointer-events-none" />
-
-            <div className="relative z-10 max-w-3xl mx-auto space-y-6">
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider border border-white/20">
-                <Wind className="w-3.5 h-3.5" /> Udara Sejuk, Nyaman, & Sehat
-              </span>
-
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
-                Jadwalkan Perawatan AC Anda dengan Lebih Mudah
-              </h2>
-
-              <p className="text-blue-50 text-base sm:text-lg leading-relaxed font-normal">
-                Mulai dengan memilih paket layanan dan menentukan jadwal yang sesuai. Nikmati proses pengerjaan profesional dan transparan bersama CV. Nara Teknindotama.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Link to="/booking">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto bg-white hover:bg-sky-50 text-blue-700 font-black rounded-2xl px-8 h-14 text-base shadow-xl hover:shadow-2xl transition-all cursor-pointer flex items-center justify-center gap-2 group"
-                  >
-                    <CalendarCheck className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
-                    <span>Booking Service Sekarang</span>
-                  </Button>
-                </Link>
-
-                <Link to="/status">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border-white/30 rounded-2xl px-8 h-14 text-base font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Search className="w-4 h-4 text-white" />
-                    <span>Cek Status Booking</span>
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ============================================================== */}
-      {/* 12. FOOTER (CLEAN LIGHT BLUE & WHITE THEME)                    */}
-      {/* ============================================================== */}
-      <footer className="bg-sky-50/60 text-slate-600 pt-16 pb-28 sm:pb-36 px-4 sm:px-6 lg:px-8 border-t border-sky-100">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-sky-200/70">
-
-          {/* Brand Info */}
-          <div className="lg:col-span-4 space-y-4">
-            <Link to="/" className="inline-block">
-              <CompanyLogo dark={false} iconSize="h-10" />
-            </Link>
-            <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-sm">
-              Sistem Pengelolaan Jadwal & Perawatan AC Terpercaya oleh <strong>CV. Nara Teknindotama</strong>. Melayani cuci AC, perbaikan, isi freon, dan instalasi di area Jabodetabek.
-            </p>
-          </div>
-
-          {/* Quick Links */}
-          <div className="lg:col-span-2 space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Menu Utama</h4>
-            <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
-              <li>
-                <button onClick={() => scrollTo('home')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  Beranda
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollTo('layanan')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  Katalog Layanan
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollTo('keunggulan')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  Keunggulan
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollTo('cara-kerja')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  Cara Kerja
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollTo('galeri')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  Dokumentasi
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollTo('faq')} className="hover:text-blue-600 transition-colors cursor-pointer">
-                  FAQ
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          {/* Legalitas & Area */}
-          <div className="lg:col-span-3 space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Informasi Usaha</h4>
-            <ul className="space-y-2.5 text-xs text-slate-600 leading-relaxed">
-              <li>
-                <strong className="text-slate-900">Badan Usaha:</strong><br />
-                CV. Nara Teknindotama (Resmi Mei 2025)
-              </li>
-              <li>
-                <strong className="text-slate-900">Workshop & Kantor:</strong><br />
-                Jl. Teluk Langsa RT.002 RW.016, Ciangsana, Kec. Gunung Putri, Kab. Bogor
-              </li>
-              <li>
-                <strong className="text-slate-900">Cakupan Wilayah:</strong><br />
-                Ciangsana, Kota Wisata, Cibubur, Cikeas, Depok, dan Jakarta Timur
-              </li>
-            </ul>
-          </div>
-
-          {/* Contact & Socials */}
-          <div className="lg:col-span-3 space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Kontak Resmi</h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-slate-600">
-              <li className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
-                <a href={buildWhatsAppUrl(whatsappNumber)} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors">
-                  {profile?.phone || 'WhatsApp'} (WhatsApp)
-<span className="sr-only"> (buka di tab baru)</span>
-                </a>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-blue-600 shrink-0" />
-                <a href="mailto:narateknindotama@gmail.com" className="hover:text-blue-600 transition-colors">
-                  narateknindotama@gmail.com
-                </a>
-              </li>
-              <li className="pt-2 text-xs text-slate-500">
-                <span>Instagram: @narateknindotamaserviceac</span><br />
-                <span>TikTok: Nara Theknik</span>
-              </li>
-              <li className="pt-2">
-                <Link to="/login" className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold text-xs">
-                  <span>Portal Staf & Teknisi</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-        </div>
-
-        {/* Bottom copyright & legal links */}
-        <div className="max-w-7xl mx-auto pt-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 text-xs text-slate-500">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-6 text-center sm:text-left">
-            <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
-            <div className="flex items-center gap-3 font-medium">
-              <Link to="/terms" className="hover:text-blue-600 transition-colors">
-                Syarat &amp; Ketentuan
+            {/* Brand Info */}
+            <div className="lg:col-span-4 space-y-4">
+              <Link to="/" className="inline-block">
+                <CompanyLogo dark={false} iconSize="h-10" />
               </Link>
-              <span className="text-slate-300">&bull;</span>
-              <Link to="/privacy" className="hover:text-blue-600 transition-colors">
-                Kebijakan Privasi
-              </Link>
+              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed max-w-sm">
+                Sistem Pengelolaan Jadwal & Perawatan AC Terpercaya oleh <strong>CV. Nara Teknindotama</strong>. Melayani cuci AC, perbaikan, isi freon, dan instalasi di area Jabodetabek.
+              </p>
             </div>
-          </div>
-          {/* Reserved spacer on right so nothing in footer ever clashes with floating booking dock */}
-          <div className="hidden lg:block w-72 shrink-0 pointer-events-none" aria-hidden="true" />
-        </div>
-      </footer>
 
-      {/* Floating Bottom Booking Action Pill */}
-      <StickyBottomBooking />
-      
-      {/* Tombol Kembali ke Atas */}
-      <ScrollToTopButton />
-    </main>
+            {/* Quick Links */}
+            <div className="lg:col-span-2 space-y-3">
+              <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Menu Utama</h4>
+              <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+                <li>
+                  <button onClick={() => scrollTo('home')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Beranda
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('layanan')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Katalog Layanan
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('keunggulan')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Keunggulan
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('cara-kerja')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Cara Kerja
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('galeri')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Dokumentasi
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('ulasan')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    Ulasan Google
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollTo('faq')} className="hover:text-blue-600 transition-colors cursor-pointer">
+                    FAQ
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legalitas & Area */}
+            <div className="lg:col-span-3 space-y-3">
+              <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Informasi Usaha</h4>
+              <ul className="space-y-2.5 text-xs text-slate-600 leading-relaxed">
+                <li>
+                  <strong className="text-slate-900">Badan Usaha:</strong><br />
+                  CV. Nara Teknindotama (Resmi Mei 2025)
+                </li>
+                <li>
+                  <strong className="text-slate-900">Workshop & Kantor:</strong><br />
+                  Jl. Teluk Langsa RT.002 RW.016, Ciangsana, Kec. Gunung Putri, Kab. Bogor
+                </li>
+                <li>
+                  <strong className="text-slate-900">Cakupan Wilayah:</strong><br />
+                  Ciangsana, Kota Wisata, Cibubur, Cikeas, Depok, dan Jakarta Timur
+                </li>
+              </ul>
+            </div>
+
+            {/* Contact & Socials */}
+            <div className="lg:col-span-3 space-y-3">
+              <h4 className="font-bold text-sm text-slate-900 tracking-wider uppercase">Kontak Resmi</h4>
+              <ul className="space-y-2.5 text-xs sm:text-sm text-slate-600">
+                <li className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <a href={buildWhatsAppUrl(whatsappNumber)} target="_blank" rel="noreferrer" className="hover:text-blue-600 transition-colors">
+                    {profile?.phone || 'WhatsApp'} (WhatsApp)
+                    <span className="sr-only"> (buka di tab baru)</span>
+                  </a>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-blue-600 shrink-0" />
+                  <a href="mailto:narateknindotama@gmail.com" className="hover:text-blue-600 transition-colors">
+                    narateknindotama@gmail.com
+                  </a>
+                </li>
+                <li className="pt-2 text-xs text-slate-500">
+                  <span>Instagram: @narateknindotamaserviceac</span><br />
+                  <span>TikTok: Nara Theknik</span>
+                </li>
+                <li className="pt-2">
+                  <Link to="/login" className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold text-xs">
+                    <span>Portal Staf & Teknisi</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+          </div>
+
+          {/* Bottom copyright & legal links */}
+          <div className="max-w-7xl mx-auto pt-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 text-xs text-slate-500">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-6 text-center sm:text-left">
+              <p>&copy; {new Date().getFullYear()} CV. Nara Teknindotama. Seluruh hak cipta dilindungi.</p>
+              <div className="flex items-center gap-3 font-medium">
+                <Link to="/terms" className="hover:text-blue-600 transition-colors">
+                  Syarat &amp; Ketentuan
+                </Link>
+                <span className="text-slate-300">&bull;</span>
+                <Link to="/privacy" className="hover:text-blue-600 transition-colors">
+                  Kebijakan Privasi
+                </Link>
+              </div>
+            </div>
+            {/* Reserved spacer on right so nothing in footer ever clashes with floating booking dock */}
+            <div className="hidden lg:block w-72 shrink-0 pointer-events-none" aria-hidden="true" />
+          </div>
+        </footer>
+
+        {/* Floating Bottom Booking Action Pill */}
+        <StickyBottomBooking />
+
+        {/* Tombol Kembali ke Atas */}
+        <ScrollToTopButton />
+      </main>
 
     </div>
   );

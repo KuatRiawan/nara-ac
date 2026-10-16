@@ -4,6 +4,17 @@ import api from '../api';
 import { MessageSquare, X, Send, Bot } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+function formatBotText(text) {
+  if (!text) return '';
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 export default function ChatbotWidget({ 
   isOpen: externalIsOpen, 
   onClose, 
@@ -61,7 +72,7 @@ export default function ChatbotWidget({
     setSuggestions([]);
 
     try {
-      const res = await api.post('/ai/answer', { text: userText });
+      const res = await api.post('/ai/answer', { text: userText }, { timeout: 35000 });
       const data = res.data || res;
       
       const botText = data?.jawaban || data?.pesan || data?.jawaban || data?.pesan || 'Maaf, saya tidak mengerti.';
@@ -114,6 +125,7 @@ export default function ChatbotWidget({
       console.error('Chatbot error:', error);
       const errorMsg = error.response?.data?.jawaban || 
                      error.response?.data?.pesan ||
+                     error.response?.data?.error?.message ||
                      error.response?.data?.message ||
                      'Maaf, sistem AI kami sedang gangguan. Silakan coba lagi nanti.';
       setMessages(prev => [...prev, { role: 'bot', text: errorMsg }]);
@@ -187,12 +199,12 @@ export default function ChatbotWidget({
                 )}
                 
                 <div className={cn(
-                  "max-w-[75%] p-3.5 text-sm shadow-sm",
+                  "max-w-[85%] p-3.5 text-sm shadow-sm",
                   m.role === 'user' 
-                    ? "bg-blue-600 text-white rounded-2xl rounded-br-sm" 
-                    : "bg-white border border-slate-100 text-slate-800 rounded-2xl rounded-bl-sm"
+                    ? "bg-blue-600 text-white rounded-2xl rounded-br-sm break-words whitespace-pre-wrap" 
+                    : "bg-white border border-slate-100 text-slate-800 rounded-2xl rounded-bl-sm leading-relaxed break-words whitespace-pre-line"
                 )}>
-                  <p className="leading-relaxed">{m.text}</p>
+                  <div>{formatBotText(m.text)}</div>
                   
                   {m.action && (
                     <Link 

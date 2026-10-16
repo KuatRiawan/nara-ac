@@ -13,7 +13,7 @@ export function getCsrfToken() {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1',
-  timeout: 10000,
+  timeout: 60000,
   withCredentials: true, // Enable credentials for cookies (HttpOnly)
 });
 
@@ -65,7 +65,7 @@ api.interceptors.response.use(
 export function apiWithCsrf(csrfToken) {
   const apiCsrf = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1',
-    timeout: 10000,
+    timeout: 60000,
     withCredentials: true,
   });
 

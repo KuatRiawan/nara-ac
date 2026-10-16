@@ -14,6 +14,7 @@ export default function MobileNav({ isOpen, onClose, scrollTo }) {
     { name: 'Keunggulan', id: 'keunggulan' },
     { name: 'Cara Kerja', id: 'cara-kerja' },
     { name: 'Dokumentasi', id: 'galeri' },
+    { name: 'Ulasan Google', id: 'ulasan' },
     { name: 'Profil & Legalitas', id: 'profil' },
     { name: 'FAQ', id: 'faq' },
   ];

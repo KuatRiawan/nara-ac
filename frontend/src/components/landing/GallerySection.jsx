@@ -96,7 +96,7 @@ export default function GallerySection() {
             <Camera className="w-3.5 h-3.5" /> Dokumentasi Nyata
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-5">
-            Bukti Nyata Pengerjaan <span className="bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-600 bg-clip-text text-transparent">Teknisi NARA AC</span>
+            Bukti Nyata Pengerjaan <span className="text-blue-600">Teknisi NARA AC</span>
           </h2>
           <p className="text-slate-600 text-base sm:text-lg leading-relaxed font-normal">
             Setiap pengerjaan dilakukan langsung oleh teknisi internal dengan seragam resmi, peralatan khusus pendingin, dan SOP proteksi area kerja.

@@ -5,6 +5,7 @@ const ai = require('./aiClient');
 const { sha256, BOOKING_CODE_RE } = require('../utils/ids');
 const { getOps, publicStatusByCode } = require('./bookingService');
 const { formatWib } = require('../utils/time');
+const gemini = require('./geminiService');
 
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const rupiah = (n) => `Rp${Number(n).toLocaleString('id-ID')}`;
@@ -363,6 +364,20 @@ async function handleChat(message, userId = null, userRole = null) {
       ...payload 
     };
   };
+
+  // If Gemini API is configured, use it for informative, conversational reasoning
+  const hasBookingCode = BOOKING_CODE_RE.test(message);
+  if (!(hasBookingCode && intent === 'tanya_status') && config.geminiApiKey) {
+    try {
+      const history = state ? state.history : [];
+      const geminiRes = await gemini.generateGeminiAnswer(message, history);
+      if (geminiRes && geminiRes.jawaban) {
+        return await done(geminiRes, 'gemini_generative');
+      }
+    } catch (e) {
+      console.warn('[chatService] Gemini call fallback to local engine:', e.message);
+    }
+  }
 
   // Handle low confidence or unknown intent
   if (intent === 'lainnya' || confidence < threshold) {

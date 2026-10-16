@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const { query } = require('../db/pool');
 const config = require('../config');
 const { Joi, validate } = require('../middleware/validate');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 const { wrap } = require('../middleware/errorHandler');
 const reminders = require('../services/reminderService');
 const chat = require('../services/chatService');
@@ -61,12 +61,12 @@ const msgSchema = Joi.object({
   message: Joi.string().trim().min(1).max(500).label('Pesan'),
 }).or('text', 'message');
 
-router.post('/ai/predict-intent', requireAuth(), aiLimiter, validate(msgSchema), wrap(async (req, res) => {
+router.post('/ai/predict-intent', optionalAuth, aiLimiter, validate(msgSchema), wrap(async (req, res) => {
   const out = await chat.predictIntent(req.body.text || req.body.message);
   res.json({ intent: out.intent, confidence: out.confidence, low_confidence: out.low_confidence, model_version: out.model_version });
 }));
 
-router.post('/ai/answer', requireAuth(), aiLimiter, validate(msgSchema), wrap(async (req, res) => {
+router.post('/ai/answer', optionalAuth, aiLimiter, validate(msgSchema), wrap(async (req, res) => {
   // Pass user ID and role to maintain conversation context and enable role-based access control
   const userId = req.user ? req.user.id : null;
   const userRole = req.user ? req.user.role : null;
