@@ -33,68 +33,8 @@ async function whatsappSend(phone, text) {
     throw new Error('Nomor WhatsApp pelanggan tidak valid atau kosong.');
   }
 
-  let apiUrl = config.whatsappApiUrl;
-  let apiToken = config.whatsappApiToken;
-  let provider = 'fonnte';
-
-  // Periksa konfigurasi dinamis yang disimpan admin di dashboard
-  try {
-    const row = (await query("SELECT value FROM settings WHERE setting_key='whatsapp_gateway_config'")).rows[0];
-    if (row && row.value && row.value.enabled && row.value.api_token) {
-      apiUrl = row.value.api_url;
-      apiToken = row.value.api_token;
-      provider = row.value.provider || 'fonnte';
-    }
-  } catch (_e) {
-    // Abaikan jika DB query gagal, gunakan config fallback
-  }
-
-  // Jika integrasi gateway WhatsApp aktif (Fonnte, Wablas, Twilio, atau custom webhook)
-  if (apiUrl && apiToken) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10000);
-    try {
-      if (provider === 'fonnte' || apiUrl.includes('fonnte.com')) {
-        const targetUrl = apiUrl.includes('/send_message') ? 'https://api.fonnte.com/send' : (apiUrl || 'https://api.fonnte.com/send');
-        const res = await fetch(targetUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': apiToken,
-          },
-          body: JSON.stringify({ target: cleanPhone, message: text }),
-          signal: ctrl.signal,
-        });
-        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
-      } else if (provider === 'wablas' || apiUrl.includes('wablas.com')) {
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': apiToken,
-          },
-          body: JSON.stringify({ phone: cleanPhone, message: text }),
-          signal: ctrl.signal,
-        });
-        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
-      } else {
-        const res = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiToken}`,
-          },
-          body: JSON.stringify({ to: cleanPhone, message: text }),
-          signal: ctrl.signal,
-        });
-        if (!res.ok) throw new Error(`WhatsApp Gateway Error HTTP ${res.status}`);
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-  } else {
-    throw E.unavailable('Gateway WhatsApp belum dikonfigurasi. Pesan belum dikirim.');
-  }
+  // Integrasi Gateway WhatsApp telah dinonaktifkan (hanya pencatatan log internal sistem)
+  return;
 }
 
 const defaultChannels = {

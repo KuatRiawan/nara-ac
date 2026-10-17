@@ -1217,7 +1217,7 @@ async function handleAvailabilityCheck(message, context = {}) {
     const avail = await getAvailability(dateStr, svc.id);
     if (!avail.buka) {
       return {
-        jawaban: `Jadwal untuk tanggal ${dateStr} tutup: ${avail.alasan || 'Tidak melayani servis di hari tersebut.'}. Silakan pilih tanggal operasional lain.`,
+        jawaban: `Jadwal slot untuk tanggal ${dateStr} tutup: ${avail.alasan || 'Tidak melayani servis di hari tersebut.'}. Silakan pilih tanggal operasional lain.`,
         fallback: false,
         buka: false,
         tanggal: dateStr,
@@ -1371,10 +1371,18 @@ async function handleWhatsAppMessage({ sender, message }) {
 
     if (isAvailKeyword && !BOOKING_CODE_RE.test(cleanMsg)) {
       replyPayload = await handleAvailabilityCheck(cleanMsg, { sender: cleanPhone, userId: cleanPhone });
+    } else if (BOOKING_CODE_RE.test(cleanMsg) || lowerMsg.includes('bukti transfer') || lowerMsg.includes('pembayaran') || lowerMsg.includes('klaim') || lowerMsg.includes('harga') || lowerMsg.includes('tarif') || lowerMsg.includes('biaya') || lowerMsg.includes('mau booking') || lowerMsg.includes('booking cuci')) {
+      replyPayload = await handleFallbackOfflineChat(cleanMsg, cleanPhone);
     } else {
       // 4. Tanya layanan / harga / status (BR-44)
       try {
         replyPayload = await handleChat(cleanMsg, cleanPhone, 'customer');
+        if (replyPayload && (replyPayload.fallback || !replyPayload.jawaban || replyPayload.jawaban.includes('belum paham'))) {
+          const offlinePayload = await handleFallbackOfflineChat(cleanMsg, cleanPhone);
+          if (offlinePayload && offlinePayload.jawaban) {
+            replyPayload = offlinePayload;
+          }
+        }
       } catch (err) {
         // Fallback jika AI service offline / 503
         replyPayload = await handleFallbackOfflineChat(cleanMsg, cleanPhone);
